@@ -75,7 +75,7 @@ class NetworkInterfacesAdapter(INetworkManagementSystem):
         stanza + space + interface + Optional(space + Regex("inet|can") + method + Group(ZeroOrMore(option)))
     )
 
-    interface_file = OneOrMore(interface_block).ignore(pythonStyleComment)
+    interface_file = ZeroOrMore(interface_block).ignore(pythonStyleComment)
 
     def __init__(self, input_file_name=None, content=None):
         self.filename = None
@@ -171,7 +171,7 @@ class NetworkInterfacesAdapter(INetworkManagementSystem):
             if name in interfaces:
                 iface = interfaces[name]
             else:
-                iface = dict(name=name)
+                iface = dict(name=name, auto=False)
                 interfaces[name] = iface
                 res.append(iface)
             # auto?
@@ -190,6 +190,11 @@ class NetworkInterfacesAdapter(INetworkManagementSystem):
                 for opt in iface_definition[4]:
                     options[opt[0]] = opt[1]
                 iface["options"] = options
+        for iface in res:
+            method = iface.get("method")
+            iface["type"] = method
+            if method == "static" and iface.get("mode") == "can":
+                iface["type"] = "can"
         return res
 
     @staticmethod
@@ -199,11 +204,12 @@ class NetworkInterfacesAdapter(INetworkManagementSystem):
         return None
 
     def apply(self, interfaces):
-        supported_methods = ["loopback", "dhcp", "static", "can", "manual", "ppp"]
+        supported_types = ["loopback", "dhcp", "static", "can", "manual", "ppp"]
         unmanaged = []
         self.interfaces = []
         for iface in interfaces:
-            if iface.get("method") in supported_methods:
+            if iface.get("type") in supported_types:
+                iface.pop("type", None)
                 self.interfaces.append(iface)
             else:
                 unmanaged.append(iface)

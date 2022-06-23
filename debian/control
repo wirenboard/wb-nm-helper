@@ -2,7 +2,7 @@ Source: wb-nm-helper
 Section: admin
 Priority: optional
 Maintainer: Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.ru>
-Build-Depends: debhelper (>= 10), dh-python, python3-all, python3-setuptools, pkg-config
+Build-Depends: debhelper (>= 10), dh-python, python3-all, python3-setuptools, pkg-config, config-package-dev
 Standards-Version: 4.5.0
 Homepage: https://github.com/wirenboard/wb-nm-helper
 
@@ -20,6 +20,7 @@ Depends: ${misc:Depends},
          wb-mqtt-homeui (>= 2.47.1~~),
          network-manager,
          modemmanager,
-         mobile-broadband-provider-info
+         mobile-broadband-provider-info,
+         wb-configs (>= 3.4.0)
 Description:  Wirenboard network configuration backend for wb-mqtt-confed.
  The package includes wb-mqtt-confed backend software for network interfaces management.

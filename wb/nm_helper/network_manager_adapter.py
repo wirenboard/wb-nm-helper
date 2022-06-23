@@ -196,9 +196,9 @@ def get_ipv4_dbus_options(res: JSONSettings, cfg: DBUSSettings) -> None:
 
 
 class Connection:
-    def __init__(self, dbus_type: str, ui_method: str, additional_params: list[Param]) -> None:
+    def __init__(self, dbus_type: str, ui_type: str, additional_params: list[Param]) -> None:
         self.dbus_type = dbus_type
-        self.ui_method = ui_method
+        self.ui_type = ui_type
         self.params = connection_params + additional_params
 
     def set_dbus_options(self, con: DBUSSettings, iface: JSONSettings):
@@ -206,6 +206,12 @@ class Connection:
         set_ipv4_dbus_options(con, iface)
 
     def create(self, iface: JSONSettings) -> dbus.Dictionary:
+        # A new WiFi AP will be created
+        # NM conflicts with dnsmasq and hostapd so stop and disable them
+        os.system("systemctl stop hostapd")
+        os.system("systemctl disable hostapd")
+        os.system("systemctl stop dnsmasq")
+        os.system("systemctl disable dnsmasq")
         con = DBUSSettings()
         self.set_dbus_options(con, iface)
         con.set_value("connection.type", self.dbus_type)
@@ -222,7 +228,7 @@ class Connection:
         if not self.can_manage(cfg):
             return None
         res = JSONSettings()
-        res.set_value("method", self.ui_method)
+        res.set_value("type", self.ui_type)
         res.set_opts(cfg, self.params)
         get_ipv4_dbus_options(res, cfg)
         return res.params
@@ -290,7 +296,7 @@ class WiFiConnection(Connection):
 class WiFiAp(WiFiConnection):
     def __init__(self) -> None:
         WiFiConnection.__init__(self)
-        self.ui_method = METHOD_WIFI_AP
+        self.ui_type = METHOD_WIFI_AP
 
     def can_manage(self, cfg: DBUSSettings) -> bool:
         return Connection.can_manage(self, cfg) and (cfg.get_opt("802-11-wireless.mode") == "ap")
@@ -357,7 +363,7 @@ class NetworkManagerAdapter(INetworkManagementSystem):
         self.remove_undefined_connections(interfaces)
         unmanaged_interfaces = []
         for iface in interfaces:
-            handler = self.handlers.get(iface["method"])
+            handler = self.handlers.get(iface["type"])
             if handler is not None:
                 apply(iface, handler, self.network_manager)
             else:
@@ -372,6 +378,7 @@ class NetworkManagerAdapter(INetworkManagementSystem):
                 if cfg is not None:
                     res.append(cfg)
                     break
+        res.sort(key=lambda v: v.get("connection_id", ""))
         return res
 
     def scan_if_needed(self, dev: NMWirelessDevice) -> None:

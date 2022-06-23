@@ -3,7 +3,7 @@
 export PYBUILD_NAME=wb-nm-helper
 
 %:
-	dh $@ --with python3 --buildsystem pybuild
+	dh $@ --with config-package --with python3 --buildsystem pybuild
 
 override_dh_installinit:
 	dh_installinit --noscripts --name=wb-connection-manager
