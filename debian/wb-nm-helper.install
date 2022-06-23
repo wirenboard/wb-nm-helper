@@ -1,0 +1,2 @@
+bin/wb-nm-helper /usr/bin
+wb-network.schema.json /usr/share/wb-mqtt-confed/schemas
