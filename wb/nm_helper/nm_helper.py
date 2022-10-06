@@ -8,8 +8,6 @@ JSON_INDENT_LEVEL = 2
 SERIAL_FILE = "/var/lib/wirenboard/serial.conf"
 PRIMARY_IFACE = "eth0"
 
-_cached_serial = None
-
 
 def get_adapters():
     adapters = []
@@ -22,29 +20,19 @@ def get_adapters():
     return adapters
 
 
-def get_serial():
-    global _cached_serial
-    if _cached_serial is None:
-        try:
-            with open(SERIAL_FILE, "r") as f:
-                _cached_serial = (f.readline().strip(),)
-        except IOError:
-            print >>sys.stderr, "cannot find %s" % SERIAL_FILE
-            _cached_serial = (None,)
-    return _cached_serial[0]
-
-
 def to_json():
     interfaces = []
+    ssids = []
+    devices = {
+        "ethernet": [],
+        "wifi": [],
+        "modem": []
+    }
     for adapter in get_adapters():
         interfaces = interfaces + adapter.read()
-    serial = get_serial()
-    if serial is not None:
-        for iface in interfaces:
-            if iface.get("name") == PRIMARY_IFACE:
-                iface.setdefault("options", {})["hwaddress"] = serial
-                break
-    r = dict(interfaces=interfaces)
+        ssids = ssids + adapter.get_wifi_ssids()
+        adapter.add_devices(devices)
+    r = dict(interfaces=interfaces, ssids=ssids, devices=devices)
     json.dump(r, sys.stdout, sort_keys=True, indent=JSON_INDENT_LEVEL)
 
 

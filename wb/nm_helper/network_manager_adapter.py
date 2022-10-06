@@ -1,6 +1,8 @@
 from ipaddress import IPv4Interface
 from packaging import version
 
+import time
+import datetime
 import dbus
 
 from .network_managing_system import NetworkManagingSystem
@@ -10,6 +12,13 @@ NM_PATH = "/org/freedesktop/NetworkManager"
 SETTINGS_IFACE_NAME = NM_IFACE_NAME + ".Settings"
 SETTINGS_LIST_PATH = NM_PATH + "/Settings"
 PROPS_IFACE_NAME = "org.freedesktop.DBus.Properties"
+
+# from enum NMDeviceType
+NM_DEVICE_TYPE_ETHERNET = 1
+NM_DEVICE_TYPE_WIFI = 2
+NM_DEVICE_TYPE_MODEM = 8
+
+WIFI_SCAN_TIMEOUT = datetime.timedelta(seconds=5)
 
 DEV_TYPES = {
     1: "Ethernet",
@@ -49,6 +58,12 @@ def to_mac_list(mac_string):
     if mac_string is None:
         return None
     return dbus.Array(map(lambda item: dbus.Byte(int(item, 16)), mac_string.split(":")))
+
+
+def not_empty_string(str):
+    if len(str) == 0:
+        return None
+    return str
 
 
 def to_dbus_byte_array(val):
@@ -121,8 +136,8 @@ def set_ipv4_dbus_options(con, iface):
         set(con, "ipv4.dhcp-client-id", None)
     else:
         set(con, "ipv4.method", "auto")
-        set(con, "ipv4.dhcp-hostname",  iface, "ipv4.hostname")
-        set(con, "ipv4.dhcp-client-id", iface, "ipv4.client")
+        set(con, "ipv4.dhcp-hostname",  iface, "ipv4.hostname", not_empty_string)
+        set(con, "ipv4.dhcp-client-id", iface, "ipv4.client", not_empty_string)
         set(con, "ipv4.gateway", None)
         set(con, "ipv4.address-data", None)
         set(con, "ipv4.route-metric", None)
@@ -145,24 +160,26 @@ def get_ipv4_dbus_options(res, cfg):
 def set_common_dbus_options(con, iface):
     if iface.get("uuid"):
         set(con, "connection.uuid", iface, "uuid")
-    set(con, "connection.interface-name", iface, "name")
+    set(con, "connection.id", iface, "name")
+    set(con, "connection.interface-name", iface, "device", not_empty_string)
     set(con, "connection.autoconnect", iface.get("auto", False))
 
 
 def get_common_dbus_options(cfg, method):
     res = {
         "method": method,
-        "name": cfg["connection"]["interface-name"],
-        "auto": cfg["connection"].get("autoconnect", True),
+        "name": cfg["connection"]["id"],
+        "auto": bool(cfg["connection"].get("autoconnect", True)),
         "uuid": cfg["connection"]["uuid"]
     }
+    set(res, "device", cfg, "connection.interface-name")
     return res
 
 
 class EthernetConnection:
     def set_dbus_options(self, con, iface, nm_version):
         set_common_dbus_options(con, iface)
-        set(con, "802-3-ethernet.mac-address", iface, "hwaddress", to_mac_list)
+        set(con, "802-3-ethernet.cloned-mac-address", iface, "hwaddress", to_mac_list)
         set(con, "802-3-ethernet.mtu", iface, "mtu")
         set_ipv4_dbus_options(con, iface)
 
@@ -175,8 +192,7 @@ class EthernetConnection:
 
 
     def can_manage(self, cfg):
-        return ((cfg["connection"]["type"] in ["802-3-ethernet"]) and 
-                (cfg["connection"].get("interface-name") is not None))
+        return (cfg["connection"]["type"] in ["802-3-ethernet"])
 
 
     def read(self, c_obj):
@@ -184,7 +200,7 @@ class EthernetConnection:
         if not self.can_manage(cfg):
             return None
         res = get_common_dbus_options(cfg, "nm_ethernet")
-        set(res, "hwaddress", cfg, "802-3-ethernet.mac-address", to_mac_string)
+        set(res, "hwaddress", cfg, "802-3-ethernet.cloned-mac-address", to_mac_string)
         set(res, "mtu", cfg, "802-3-ethernet.mtu")
         get_ipv4_dbus_options(res, cfg)
         return res
@@ -193,7 +209,7 @@ class EthernetConnection:
 class WiFiConnection:
     def set_dbus_options(self, con, iface, nm_version):
         set_common_dbus_options(con, iface)
-        set(con, "802-11-wireless.mac-address", iface, "hwaddress", to_mac_list)
+        set(con, "802-11-wireless.cloned-mac-address", iface, "hwaddress", to_mac_list)
         set(con, "802-11-wireless.ssid", iface, "ssid", to_dbus_byte_array)
         wpa_psk = get_opt(iface, "wpa-psk")
         if wpa_psk is not None:
@@ -205,13 +221,12 @@ class WiFiConnection:
     def create(self, iface, settings_iface, nm_version):
         con = dbus.Dictionary()
         self.set_dbus_options(con, iface, nm_version)
-        set(con, "connection.id", "%s-%s" % (iface["name"], iface["ssid"]))
+        set(con, "connection.id", iface["name"])
         settings_iface.AddConnection(con)
 
 
     def can_manage(self, cfg):
-        return ((cfg["connection"]["type"] in ["802-11-wireless"]) and 
-                (cfg["connection"].get("interface-name") is not None))
+        return (cfg["connection"]["type"] in ["802-11-wireless"])
 
 
     def read(self, c_obj):
@@ -219,7 +234,7 @@ class WiFiConnection:
         if not self.can_manage(cfg):
             return None
         res = get_common_dbus_options(cfg, "nm_wifi")
-        set(res, "hwaddress", cfg, "802-11-wireless.mac-address", to_mac_string)
+        set(res, "hwaddress", cfg, "802-11-wireless.cloned-mac-address", to_mac_string)
         set(res, "ssid",  cfg, "802-11-wireless.ssid", to_ascii_string)
         set(res, "mtu", cfg, "802-11-wireless.mtu")
         if get_opt(cfg, "802-11-wireless-security.key-mgmt") == "wpa-psk":
@@ -231,7 +246,8 @@ class WiFiConnection:
 class PPPConnection:
     def set_dbus_options(self, con, iface, nm_version):
         set_common_dbus_options(con, iface)
-        if get_opt(iface, "apn"):
+        set(con, "gsm.sim-slot", iface, "sim-slot")
+        if len(get_opt(iface, "apn", "")) != 0:
             set(con, "gsm.apn", iface, "apn")
             set(con, "gsm.auto-config", None)
         else:
@@ -243,14 +259,13 @@ class PPPConnection:
     def create(self, iface, settings_iface, nm_version):
         con = dbus.Dictionary()
         self.set_dbus_options(con, iface, nm_version)
-        set(con, "connection.id", "gsm-%s" % iface["name"])
+        set(con, "connection.id", iface["name"])
         set(con, "connection.type", "gsm")
         settings_iface.AddConnection(con)
 
 
     def can_manage(self, cfg):
-        return ((cfg["connection"]["type"] in ["gsm"]) and
-                (cfg["connection"].get("interface-name") is not None))
+        return (cfg["connection"]["type"] in ["gsm"])
 
 
     def read(self, c_obj):
@@ -259,6 +274,8 @@ class PPPConnection:
             return None
         res = get_common_dbus_options(cfg, "nm_gsm_ppp")
         set(res, "apn", cfg, "gsm.apn")
+        set(res, "sim-slot", cfg, "gsm.sim-slot")
+        get_ipv4_dbus_options(res, cfg)
         return res
 
 
@@ -269,7 +286,7 @@ def apply(iface, c_handler, bus, settings, nm_version):
             c_obj = dbus.Interface(c_proxy, SETTINGS_IFACE_NAME + ".Connection")
             c_settings = c_obj.GetSettings()
             if c_settings["connection"]["uuid"] == iface["uuid"]:
-                if c_settings["connection"]["interface-name"] == iface["name"]:
+                if c_settings["connection"]["id"] == iface["name"]:
                     c_handler.set_dbus_options(c_settings, iface, nm_version)
                     c_obj.Update(c_settings)
                 else:
@@ -332,3 +349,59 @@ class NetworkManagerAdapter(NetworkManagingSystem):
                     res.append(cfg)
                     break
         return res
+
+    def scan_if_needed(self, dev_proxy):
+        prop_iface = dbus.Interface(dev_proxy, PROPS_IFACE_NAME)
+        last_scan_ms = prop_iface.Get(NM_IFACE_NAME + ".Device.Wireless", "LastScan")
+        # nmcli requests rescan if last one was more than 30 seconds ago
+        if (last_scan_ms != -1) and (time.clock_gettime_ns(time.CLOCK_BOOTTIME) / 1000000 - last_scan_ms < 30000):
+            return
+        wireless_iface = dbus.Interface(dev_proxy, NM_IFACE_NAME + ".Device.Wireless")
+        wireless_iface.RequestScan([])
+        # Documentation says:
+        #   To know when the scan is finished, use the "PropertiesChanged" signal 
+        #   from "org.freedesktop.DBus.Properties" to listen to changes to the "LastScan" property.
+        #
+        # Simply poll "LastScan"
+        start = datetime.datetime.now()
+        while start - datetime.datetime.now() <= WIFI_SCAN_TIMEOUT:
+            if  last_scan_ms != prop_iface.Get(NM_IFACE_NAME + ".Device.Wireless", "LastScan"):
+                return
+            time.sleep(1)
+
+    def get_wifi_ssids(self):
+        bus = dbus.SystemBus()
+        nm_proxy = bus.get_object(NM_IFACE_NAME, NM_PATH)
+        nm = dbus.Interface(nm_proxy, NM_IFACE_NAME)
+        devices = nm.GetDevices()
+        for d in devices:
+            dev_proxy = bus.get_object(NM_IFACE_NAME, d)
+            prop_iface = dbus.Interface(dev_proxy, PROPS_IFACE_NAME)
+            if prop_iface.Get(NM_IFACE_NAME + ".Device", "DeviceType") == NM_DEVICE_TYPE_WIFI:
+                self.scan_if_needed(dev_proxy)
+                res = []
+                wireless_iface = dbus.Interface(dev_proxy, NM_IFACE_NAME + ".Device.Wireless")
+                for ap_path in wireless_iface.GetAllAccessPoints():
+                    ap_proxy = bus.get_object(NM_IFACE_NAME, ap_path)
+                    ap_iface = dbus.Interface(ap_proxy, PROPS_IFACE_NAME)
+                    res.append(to_ascii_string(ap_iface.Get(NM_IFACE_NAME + ".AccessPoint", "Ssid")))
+                res.sort()
+                return res
+        return []
+
+    def add_devices(self, devices):
+        type_mapping = {
+            NM_DEVICE_TYPE_ETHERNET: "ethernet",
+            NM_DEVICE_TYPE_WIFI: "wifi",
+            NM_DEVICE_TYPE_MODEM: "modem"
+        }
+        bus = dbus.SystemBus()
+        nm_proxy = bus.get_object(NM_IFACE_NAME, NM_PATH)
+        nm = dbus.Interface(nm_proxy, NM_IFACE_NAME)
+        for d in nm.GetDevices():
+            dev_proxy = bus.get_object(NM_IFACE_NAME, d)
+            prop_iface = dbus.Interface(dev_proxy, PROPS_IFACE_NAME)
+            mapping = type_mapping.get(prop_iface.Get(NM_IFACE_NAME + ".Device", "DeviceType"))
+            if mapping:
+                devices.setdefault(mapping, []).append(prop_iface.Get(NM_IFACE_NAME + ".Device", "Interface"))
+        return devices

@@ -14,3 +14,9 @@ class NetworkManagingSystem(object):
 
     def read(self):
         pass
+
+    def get_wifi_ssids(self):
+        return []
+    
+    def add_devices(self, devices):
+        return []

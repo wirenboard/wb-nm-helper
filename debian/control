@@ -14,6 +14,6 @@ Description: Wirenboard network configuration python3 library
 
 Package: wb-nm-helper
 Architecture: all
-Depends: ${misc:Depends}, python3 (>= 3.5), python3-wb-nm-helper (= ${binary:Version})
+Depends: ${misc:Depends}, python3 (>= 3.5), python3-wb-nm-helper (= ${binary:Version}), wb-mqtt-homeui (>= 2.47.0)
 Description:  Wirenboard network configuration backend for wb-mqtt-confed.
  The package includes wb-mqtt-confed backend software for network interfaces management.

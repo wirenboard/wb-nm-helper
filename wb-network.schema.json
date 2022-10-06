@@ -1,7 +1,7 @@
 {
     "$schema": "http://json-schema.org/draft-04/schema#",
     "type": "object",
-    "title": "Network Interfaces",
+    "title": "Network connections",
     "configFile": {
         "path": "/etc/network/interfaces",
         "toJSON": "wb-nm-helper",
@@ -112,7 +112,7 @@
                         "method",
                         "mode"
                     ],
-                    "required": ["name", "method", "mode"]
+                    "required": ["method", "name", "mode"]
                 }
             ]
         },
@@ -226,7 +226,7 @@
                         "method",
                         "options"
                     ],
-                    "required": ["name", "mode", "method"]
+                    "required": ["method", "name", "mode"]
                 }
             ],
             "options": {
@@ -289,7 +289,7 @@
                         "method",
                         "options"
                     ],
-                    "required": ["name", "mode", "method"]
+                    "required": ["method", "name", "mode"]
                 }
             ],
             "options": {
@@ -341,7 +341,7 @@
                         "method",
                         "options"
                     ],
-                    "required": ["name", "mode", "method"]
+                    "required": ["method", "name", "mode"]
                 }
             ]
         },
@@ -401,7 +401,7 @@
                         "method",
                         "options"
                     ],
-                    "required": ["name", "mode", "method"]
+                    "required": ["method", "name", "mode"]
                 }
             ],
             "options": {
@@ -458,7 +458,7 @@
                         "mode",
                         "method"
                     ],
-                    "required": ["name", "mode", "method"]
+                    "required": ["method", "name", "mode"]
                 }
             ]
         },
@@ -467,18 +467,40 @@
             "type": "object",
             "description": "Managed by NetworkManager",
             "properties": {
+                "name": {
+                    "type": "string",
+                    "title": "Connection name",
+                    "minLength": 1,
+                    "propertyOrder": 1
+                },
                 "auto": {
                     "type": "boolean",
                     "default": true,
                     "title": "Auto",
                     "_format": "checkbox",
-                    "propertyOrder": 1
-                },
-                "name": {
-                    "type": "string",
-                    "title": "Interface",
-                    "minLength": 1,
                     "propertyOrder": 2
+                },
+                "device": {
+                    "type": "string",
+                    "title": "Only for device",
+                    "propertyOrder": 3,
+                    "options": {
+                        "inputAttributes": {
+                            "placeholder":  "use with any suitable device"
+                        },
+                        "wb": {
+                            "show_editor": true
+                        }
+                    },
+                    "watch": {
+                        "devices": "devices.ethernet"
+                    },
+                    "enumSource": [
+                        {
+                            "source": "devices"
+                        }
+                    ],
+                    "_format": "edWb"
                 },
                 "method": {
                     "type": "string",
@@ -505,25 +527,30 @@
                     }
                 },
                 "mtu": {
-                    "type": "string",
+                    "type": "integer",
                     "title": "MTU",
                     "default": 1500,
                     "propertyOrder": 18,
                     "options": {
+                        "inputAttributes": {
+                            "placeholder":  " "
+                        },
                         "show_opt_in": true
                     }
                 },
                 "ipv4": {
+                    "title": "IPv4",
                     "oneOf": [
                         {"$ref": "#/definitions/nm_ipv4_auto"},
                         {"$ref": "#/definitions/nm_ipv4_manual"}
                     ],
+                    "propertyOrder": 4,
                     "options": {
                         "keep_oneof_values": false
                     }
                 }
             },
-            "required": ["name", "uuid", "method", "ipv4"],
+            "required": ["method", "name", "uuid", "ipv4"],
             "options": {
                 "disable_edit_json": true,
                 "disable_properties": true,
@@ -537,17 +564,17 @@
             "type": "object",
             "description": "Managed by NetworkManager",
             "properties": {
+                "name": {
+                    "type": "string",
+                    "title": "Connection name",
+                    "minLength": 1,
+                    "propertyOrder": 1
+                },
                 "auto": {
                     "type": "boolean",
                     "default": true,
                     "title": "Auto",
                     "_format": "checkbox",
-                    "propertyOrder": 1
-                },
-                "name": {
-                    "type": "string",
-                    "title": "Interface",
-                    "minLength": 1,
                     "propertyOrder": 2
                 },
                 "method": {
@@ -569,7 +596,16 @@
                     "type": "string",
                     "title": "SSID",
                     "propertyOrder": 3,
-                    "minLength": 1
+                    "minLength": 1,
+                    "watch": {
+                        "ssids": "ssids"
+                    },
+                    "enumSource": [
+                        {
+                            "source": "ssids"
+                        }
+                    ],
+                    "_format": "edWb"
                 },
                 "wpa-psk": {
                     "type": "string",
@@ -589,11 +625,14 @@
                     }
                 },
                 "mtu": {
-                    "type": "string",
+                    "type": "integer",
                     "title": "MTU",
                     "default": 1500,
                     "propertyOrder": 6,
                     "options": {
+                        "inputAttributes": {
+                            "placeholder":  " "
+                        },
                         "show_opt_in": true
                     }
                 },
@@ -607,9 +646,31 @@
                     "options": {
                         "keep_oneof_values": false
                     }
+                },
+                "device": {
+                    "type": "string",
+                    "title": "Only for device",
+                    "propertyOrder": 8,
+                    "options": {
+                        "inputAttributes": {
+                            "placeholder":  "use with any suitable device"
+                        },
+                        "wb": {
+                            "show_editor": true
+                        }
+                    },
+                    "watch": {
+                        "devices": "devices.wifi"
+                    },
+                    "enumSource": [
+                        {
+                            "source": "devices"
+                        }
+                    ],
+                    "_format": "edWb"
                 }
             },
-            "required": ["name", "uuid", "method", "ssid", "ipv4"],
+            "required": ["method", "name", "uuid", "ssid", "ipv4"],
             "options": {
                 "disable_edit_json": true,
                 "disable_properties": true,
@@ -619,21 +680,21 @@
             }
         },
         "method_nm_gsm_ppp": {
-            "title": "GSM PPP",
+            "title": "Modem",
             "type": "object",
             "description": "Managed by NetworkManager",
             "properties": {
+                "name": {
+                    "type": "string",
+                    "title": "Connection name",
+                    "minLength": 1,
+                    "propertyOrder": 1
+                },
                 "auto": {
                     "type": "boolean",
                     "default": true,
                     "title": "Auto",
                     "_format": "checkbox",
-                    "propertyOrder": 1
-                },
-                "name": {
-                    "type": "string",
-                    "title": "Interface",
-                    "minLength": 1,
                     "propertyOrder": 2
                 },
                 "method": {
@@ -654,15 +715,64 @@
                 "apn": {
                     "type": "string",
                     "title": "APN",
-                    "minLength": 1,
                     "propertyOrder": 3,
-                    "description": "apn_description",
                     "options": {
+                        "inputAttributes": {
+                            "placeholder":  "apn_placeholder"
+                        },
+                        "wb": {
+                            "show_editor": true
+                        }
+                    }
+                },
+                "sim-slot": {
+                    "type": "integer",
+                    "title": "Only for SIM slot",
+                    "enum": [1, 2],
+                    "default": 1,
+                    "propertyOrder": 4,
+                    "options": {
+                        "inputAttributes": {
+                            "placeholder":  "any SIM-slot"
+                        },
                         "show_opt_in": true
                     }
+                },
+                "ipv4": {
+                    "title": "IPv4",
+                    "oneOf": [
+                        {"$ref": "#/definitions/nm_ipv4_auto"},
+                        {"$ref": "#/definitions/nm_ipv4_manual"}
+                    ],
+                    "propertyOrder": 5,
+                    "options": {
+                        "keep_oneof_values": false
+                    }
+                },
+                "device": {
+                    "type": "string",
+                    "title": "Only for device",
+                    "propertyOrder": 6,
+                    "options": {
+                        "inputAttributes": {
+                            "placeholder":  "use with any suitable device"
+                        },
+                        "wb": {
+                            "show_editor": true
+                        }
+                    },
+                    "watch": {
+                        "devices": "devices.modem"
+                    },
+                    "enumSource": [
+                        {
+                            "source": "devices"
+                        }
+                    ],
+                    "_format": "edWb"
                 }
             },
-            "required": ["name", "uuid", "method"],
+            "required": ["method", "name", "uuid"],
             "options": {
                 "disable_edit_json": true,
                 "disable_properties": true,
@@ -742,7 +852,9 @@
                     "title": "Hostname to be requested",
                     "propertyOrder": 12,
                     "options": {
-                        "show_opt_in": true
+                        "wb": {
+                            "show_editor": true
+                        }
                     }
                 },
                 "client": {
@@ -750,7 +862,9 @@
                     "title": "Client identifier",
                     "propertyOrder": 13,
                     "options": {
-                        "show_opt_in": true
+                        "wb": {
+                            "show_editor": true
+                        }
                     }
                 }
             },
@@ -765,10 +879,10 @@
     "properties": {
         "interfaces": {
             "type": "array",
-            "title": "List of network interfaces",
+            "title": "List of network connections",
             "items": {
-                "title": "interface_title",
-                "headerTemplate": "Interface{{ |self.name}}",
+                "title": "connection_title",
+                "headerTemplate": "{{self.name}}",
                 "oneOf": [
                     { "$ref": "#/definitions/method_nm_ethernet" },
                     { "$ref": "#/definitions/method_nm_wifi" },
@@ -793,6 +907,18 @@
                 "disable_collapse": true
             },
             "_format": "tabs"
+        },
+        "ssids": {
+            "type": "array",
+            "options": {
+                "hidden": true
+          }
+        },
+        "devices": {
+            "type": "object",
+            "options": {
+                "hidden": true
+          }
         }
     },
     "required": ["interfaces"],
@@ -804,11 +930,11 @@
 
     "translations": {
         "en": {
-            "interface_title": "Interface",
-            "apn_description": "If not set, NetworkManager will try to define it according to information from SIM-card"
+            "connection_title": "Connection",
+            "apn_placeholder": "define APN according to information from SIM-card"
         },
         "ru": {
-            "Network Interfaces": "Сетевые интерфейсы",
+            "Network connections": "Сетевые соединения",
             "Auto": "Включать автоматически",
             "Name": "Имя интерфейса",
             "Allow hotplug": "Разрешить горячее подключение",
@@ -846,16 +972,21 @@
             "PPP unit number": "Номер устройства PPP",
             "Additional options": "Дополнительные параметры",
             "Manual": "Пользовательский",
-            "List of network interfaces": "Список сетевых интерфейсов",
-            "Interface{{ |self.name}}": "Интерфейс {{ |self.name}}",
+            "List of network connections": "Список сетевых соединений",
             "Point-to-point address": "Адрес конечного узла",
             "For point-to-point configuration": "Для конфигурации соединения точка-точка",
             "Refers to the file in /etc/ppp/peers": "Указать имя файла конфигурации из директории /etc/ppp/peers",
             "Managed by /etc/network/interfaces": "Управляется через /etc/network/interfaces",
             "Managed by NetworkManager": "Управляется через NetworkManager",
             "Interface": "Имя интерфейса",
-            "interface_title": "Интерфейс",
-            "apn_description": "Если APN не задан, NetworkManager попытается определить его автоматически на основании информации об операторе SIM-карты"
+            "connection_title": "Соединение",
+            "apn_placeholder": "определить APN автоматически на основании информации об операторе SIM-карты",
+            "Connection name": "Название соединения",
+            "Only for SIM slot": "Только для SIM-слота",
+            "Only for device": "Только для устройства",
+            "Modem": "Модем",
+            "use with any suitable device": "для любого подходящего устройства",
+            "any SIM-slot": "для любого SIM-слота"
         }
     }
 }
