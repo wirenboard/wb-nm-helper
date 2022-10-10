@@ -20,6 +20,10 @@ NM_DEVICE_TYPE_MODEM = 8
 
 WIFI_SCAN_TIMEOUT = datetime.timedelta(seconds=5)
 
+METHOD_ETHERNET = "01_nm_ethernet"
+METHOD_MODEM = "02_nm_modem"
+METHOD_WIFI = "03_nm_wifi"
+
 DEV_TYPES = {
     1: "Ethernet",
     2: "Wi-Fi",
@@ -107,7 +111,7 @@ def set(dst, dst_path, src, src_path = None, convert_fn = None):
 
 def remove_undefined_connections(interfaces, bus, settings):
     uids = [get_opt(i, "uuid") for i in interfaces if get_opt(i, "uuid") is not None]
-    handlers = [ EthernetConnection(), WiFiConnection(), PPPConnection() ]
+    handlers = [ EthernetConnection(), WiFiConnection(), ModemConnection() ]
     for c_path in settings.ListConnections():
         c_proxy = bus.get_object(NM_IFACE_NAME, c_path)
         c_obj = dbus.Interface(c_proxy, SETTINGS_IFACE_NAME + ".Connection")
@@ -199,7 +203,7 @@ class EthernetConnection:
         cfg = c_obj.GetSettings()
         if not self.can_manage(cfg):
             return None
-        res = get_common_dbus_options(cfg, "nm_ethernet")
+        res = get_common_dbus_options(cfg, METHOD_ETHERNET)
         set(res, "hwaddress", cfg, "802-3-ethernet.cloned-mac-address", to_mac_string)
         set(res, "mtu", cfg, "802-3-ethernet.mtu")
         get_ipv4_dbus_options(res, cfg)
@@ -233,7 +237,7 @@ class WiFiConnection:
         cfg = c_obj.GetSettings()
         if not self.can_manage(cfg):
             return None
-        res = get_common_dbus_options(cfg, "nm_wifi")
+        res = get_common_dbus_options(cfg, METHOD_WIFI)
         set(res, "hwaddress", cfg, "802-11-wireless.cloned-mac-address", to_mac_string)
         set(res, "ssid",  cfg, "802-11-wireless.ssid", to_ascii_string)
         set(res, "mtu", cfg, "802-11-wireless.mtu")
@@ -243,7 +247,7 @@ class WiFiConnection:
         return res
 
 
-class PPPConnection:
+class ModemConnection:
     def set_dbus_options(self, con, iface, nm_version):
         set_common_dbus_options(con, iface)
         set(con, "gsm.sim-slot", iface, "sim-slot")
@@ -272,7 +276,7 @@ class PPPConnection:
         cfg = c_obj.GetSettings()
         if not self.can_manage(cfg):
             return None
-        res = get_common_dbus_options(cfg, "nm_gsm_ppp")
+        res = get_common_dbus_options(cfg, METHOD_MODEM)
         set(res, "apn", cfg, "gsm.apn")
         set(res, "sim-slot", cfg, "gsm.sim-slot")
         get_ipv4_dbus_options(res, cfg)
@@ -321,9 +325,9 @@ class NetworkManagerAdapter(NetworkManagingSystem):
         remove_undefined_connections(interfaces, bus, settings)
         unmanaged_interfaces = []
         handlers = {
-            "nm_ethernet": EthernetConnection(),
-            "nm_wifi": WiFiConnection(),
-            "nm_gsm_ppp": PPPConnection()
+            METHOD_ETHERNET: EthernetConnection(),
+            METHOD_MODEM: ModemConnection(),
+            METHOD_WIFI: WiFiConnection()
         }
         for iface in interfaces:
             handler = handlers.get(iface["method"])
@@ -338,7 +342,7 @@ class NetworkManagerAdapter(NetworkManagingSystem):
         bus = dbus.SystemBus()
         proxy = bus.get_object(NM_IFACE_NAME, SETTINGS_LIST_PATH)
         settings = dbus.Interface(proxy, SETTINGS_IFACE_NAME)
-        handlers = [ EthernetConnection(), WiFiConnection(), PPPConnection() ]
+        handlers = [ EthernetConnection(), WiFiConnection(), ModemConnection() ]
         res = []
         for path in settings.ListConnections():
             con_proxy = bus.get_object(NM_IFACE_NAME, path)

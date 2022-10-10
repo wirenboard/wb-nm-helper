@@ -20,13 +20,13 @@
                     "default": true,
                     "title": "Auto",
                     "_format": "checkbox",
-                    "propertyOrder": 1
+                    "propertyOrder": 2
                 },
                 "name": {
                     "type": "string",
                     "title": "Name",
                     "minLength": 1,
-                    "propertyOrder": 2
+                    "propertyOrder": 1
                 },
                 "allow-hotplug": {
                     "type": "boolean",
@@ -112,7 +112,12 @@
                         "method",
                         "mode"
                     ],
-                    "required": ["method", "name", "mode"]
+                    "required": ["method", "name", "mode"],
+                    "options": {
+                        "wb": {
+                            "icon": "loopback"
+                        }
+                    }
                 }
             ]
         },
@@ -231,7 +236,8 @@
             ],
             "options": {
                 "wb": {
-                    "hide_from_selection": true
+                    "hide_from_selection": true,
+                    "icon": "old-settings"
                 }
             }
         },
@@ -294,7 +300,8 @@
             ],
             "options": {
                 "wb": {
-                    "hide_from_selection": true
+                    "hide_from_selection": true,
+                    "icon": "old-settings"
                 }
             }
         },
@@ -341,7 +348,12 @@
                         "method",
                         "options"
                     ],
-                    "required": ["method", "name", "mode"]
+                    "required": ["method", "name", "mode"],
+                    "options": {
+                        "wb": {
+                            "icon": "old-settings"
+                        }
+                    }
                 }
             ]
         },
@@ -406,7 +418,8 @@
             ],
             "options": {
                 "wb": {
-                    "hide_from_selection": true
+                    "hide_from_selection": true,
+                    "icon": "old-settings"
                 }
             }
         },
@@ -458,7 +471,12 @@
                         "mode",
                         "method"
                     ],
-                    "required": ["method", "name", "mode"]
+                    "required": ["method", "name", "mode"],
+                    "options": {
+                        "wb": {
+                            "icon": "old-settings"
+                        }
+                    }
                 }
             ]
         },
@@ -508,7 +526,7 @@
                     "options": {
                         "hidden": true
                     },
-                    "enum": ["nm_ethernet"]
+                    "enum": ["01_nm_ethernet"]
                 },
                 "uuid": {
                     "type": "string",
@@ -555,7 +573,8 @@
                 "disable_edit_json": true,
                 "disable_properties": true,
                 "wb": {
-                    "disable_panel": true
+                    "disable_panel": true,
+                    "icon": "ethernet"
                 }
             }
         },
@@ -583,7 +602,7 @@
                     "options": {
                         "hidden": true
                     },
-                    "enum": ["nm_wifi"]
+                    "enum": ["03_nm_wifi"]
                 },
                 "uuid": {
                     "type": "string",
@@ -675,11 +694,12 @@
                 "disable_edit_json": true,
                 "disable_properties": true,
                 "wb": {
-                    "disable_panel": true
+                    "disable_panel": true,
+                    "icon": "wifi"
                 }
             }
         },
-        "method_nm_gsm_ppp": {
+        "method_nm_modem": {
             "title": "Modem",
             "type": "object",
             "description": "Managed by NetworkManager",
@@ -703,7 +723,7 @@
                     "options": {
                         "hidden": true
                     },
-                    "enum": ["nm_gsm_ppp"]
+                    "enum": ["02_nm_modem"]
                 },
                 "uuid": {
                     "type": "string",
@@ -777,7 +797,8 @@
                 "disable_edit_json": true,
                 "disable_properties": true,
                 "wb": {
-                    "disable_panel": true
+                    "disable_panel": true,
+                    "icon": "modem"
                 }
             }
         },
@@ -886,7 +907,7 @@
                 "oneOf": [
                     { "$ref": "#/definitions/method_nm_ethernet" },
                     { "$ref": "#/definitions/method_nm_wifi" },
-                    { "$ref": "#/definitions/method_nm_gsm_ppp" },
+                    { "$ref": "#/definitions/method_nm_modem" },
                     { "$ref": "#/definitions/method_loopback" },
                     { "$ref": "#/definitions/method_static" },
                     { "$ref": "#/definitions/method_dhcp" },
@@ -904,9 +925,13 @@
                 "array_controls_top": true,
                 "disable_array_delete_last_row": true,
                 "disable_array_reorder": true,
-                "disable_collapse": true
+                "disable_collapse": true,
+                "wb": {
+                    "select_label": "Choose connection type",
+                    "sort_by_property": "method"
+                }
             },
-            "_format": "tabs"
+            "_format": "wb-array"
         },
         "ssids": {
             "type": "array",
@@ -986,7 +1011,8 @@
             "Only for device": "Только для устройства",
             "Modem": "Модем",
             "use with any suitable device": "для любого подходящего устройства",
-            "any SIM-slot": "для любого SIM-слота"
+            "any SIM-slot": "для любого SIM-слота",
+            "Choose connection type": "Выберите тип соединения"
         }
     }
 }
