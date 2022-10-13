@@ -4,6 +4,7 @@ from packaging import version
 import time
 import datetime
 import dbus
+import logging
 
 from .network_managing_system import NetworkManagingSystem
 
@@ -72,6 +73,12 @@ def not_empty_string(str):
 
 def to_dbus_byte_array(val):
     return dbus.ByteArray(val.encode('utf-8'))
+
+
+def minus_one_is_none(val):
+    if val == -1:
+        return None
+    return val
 
 
 def get_opt(opt_dict, path, default = None):
@@ -278,7 +285,7 @@ class ModemConnection:
             return None
         res = get_common_dbus_options(cfg, METHOD_MODEM)
         set(res, "apn", cfg, "gsm.apn")
-        set(res, "sim-slot", cfg, "gsm.sim-slot")
+        set(res, "sim-slot", cfg, "gsm.sim-slot", minus_one_is_none)
         get_ipv4_dbus_options(res, cfg)
         return res
 
@@ -382,15 +389,19 @@ class NetworkManagerAdapter(NetworkManagingSystem):
             dev_proxy = bus.get_object(NM_IFACE_NAME, d)
             prop_iface = dbus.Interface(dev_proxy, PROPS_IFACE_NAME)
             if prop_iface.Get(NM_IFACE_NAME + ".Device", "DeviceType") == NM_DEVICE_TYPE_WIFI:
-                self.scan_if_needed(dev_proxy)
-                res = []
-                wireless_iface = dbus.Interface(dev_proxy, NM_IFACE_NAME + ".Device.Wireless")
-                for ap_path in wireless_iface.GetAllAccessPoints():
-                    ap_proxy = bus.get_object(NM_IFACE_NAME, ap_path)
-                    ap_iface = dbus.Interface(ap_proxy, PROPS_IFACE_NAME)
-                    res.append(to_ascii_string(ap_iface.Get(NM_IFACE_NAME + ".AccessPoint", "Ssid")))
-                res.sort()
-                return res
+                try:
+                    self.scan_if_needed(dev_proxy)
+                    res = []
+                    wireless_iface = dbus.Interface(dev_proxy, NM_IFACE_NAME + ".Device.Wireless")
+                    for ap_path in wireless_iface.GetAllAccessPoints():
+                        ap_proxy = bus.get_object(NM_IFACE_NAME, ap_path)
+                        ap_iface = dbus.Interface(ap_proxy, PROPS_IFACE_NAME)
+                        res.append(to_ascii_string(ap_iface.Get(NM_IFACE_NAME + ".AccessPoint", "Ssid")))
+                    res.sort()
+                    return res
+                except dbus.exceptions.DBusException as ex:
+                    logging.info('Error during Wi-Fi scan: %s', ex)
+
         return []
 
     def add_devices(self, devices):
