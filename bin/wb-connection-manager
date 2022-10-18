@@ -2,6 +2,6 @@
 
 import sys
 
-from wb.nm_helper.nm_helper import main
+from wb.nm_helper.connection_manager import main
 
 sys.exit(main())

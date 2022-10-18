@@ -26,63 +26,64 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-import sys
-import codecs
-
-from pyparsing import White, Word, alphanums, CharsNotIn
-from pyparsing import Forward, Group, OneOrMore
-from pyparsing import pythonStyleComment
-from pyparsing import Literal
-from pyparsing import Optional, ZeroOrMore
-from pyparsing import Regex, SkipTo
-
 from os.path import exists
 
-from .network_managing_system import NetworkManagingSystem
+from pyparsing import (
+    CharsNotIn,
+    Forward,
+    Group,
+    Literal,
+    OneOrMore,
+    Optional,
+    Regex,
+    SkipTo,
+    White,
+    Word,
+    ZeroOrMore,
+    alphanums,
+    pythonStyleComment,
+)
+
+from .network_managing_system import INetworkManagingSystem
 
 NETWORK_INTERFACES_CONFIG = "/etc/network/interfaces"
 
-class NetworkInterfacesAdapter(NetworkManagingSystem):
+
+class NetworkInterfacesAdapter(INetworkManagingSystem):
 
     interface = Word(alphanums + ":")
     key = Word(alphanums + "-_")
     space = White().suppress()
     value = CharsNotIn("{}\n#")
     line = Regex("^.*$")
-    comment = ("#")
+    comment = "#"
     method = Regex("loopback|manual|dhcp|static|ppp|bootp|tunnel|wvdial|ipv4ll")
     stanza = Regex("auto|iface|mapping|allow-hotplug")
-    option_key = Regex("bridge_\w*|post-\w*|up|down|pre-\w*|address"
-                       "|network|netmask|gateway|broadcast|dns-\w*|scope|"
-                       "pointtopoint|metric|hwaddress|mtu|hostname|"
-                       "leasehours|leasetime|vendor|client|bootfile|server"
-                       "|mode|endpoint|dstaddr|local|ttl|provider|unit"
-                       "|options|frame|bitrate|netnum|media|wpa-[\w-]*")
+    option_key = Regex(
+        "bridge_\\w*|post-\\w*|up|down|pre-\\w*|address"
+        "|network|netmask|gateway|broadcast|dns-\\w*|scope|"
+        "pointtopoint|metric|hwaddress|mtu|hostname|"
+        "leasehours|leasetime|vendor|client|bootfile|server"
+        "|mode|endpoint|dstaddr|local|ttl|provider|unit"
+        "|options|frame|bitrate|netnum|media|wpa-[\\w-]*"
+    )
     _eol = Literal("\n").suppress()
     option = Forward()
-    option << Group(space
-                    + option_key
-                    + space
-                    + SkipTo(_eol))
+    option <<= Group(space + option_key + space + SkipTo(_eol))
     interface_block = Forward()
-    interface_block << Group(stanza
-                             + space
-                             + interface
-                             + Optional(
-                                 space
-                                 + Regex("inet|can")
-                                 + method
-                                 + Group(ZeroOrMore(option))))
+    interface_block <<= Group(
+        stanza + space + interface + Optional(space + Regex("inet|can") + method + Group(ZeroOrMore(option)))
+    )
 
     interface_file = OneOrMore(interface_block).ignore(pythonStyleComment)
 
-    def __init__(self, infile=None, content=None):
+    def __init__(self, input_file_name=None, content=None):
         self.filename = None
         self.content = None
         if content:
             self.content = content
-        elif infile is not None:
-            self.filename = infile
+        elif input_file_name is not None:
+            self.filename = input_file_name
             self._read()
         if self.content is not None:
             self.interfaces = self.get_interfaces()
@@ -91,9 +92,8 @@ class NetworkInterfacesAdapter(NetworkManagingSystem):
         """
         Reread the contents from the disk
         """
-        f = codecs.open(self.filename, "r", "utf-8")
-        self.content = f.read()
-        f.close()
+        with open(self.filename, "r", encoding="utf-8") as file:
+            self.content = file.read()
 
     def get(self):
         """
@@ -104,7 +104,6 @@ class NetworkInterfacesAdapter(NetworkManagingSystem):
         if len(self.content):
             return self.interface_file.parseString(self.content)
         return []
-
 
     def format(self):
         """
@@ -164,45 +163,46 @@ class NetworkInterfacesAdapter(NetworkManagingSystem):
 
         :return: list
         """
-        r = []
+        res = []
         interfaces = {}
-        np = self.get()
-        for idefinition in np:
-            name = idefinition[1]
+        prop = self.get()
+        for iface_definition in prop:
+            name = iface_definition[1]
             if name in interfaces:
                 iface = interfaces[name]
             else:
                 iface = dict(name=name)
                 interfaces[name] = iface
-                r.append(iface)
+                res.append(iface)
             # auto?
-            if idefinition[0] == "auto":
+            if iface_definition[0] == "auto":
                 iface["auto"] = True
-            if idefinition[0] == "allow-hotplug":
+            if iface_definition[0] == "allow-hotplug":
                 iface["allow-hotplug"] = True
-            elif idefinition[0] == "iface":
-                mode = idefinition[2]
+            elif iface_definition[0] == "iface":
+                mode = iface_definition[2]
                 iface["mode"] = mode
-                method = idefinition[3]
+                method = iface_definition[3]
                 iface["method"] = method
             # check for options
-            if len(idefinition) == 5:
+            if len(iface_definition) == 5:
                 options = {}
-                for o in idefinition[4]:
-                    options[o[0]] = o[1]
+                for opt in iface_definition[4]:
+                    options[opt[0]] = opt[1]
                 iface["options"] = options
-        return r
+        return res
 
     @staticmethod
     def probe():
-        if (exists(NETWORK_INTERFACES_CONFIG)):
+        if exists(NETWORK_INTERFACES_CONFIG):
             return NetworkInterfacesAdapter(NETWORK_INTERFACES_CONFIG)
         return None
 
     def apply(self, interfaces):
         supported_methods = ["loopback", "dhcp", "static", "can", "manual", "ppp"]
         self.interfaces = filter(lambda i: i.get("method") in supported_methods, interfaces)
-        sys.stdout.write(self.format())
+        with open(NETWORK_INTERFACES_CONFIG, "w", encoding="utf-8") as file:
+            file.write(self.format())
         return []
 
     def read(self):
