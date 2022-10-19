@@ -115,6 +115,7 @@
                     "required": ["method", "name", "mode"],
                     "options": {
                         "wb": {
+                            "hide_from_selection": true,
                             "icon": "loopback"
                         }
                     }
@@ -474,6 +475,7 @@
                     "required": ["method", "name", "mode"],
                     "options": {
                         "wb": {
+                            "hide_from_selection": true,
                             "icon": "old-settings"
                         }
                     }
