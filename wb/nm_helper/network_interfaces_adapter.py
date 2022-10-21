@@ -44,12 +44,12 @@ from pyparsing import (
     pythonStyleComment,
 )
 
-from .network_managing_system import INetworkManagingSystem
+from .network_management_system import INetworkManagementSystem
 
 NETWORK_INTERFACES_CONFIG = "/etc/network/interfaces"
 
 
-class NetworkInterfacesAdapter(INetworkManagingSystem):
+class NetworkInterfacesAdapter(INetworkManagementSystem):
 
     interface = Word(alphanums + ":")
     key = Word(alphanums + "-_")

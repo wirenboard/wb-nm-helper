@@ -5,7 +5,7 @@ class ParseError(Exception):
     pass
 
 
-class INetworkManagingSystem(object):
+class INetworkManagementSystem:
     """
     The base interface provides functions to read or create interfaces for specific network manager system.
     """

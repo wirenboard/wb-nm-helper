@@ -83,7 +83,7 @@ def wait_connection_deactivation(con: NMActiveConnection, timeout) -> None:
 
 
 def get_active_connections(
-    connection_ids: list[str], active_connections: dict[str:NMActiveConnection]
+    connection_ids: list[str], active_connections: dict[str, NMActiveConnection]
 ) -> dict[str, NMActiveConnection]:
     res = {}
     for cn_id, cn in active_connections.items():
@@ -105,6 +105,7 @@ def curl_get(iface: str, url: str) -> str:
 
 # Simple implementation that mimics NM behavior
 # NM reports limited connectivity for all gsm ppp connections
+# https://wirenboard.bitrix24.ru/workgroups/group/218/tasks/task/view/53068/
 # Use NM's implementation after fixing the bug
 def check_connectivity(active_cn: NMActiveConnection) -> bool:
     ifaces = active_cn.get_ifaces()

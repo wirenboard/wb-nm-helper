@@ -25,6 +25,13 @@ NM_DEVICE_TYPE_MODEM = 8
 
 NM_SETTINGS_GSM_SIM_SLOT_DEFAULT = -1
 
+# 802-11-wireless.mode
+NM_WIFI_MODE_INFRASTRUCTURE = "infrastructure"
+NM_WIFI_MODE_MESH = "mesh"
+NM_WIFI_MODE_ADHOC = "adhoc"
+NM_WIFI_MODE_AP = "ap"
+NM_WIFI_MODE_DEFAULT = NM_WIFI_MODE_INFRASTRUCTURE
+
 
 def connection_type_to_device_type(cn_type):
     types = {
@@ -75,7 +82,7 @@ class NetworkManager(NMObject):
             "org.freedesktop.NetworkManager",
         )
 
-    def find_connection(self, cn_id: str) -> NMConnection:
+    def find_connection(self, cn_id: str) -> Optional[NMConnection]:
         for c_obj in self.get_connections():
             settings = c_obj.get_settings()
             if str(settings["connection"]["id"]) == cn_id:
