@@ -248,7 +248,7 @@ class ConnectionManager:
                             self.deactivate_connections(less_priority_connections)
                         except dbus.exceptions.DBusException as ex:
                             # Not a problem if less priority connections still be active
-                            logging.debug("Error during connections deactivation: %s", ex)
+                            logging.warning("Error during connections deactivation: %s", ex)
                         return
                     else:
                         logging.info('"%s" has limited connectivity', cn_id, extra=data)

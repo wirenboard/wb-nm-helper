@@ -21,13 +21,15 @@ def get_adapters():
 
 
 def to_json():
-    interfaces = []
+    connections = []
     ssids = []
-    devices = {"ethernet": [], "wifi": [], "modem": []}
+    devices = []
     for adapter in get_adapters():
-        interfaces = interfaces + adapter.read()
+        connections = connections + adapter.get_connections()
         ssids = ssids + adapter.get_wifi_ssids()
-        adapter.add_devices(devices)
+        devices = devices + adapter.get_devices()
+
+    devices.sort(key=lambda v: v["type"])
 
     switch_cfg = {}
     try:
@@ -37,7 +39,7 @@ def to_json():
         logging.error("Loading %s failed: %s", CONNECTION_MANAGER_CONFIG_FILE, ex)
 
     res = {
-        "ui": {"interfaces": interfaces, "con_switch": switch_cfg},
+        "ui": {"connections": connections, "con_switch": switch_cfg},
         "data": {"ssids": ssids, "devices": devices},
     }
     json.dump(res, sys.stdout, sort_keys=True, indent=JSON_INDENT_LEVEL)
@@ -50,9 +52,9 @@ def from_json():
         print("Invalid JSON", file=sys.stdout)
         sys.exit(1)
 
-    interfaces = cfg["ui"]["interfaces"]
+    connections = cfg["ui"]["connections"]
     for adapter in get_adapters():
-        interfaces = adapter.apply(interfaces)
+        connections = adapter.apply(connections)
     json.dump(cfg["ui"]["con_switch"], sys.stdout, sort_keys=True, indent=JSON_INDENT_LEVEL)
 
 

@@ -9,7 +9,13 @@ from ipaddress import IPv4Interface
 
 import dbus
 
-from .network_management_system import INetworkManagementSystem
+from .network_management_system import (
+    DEVICE_TYPE_ETHERNET,
+    DEVICE_TYPE_MODEM,
+    DEVICE_TYPE_WIFI,
+    DeviceDesc,
+    INetworkManagementSystem,
+)
 from .network_manager import (
     NM_DEVICE_TYPE_ETHERNET,
     NM_DEVICE_TYPE_MODEM,
@@ -222,7 +228,7 @@ class Connection:
     def get_dbus_settings(self, con: NMConnection) -> DBUSSettings:
         return DBUSSettings(con.get_settings())
 
-    def read(self, con: NMConnection):
+    def get_connections(self, con: NMConnection):
         cfg = self.get_dbus_settings(con)
         if not self.can_manage(cfg):
             return None
@@ -335,11 +341,11 @@ class NetworkManagerAdapter(INetworkManagementSystem):
                 unmanaged_interfaces.append(iface)
         return unmanaged_interfaces
 
-    def read(self):
+    def get_connections(self):
         res = []
         for con in self.network_manager.get_connections():
             for handler in self.handlers.values():
-                cfg = handler.read(con)
+                cfg = handler.get_connections(con)
                 if cfg is not None:
                     res.append(cfg)
                     break
@@ -383,14 +389,15 @@ class NetworkManagerAdapter(INetworkManagementSystem):
 
         return []
 
-    def add_devices(self, devices: list[str]) -> list[str]:
+    def get_devices(self) -> list[DeviceDesc]:
+        devices = []
         type_mapping = {
-            NM_DEVICE_TYPE_ETHERNET: "ethernet",
-            NM_DEVICE_TYPE_WIFI: "wifi",
-            NM_DEVICE_TYPE_MODEM: "modem",
+            NM_DEVICE_TYPE_ETHERNET: DEVICE_TYPE_ETHERNET,
+            NM_DEVICE_TYPE_WIFI: DEVICE_TYPE_WIFI,
+            NM_DEVICE_TYPE_MODEM: DEVICE_TYPE_MODEM,
         }
         for dev in self.network_manager.get_devices():
             mapping = type_mapping.get(dev.get_property("DeviceType"))
             if mapping:
-                devices.setdefault(mapping, []).append(dev.get_property("Interface"))
+                devices.append({"type": mapping, "iface": dev.get_property("Interface")})
         return devices

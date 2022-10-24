@@ -543,11 +543,14 @@
                                 }
                             },
                             "watch": {
-                                "devices": "data.devices.ethernet"
+                                "devices": "data.devices"
                             },
                             "enumSource": [
                                 {
-                                    "source": "devices"
+                                    "source": "devices",
+                                    "filter": "{{if item.type == \"ethernet\"}}1{{endif}}",
+                                    "title": "{{item.iface}}",
+                                    "value": "{{item.iface}}"
                                 }
                             ],
                             "_format": "edWb"
@@ -666,11 +669,14 @@
                                 }
                             },
                             "watch": {
-                                "devices": "data.devices.wifi"
+                                "devices": "data.devices"
                             },
                             "enumSource": [
                                 {
-                                    "source": "devices"
+                                    "source": "devices",
+                                    "filter": "{{if item.type == \"wifi\"}}1{{endif}}",
+                                    "title": "{{item.iface}}",
+                                    "value": "{{item.iface}}"
                                 }
                             ],
                             "_format": "edWb"
@@ -751,11 +757,14 @@
                                 }
                             },
                             "watch": {
-                                "devices": "data.devices.wifi"
+                                "devices": "data.devices"
                             },
                             "enumSource": [
                                 {
-                                    "source": "devices"
+                                    "source": "devices",
+                                    "filter": "{{if item.type == \"wifi\"}}1{{endif}}",
+                                    "title": "{{item.iface}}",
+                                    "value": "{{item.iface}}"
                                 }
                             ],
                             "_format": "edWb"
@@ -857,11 +866,14 @@
                                 }
                             },
                             "watch": {
-                                "devices": "data.devices.modem"
+                                "devices": "data.devices"
                             },
                             "enumSource": [
                                 {
-                                    "source": "devices"
+                                    "source": "devices",
+                                    "filter": "{{if item.type == \"modem\"}}1{{endif}}",
+                                    "title": "{{item.iface}}",
+                                    "value": "{{item.iface}}"
                                 }
                             ],
                             "_format": "edWb"
@@ -1054,7 +1066,7 @@
         "ui": {
             "type": "object",
             "properties": {
-                "interfaces": {
+                "connections": {
                     "type": "array",
                     "title": "Network connections",
                     "items": {
@@ -1108,11 +1120,11 @@
                                 "type": "string",
                                 "minLength": 1,
                                 "watch": {
-                                    "interfaces": "ui.interfaces"
+                                    "connections": "ui.connections"
                                 },
                                 "enumSource": [
                                     {
-                                        "source": "interfaces",
+                                        "source": "connections",
                                         "filter": "{{if item.method in [\"01_nm_ethernet\",\"02_nm_modem\",\"03_nm_wifi\"]}}1{{endif}}{{endif}}",
                                         "title": "{{item.connection_id}}",
                                         "value": "{{item.connection_id}}"
@@ -1152,12 +1164,12 @@
                 }
             },
             "_format": "categories",
-            "required": ["interfaces"],
+            "required": ["connections"],
             "options": {
                 "wb": {
                     "disable_title": true
                 }
-            },
+            }
         },
         "data": {
             "type": "object",
@@ -1166,7 +1178,7 @@
                     "type": "array"
                 },
                 "devices": {
-                    "type": "object"
+                    "type": "array"
                 }
             },
             "options": {

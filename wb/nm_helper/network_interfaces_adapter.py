@@ -205,5 +205,5 @@ class NetworkInterfacesAdapter(INetworkManagementSystem):
             file.write(self.format())
         return []
 
-    def read(self):
+    def get_connections(self):
         return self.interfaces
