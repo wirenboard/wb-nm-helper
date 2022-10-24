@@ -575,7 +575,8 @@
                             "title": "IPv4",
                             "oneOf": [
                                 {"$ref": "#/definitions/nm_ipv4_auto"},
-                                {"$ref": "#/definitions/nm_ipv4_manual"}
+                                {"$ref": "#/definitions/nm_ipv4_manual"},
+                                {"$ref": "#/definitions/nm_ipv4_shared"}
                             ],
                             "propertyOrder": 4,
                             "options": {
