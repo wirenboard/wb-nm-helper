@@ -7,7 +7,7 @@
         "toJSON": "wb-nm-helper",
         "fromJSON": ["wb-nm-helper", "-s"],
         "restartDelayMS": 4000,
-        "service": "networking",
+        "service": "wb-connection-manager",
         "needReload": true
     },
     "definitions": {
@@ -34,22 +34,47 @@
                 "show_opt_in": true
             }
         },
-        "key-mgmt": {
-            "type": "string",
+        "802-11-wireless-security": {
             "title": "Security",
-            "enum": ["none", "ieee8021x", "wpa-psk", "sae", "owe", "wpa-eap", "wpa-eap-suite-b-192"],
-            "options": {
-                "enum_titles": ["WEP", "Dynamic WEP", "WPA/WPA2 Personal", "SAE", "OWE", "WPA/WPA2 Enterprise", "WPA3-Enterprise Suite B"]
+            "type": "object",
+            "properties": {
+                "security": {
+                    "type": "string",
+                    "title": "Security",
+                    "enum": ["none", "wpa-psk"],
+                    "options": {
+                        "enum_titles": ["None", "WPA/WPA2 Personal"]
+                    },
+                    "default": "wpa-psk",
+                    "propertyOrder": 1
+                },
+                "key-mgmt": {
+                    "type": "string",
+                    "enum": ["wpa-psk"],
+                    "options": {
+                        "hidden": true,
+                        "dependencies": {
+                            "security": "wpa-psk"
+                        }
+                    }
+                },
+                "psk": {
+                    "type": "string",
+                    "title": "Password",
+                    "minLength": 8,
+                    "maxLength": 63,
+                    "options": {
+                        "dependencies": {
+                            "key-mgmt": "wpa-psk"
+                        }
+                    },
+                    "propertyOrder": 2
+                }
             },
-            "default": "wpa-psk"
-        },
-        "psk": {
-            "type": "string",
-            "title": "Password",
-            "minLength": 1,
+            "required": ["security"],
             "options": {
-                "dependencies": {
-                    "802-11-wireless-security_key-mgmt": "wpa-psk"
+                "wb": {
+                    "disable_title": true
                 }
             }
         },
@@ -576,7 +601,10 @@
                             "oneOf": [
                                 {"$ref": "#/definitions/nm_ipv4_auto"},
                                 {"$ref": "#/definitions/nm_ipv4_manual"},
-                                {"$ref": "#/definitions/nm_ipv4_shared"}
+                                {
+                                    "title": "Shared to other computers",
+                                    "$ref": "#/definitions/nm_ipv4_shared"
+                                }
                             ],
                             "propertyOrder": 4,
                             "options": {
@@ -638,13 +666,9 @@
                             ],
                             "_format": "edWb"
                         },
-                        "802-11-wireless-security_key-mgmt": {
-                            "$ref": "#/definitions/key-mgmt",
+                        "802-11-wireless-security": {
+                            "$ref": "#/definitions/802-11-wireless-security",
                             "propertyOrder": 5
-                        },
-                        "802-11-wireless-security_psk": {
-                            "$ref": "#/definitions/psk",
-                            "propertyOrder": 6
                         },
                         "ipv4": {
                             "title": "IPv4",
@@ -691,7 +715,7 @@
                             "propertyOrder": 10
                         }
                     },
-                    "required": ["method", "802-11-wireless_ssid", "802-11-wireless_mode", "802-11-wireless-security_key-mgmt", "ipv4"]
+                    "required": ["method", "802-11-wireless_ssid", "802-11-wireless_mode", "802-11-wireless-security", "ipv4"]
                 },
                 {
                     "$ref": "#/definitions/nm_connection"
@@ -733,15 +757,12 @@
                             "propertyOrder": 4,
                             "minLength": 1
                         },
-                        "802-11-wireless-security_key-mgmt": {
-                            "$ref": "#/definitions/key-mgmt",
+                        "802-11-wireless-security": {
+                            "$ref": "#/definitions/802-11-wireless-security",
                             "propertyOrder": 5
                         },
-                        "802-11-wireless-security_psk": {
-                            "$ref": "#/definitions/psk",
-                            "propertyOrder": 6
-                        },
                         "ipv4": {
+                            "title": "IPv4",
                             "$ref": "#/definitions/nm_ipv4_shared",
                             "propertyOrder": 7
                         },
@@ -779,7 +800,7 @@
                             "propertyOrder": 10
                         }
                     },
-                    "required": ["method", "802-11-wireless_ssid", "802-11-wireless-security_key-mgmt", "ipv4"]
+                    "required": ["method", "802-11-wireless_ssid", "802-11-wireless-security", "ipv4"]
                 },
                 {
                     "$ref": "#/definitions/nm_connection"
@@ -1020,7 +1041,6 @@
         },
         "nm_ipv4_shared": {
             "type": "object",
-            "title": "IPv4",
             "properties": {
                 "method": {
                     "type": "string",
@@ -1264,7 +1284,9 @@
             "mac-pattern-message": "Необходимо задать шесть байт в шестнадцатеричном виде, разделённых двоеточием (например f2:c8:14:48:d3:97)",
             "Password": "Пароль",
             "Security": "Защита",
-            "Network name (SSID)": "Название сети (SSID)"
+            "Network name (SSID)": "Название сети (SSID)",
+            "None": "Нет",
+            "Shared to other computers": "Общий с другими компьютерами"
         }
     }
 }

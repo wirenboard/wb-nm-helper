@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import sys
 
 from .network_interfaces_adapter import NetworkInterfacesAdapter
@@ -53,8 +54,16 @@ def from_json():
         sys.exit(1)
 
     connections = cfg["ui"]["connections"]
-    for adapter in get_adapters():
-        connections = adapter.apply(connections)
+    network_interfaces = NetworkInterfacesAdapter.probe()
+    if network_interfaces is not None:
+        connections = network_interfaces.apply(connections)
+        os.system("systemctl restart networking")
+    network_manager = NetworkManagerAdapter.probe()
+    if network_manager is not None:
+        os.system("systemctl stop wb-connection-manager")
+        network_manager.apply(connections)
+        # NetworkManager must be restarted to update managed devices
+        os.system("systemctl restart NetworkManager")
     json.dump(cfg["ui"]["con_switch"], sys.stdout, sort_keys=True, indent=JSON_INDENT_LEVEL)
 
 

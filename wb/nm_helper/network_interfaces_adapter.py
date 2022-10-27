@@ -200,10 +200,16 @@ class NetworkInterfacesAdapter(INetworkManagementSystem):
 
     def apply(self, interfaces):
         supported_methods = ["loopback", "dhcp", "static", "can", "manual", "ppp"]
-        self.interfaces = filter(lambda i: i.get("method") in supported_methods, interfaces)
+        unmanaged = []
+        self.interfaces = []
+        for iface in interfaces:
+            if iface.get("method") in supported_methods:
+                self.interfaces.append(iface)
+            else:
+                unmanaged.append(iface)
         with open(NETWORK_INTERFACES_CONFIG, "w", encoding="utf-8") as file:
             file.write(self.format())
-        return []
+        return unmanaged
 
     def get_connections(self):
         return self.interfaces

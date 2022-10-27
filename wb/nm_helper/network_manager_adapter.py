@@ -58,8 +58,8 @@ def to_mac_list(mac_string):
     return dbus.Array(map(lambda item: dbus.Byte(int(item, 16)), mac_string.split(":")))
 
 
-def not_empty_string(val: str):
-    return None if len(val) == 0 else val
+def not_empty_string(val):
+    return None if val is None or len(val) == 0 else val
 
 
 def to_dbus_byte_array(val):
@@ -100,12 +100,16 @@ def set_opt_by_tree_path(data, path: str, value, default_dict):
     dst_path_items = path.split(".")
     last_dst_item = dst_path_items[len(dst_path_items) - 1]
     obj = data
-    for i in range(len(dst_path_items) - 1):
-        obj = obj.setdefault(dst_path_items[i], default_dict)
     if value is None:
+        for i in range(len(dst_path_items) - 1):
+            if dst_path_items[i] not in obj:
+                return
+            obj = obj[dst_path_items[i]]
         if last_dst_item in obj:
             del obj[last_dst_item]
     else:
+        for i in range(len(dst_path_items) - 1):
+            obj = obj.setdefault(dst_path_items[i], default_dict)
         obj[last_dst_item] = value
 
 
@@ -114,7 +118,8 @@ class JSONSettings:
         self.params = {} if dict_from_json is None else dict_from_json
 
     def get_opt(self, path: str, default=None):
-        res = self.params.get(path.replace(".", "_"))
+        modified_path = path.replace(".", "_")
+        res = self.params.get(modified_path)
         return res if res is not None else get_opt_by_tree_path(self.params, path, default)
 
     def set_value(self, path: str, value, path_type: ParamPathType = ParamPathType.FLAT):
@@ -146,22 +151,6 @@ class DBUSSettings:
     def set_opts(self, src: JSONSettings, params: list[Param]) -> None:
         for param in params:
             self.set_value(param.path, get_converted_value(src.get_opt(param.path), param.to_dbus))
-
-
-def remove_undefined_connections(interfaces, network_manager: NetworkManager):
-    uids = []
-    for iface in interfaces:
-        settings = JSONSettings(iface)
-        uuid = settings.get_opt("uuid")
-        if uuid is not None:
-            uids.append(uuid)
-    handlers = [EthernetConnection(), WiFiConnection(), ModemConnection()]
-    for con in network_manager.get_connections():
-        c_settings = con.get_settings()
-        for handler in handlers:
-            if (c_settings["connection"]["uuid"] not in uids) and handler.can_manage(c_settings):
-                con.delete()
-                break
 
 
 ipv4_params = [
@@ -228,7 +217,7 @@ class Connection:
     def get_dbus_settings(self, con: NMConnection) -> DBUSSettings:
         return DBUSSettings(con.get_settings())
 
-    def get_connections(self, con: NMConnection):
+    def get_connection(self, con: NMConnection):
         cfg = self.get_dbus_settings(con)
         if not self.can_manage(cfg):
             return None
@@ -256,7 +245,11 @@ class WiFiDBUSSettings(DBUSSettings):
     def get_opt(self, path: str, default=None):
         if path == "802-11-wireless-security.psk":
             name = "802-11-wireless-security"
-            return self.con.get_iface().GetSecrets(name)[name]["psk"]
+            try:
+                return self.con.get_iface().GetSecrets(name)[name]["psk"]
+            except dbus.exceptions.DBusException as ex:
+                if "org.freedesktop.NetworkManager.Settings.Connection.SettingNotFound" == ex.get_dbus_name():
+                    return None
         return super().get_opt(path, default)
 
 
@@ -266,8 +259,8 @@ class WiFiConnection(Connection):
             Param("802-11-wireless.cloned-mac-address", to_mac_list, to_mac_string),
             Param("802-11-wireless.ssid", to_dbus_byte_array, to_ascii_string),
             Param("802-11-wireless.mode", from_dbus=lambda v: NM_WIFI_MODE_DEFAULT if v is None else v),
-            Param("802-11-wireless-security.key-mgmt"),
-            Param("802-11-wireless-security.psk"),
+            Param("802-11-wireless-security.key-mgmt", json_path_type=ParamPathType.TREE),
+            Param("802-11-wireless-security.psk", json_path_type=ParamPathType.TREE),
         ]
         Connection.__init__(self, "802-11-wireless", METHOD_WIFI, params)
 
@@ -275,7 +268,23 @@ class WiFiConnection(Connection):
         return WiFiDBUSSettings(con)
 
     def can_manage(self, cfg: DBUSSettings) -> bool:
-        return super().can_manage(cfg) and (cfg.get_opt("802-11-wireless.mode") != "ap")
+        return (
+            super().can_manage(cfg)
+            and (cfg.get_opt("802-11-wireless.mode") != "ap")
+            and (
+                cfg.get_opt("802-11-wireless-security") is None
+                or cfg.get_opt("802-11-wireless-security.key-mgmt") == "wpa-psk"
+            )
+        )
+
+    def get_connection(self, con: NMConnection):
+        res = super().get_connection(con)
+        if res is not None:
+            if "802-11-wireless-security" in res:
+                res["802-11-wireless-security"]["security"] = "wpa-psk"
+            else:
+                res["802-11-wireless-security"] = {"security": "none"}
+        return res
 
 
 class WiFiAp(WiFiConnection):
@@ -330,8 +339,22 @@ class NetworkManagerAdapter(INetworkManagementSystem):
         }
         self.network_manager = NetworkManager()
 
+    def remove_undefined_connections(self, interfaces):
+        uids = []
+        for iface in interfaces:
+            settings = JSONSettings(iface)
+            uuid = settings.get_opt("connection.uuid")
+            if uuid is not None:
+                uids.append(uuid)
+        for con in self.network_manager.get_connections():
+            c_settings = DBUSSettings(con.get_settings())
+            for handler in self.handlers.values():
+                if (c_settings.get_opt("connection.uuid") not in uids) and handler.can_manage(c_settings):
+                    con.delete()
+                    break
+
     def apply(self, interfaces):
-        remove_undefined_connections(interfaces, self.network_manager)
+        self.remove_undefined_connections(interfaces)
         unmanaged_interfaces = []
         for iface in interfaces:
             handler = self.handlers.get(iface["method"])
@@ -345,7 +368,7 @@ class NetworkManagerAdapter(INetworkManagementSystem):
         res = []
         for con in self.network_manager.get_connections():
             for handler in self.handlers.values():
-                cfg = handler.get_connections(con)
+                cfg = handler.get_connection(con)
                 if cfg is not None:
                     res.append(cfg)
                     break
