@@ -17,4 +17,5 @@ if [ -f "/etc/network/interfaces.wb" ]; then
         deb-systemd-invoke restart NetworkManager
     fi
 fi
- 
+
+#DEBHELPER#

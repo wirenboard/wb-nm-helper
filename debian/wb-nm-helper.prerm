@@ -20,3 +20,5 @@ if [ "`md5sum /usr/share/wb-nm-helper/interfaces.dummy | cut -d' ' -f 1`" == "`m
 fi
 
 mv -f /usr/share/wb-mqtt-confed/schemas/interfaces.schema.json-orig /usr/share/wb-mqtt-confed/schemas/interfaces.schema.json || true
+
+#DEBHELPER#
