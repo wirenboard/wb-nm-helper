@@ -1,0 +1,3 @@
+# /etc/network/interfaces is deprecated
+# Use NetworkManager instead
+# For details refer to https://networkmanager.dev/docs/

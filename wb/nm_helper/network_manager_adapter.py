@@ -206,6 +206,12 @@ class Connection:
         set_ipv4_dbus_options(con, iface)
 
     def create(self, iface: JSONSettings) -> dbus.Dictionary:
+        # A new WiFi AP will be created
+        # NM conflicts with dnsmasq and hostapd so stop and disable them
+        os.system("systemctl stop hostapd")
+        os.system("systemctl disable hostapd")
+        os.system("systemctl stop dnsmasq")
+        os.system("systemctl disable dnsmasq")
         con = DBUSSettings()
         self.set_dbus_options(con, iface)
         con.set_value("connection.type", self.dbus_type)

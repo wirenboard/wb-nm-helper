@@ -1,0 +1,20 @@
+#!/bin/bash
+
+set -e
+
+if [ -f "/etc/network/interfaces.wb" ]; then
+    if [ "`md5sum /etc/network/interfaces.wb | cut -d' ' -f 1`" == "`md5sum /etc/network/interfaces | cut -d' ' -f 1`" ] ; then
+        cp /usr/share/wb-nm-helper/interfaces.dummy /etc/network/interfaces
+        # NM conflicts with dnsmasq and hostapd so stop and disable them
+        deb-systemd-invoke stop hostapd || true
+        deb-systemd-invoke disable hostapd || true
+        deb-systemd-invoke stop dnsmasq || true
+        deb-systemd-invoke disable dnsmasq || true
+
+        deb-systemd-invoke restart networking
+
+        # restart NetworkManager to update managed devices
+        deb-systemd-invoke restart NetworkManager
+    fi
+fi
+ 

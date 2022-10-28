@@ -1,0 +1,5 @@
+#!/bin/bash
+
+set -e
+
+mv -f /usr/share/wb-mqtt-confed/schemas/interfaces.schema.json /usr/share/wb-mqtt-confed/schemas/interfaces.schema.json-orig || true

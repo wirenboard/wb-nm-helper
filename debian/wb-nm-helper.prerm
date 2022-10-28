@@ -1,0 +1,22 @@
+#!/bin/bash
+
+set -e
+
+if [ "`md5sum /usr/share/wb-nm-helper/interfaces.dummy | cut -d' ' -f 1`" == "`md5sum /etc/network/interfaces | cut -d' ' -f 1`" ] ; then
+    if [ -f "/etc/network/interfaces.wb" ]; then
+        cp /etc/network/interfaces.wb /etc/network/interfaces
+
+        # restart NetworkManager to update managed devices
+        deb-systemd-invoke restart NetworkManager
+
+        # enable services for Wi-Fi AP management
+        deb-systemd-invoke enable hostapd || true
+        deb-systemd-invoke start hostapd || true
+        deb-systemd-invoke enable dnsmasq || true
+        deb-systemd-invoke start dnsmasq || true
+
+        deb-systemd-invoke restart networking
+    fi
+fi
+
+mv -f /usr/share/wb-mqtt-confed/schemas/interfaces.schema.json-orig /usr/share/wb-mqtt-confed/schemas/interfaces.schema.json || true
