@@ -63,7 +63,7 @@ def not_empty_string(val):
 
 
 def to_dbus_byte_array(val):
-    return dbus.ByteArray(val.encode("utf-8"))
+    return None if val is None else dbus.ByteArray(val.encode("utf-8"))
 
 
 def minus_one_is_none(val):
@@ -308,7 +308,7 @@ class ModemConnection(Connection):
 
 def apply(iface, c_handler, network_manager: NetworkManager):
     json_settings = JSONSettings(iface)
-    if json_settings.get_opt("connection.uuid"):
+    if json_settings.get_opt("connection.uuid", ""):
         for con in network_manager.get_connections():
             dbus_settings = DBUSSettings(con.get_settings())
             if dbus_settings.get_opt("connection.uuid") == json_settings.get_opt("connection.uuid"):
