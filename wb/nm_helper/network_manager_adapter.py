@@ -308,7 +308,7 @@ class ModemConnection(Connection):
 
 def apply(iface, c_handler, network_manager: NetworkManager):
     json_settings = JSONSettings(iface)
-    if json_settings.get_opt("connection.uuid", ""):
+    if json_settings.get_opt("connection.uuid"):
         for con in network_manager.get_connections():
             dbus_settings = DBUSSettings(con.get_settings())
             if dbus_settings.get_opt("connection.uuid") == json_settings.get_opt("connection.uuid"):
