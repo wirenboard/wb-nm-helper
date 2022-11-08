@@ -1,0 +1,4 @@
+bin/wb-nm-helper /usr/bin
+wb-network.schema.json /usr/share/wb-mqtt-confed/schemas
+bin/wb-connection-manager /usr/lib/wb-connection-manager
+wb-connection-manager.conf /etc

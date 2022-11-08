@@ -1,0 +1,25 @@
+Source: wb-nm-helper
+Section: admin
+Priority: optional
+Maintainer: Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.ru>
+Build-Depends: debhelper (>= 10), dh-python, python3-all, python3-setuptools, pkg-config
+Standards-Version: 4.5.0
+Homepage: https://github.com/wirenboard/wb-nm-helper
+
+Package: python3-wb-nm-helper
+Section: python
+Architecture: all
+Depends: ${python3:Depends}, ${misc:Depends}, python3-pyparsing, python3-dbus, python3-pycurl
+Description: Wirenboard network configuration python3 library
+
+Package: wb-nm-helper
+Architecture: all
+Depends: ${misc:Depends},
+         python3 (>= 3.5),
+         python3-wb-nm-helper (= ${binary:Version}),
+         wb-mqtt-homeui (>= 2.47.1~~),
+         network-manager,
+         modemmanager,
+         mobile-broadband-provider-info
+Description:  Wirenboard network configuration backend for wb-mqtt-confed.
+ The package includes wb-mqtt-confed backend software for network interfaces management.

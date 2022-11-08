@@ -1,0 +1,1292 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "title": "Network connections",
+    "configFile": {
+        "path": "/etc/wb-connection-manager.conf",
+        "toJSON": "wb-nm-helper",
+        "fromJSON": ["wb-nm-helper", "-s"],
+        "restartDelayMS": 4000,
+        "service": "wb-connection-manager",
+        "needReload": true
+    },
+    "definitions": {
+        "mac-addr": {
+            "type": "string",
+            "title": "MAC address",
+            "pattern": "^(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$",
+            "options": {
+                "show_opt_in": true,
+                "patternmessage": "mac-pattern-message",
+                "inputAttributes": {
+                    "placeholder":  "XX:XX:XX:XX:XX:XX"
+                }
+            }
+        },
+        "mtu": {
+            "type": "integer",
+            "title": "MTU",
+            "default": 1500,
+            "options": {
+                "inputAttributes": {
+                    "placeholder":  " "
+                },
+                "show_opt_in": true
+            }
+        },
+        "802-11-wireless-security": {
+            "title": "Security",
+            "type": "object",
+            "properties": {
+                "security": {
+                    "type": "string",
+                    "title": "Security",
+                    "enum": ["none", "wpa-psk"],
+                    "options": {
+                        "enum_titles": ["None", "WPA/WPA2 Personal"]
+                    },
+                    "default": "wpa-psk",
+                    "propertyOrder": 1
+                },
+                "key-mgmt": {
+                    "type": "string",
+                    "enum": ["wpa-psk"],
+                    "options": {
+                        "hidden": true,
+                        "dependencies": {
+                            "security": "wpa-psk"
+                        }
+                    }
+                },
+                "psk": {
+                    "type": "string",
+                    "title": "Password",
+                    "minLength": 8,
+                    "maxLength": 63,
+                    "options": {
+                        "dependencies": {
+                            "key-mgmt": "wpa-psk"
+                        }
+                    },
+                    "propertyOrder": 2
+                }
+            },
+            "required": ["security"],
+            "options": {
+                "wb": {
+                    "disable_title": true
+                }
+            }
+        },
+        "iface_common": {
+            "type": "object",
+            "description": "Managed by /etc/network/interfaces",
+            "properties": {
+                "auto": {
+                    "type": "boolean",
+                    "default": true,
+                    "title": "Auto",
+                    "_format": "checkbox",
+                    "propertyOrder": 2
+                },
+                "name": {
+                    "type": "string",
+                    "title": "Name",
+                    "minLength": 1,
+                    "propertyOrder": 1
+                },
+                "allow-hotplug": {
+                    "type": "boolean",
+                    "default": true,
+                    "title": "Allow hotplug",
+                    "_format": "checkbox",
+                    "propertyOrder": 3
+                }
+            },
+            "_properties_that_are_not_used_for_now": {
+                "pre-up": {
+                    "title": "Pre-up command",
+                    "type": "string",
+                    "propertyOrder": 100
+                },
+                "up": {
+                    "title": "Up command",
+                    "type": "string",
+                    "propertyOrder": 101
+                },
+                "post-up": {
+                    "title": "Post-up command",
+                    "description": "Same as 'Up command'",
+                    "type": "string",
+                    "propertyOrder": 102
+                },
+                "down": {
+                    "title": "Down command",
+                    "type": "string",
+                    "propertyOrder": 103
+                },
+                "pre-down": {
+                    "title": "Pre-down command",
+                    "description": "Same as 'Down command'",
+                    "type": "string",
+                    "propertyOrder": 104
+                },
+                "post-down": {
+                    "title": "Post-down command",
+                    "type": "string",
+                    "propertyOrder": 105
+                }
+            },
+            "options": {
+                "wb": {
+                    "disable_panel": true
+                }
+            }
+        },
+        "method_loopback": {
+            "title": "Loopback interface",
+            "allOf": [
+                { "$ref": "#/definitions/iface_common" },
+                {
+                    "type": "object",
+                    "properties": {
+                        "mode": {
+                            "type": "string",
+                            "title": "Mode",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["inet"]
+                        },
+                        "method": {
+                            "type": "string",
+                            "title": "Method",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["loopback"]
+                        },
+                        "options": {
+                            "type": "object",
+                            "title": "Options",
+                            "options": {
+                                "hidden": true
+                            }
+                        }
+                    },
+                    "defaultProperties": [
+                        "name",
+                        "method",
+                        "mode"
+                    ],
+                    "required": ["method", "name", "mode"],
+                    "options": {
+                        "wb": {
+                            "hide_from_selection": true,
+                            "icon": "loopback"
+                        }
+                    }
+                }
+            ]
+        },
+        "method_static": {
+            "title": "Static IP",
+            "allOf": [
+                { "$ref": "#/definitions/iface_common" },
+                {
+                    "type": "object",
+                    "properties": {
+                        "mode": {
+                            "type": "string",
+                            "title": "Mode",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["inet"]
+                        },
+                        "method": {
+                            "type": "string",
+                            "title": "Method",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["static"]
+                        },
+                        "options": {
+                            "type": "object",
+                            "title": "Options",
+                            "properties": {
+                                "address": {
+                                    "type": "string",
+                                    "title": "IP address",
+                                    "format": "ipv4",
+                                    "propertyOrder": 11
+                                },
+                                "netmask": {
+                                    "type": "string",
+                                    "title": "Network mask",
+                                    "format": "ipv4",
+                                    "propertyOrder": 12
+                                },
+                                "broadcast": {
+                                    "type": "string",
+                                    "title": "Broadcast address",
+                                    "format": "ipv4",
+                                    "propertyOrder": 13
+                                },
+                                "gateway": {
+                                    "type": "string",
+                                    "title": "Default gateway",
+                                    "format": "ipv4",
+                                    "propertyOrder": 14
+                                },
+                                "metric": {
+                                    "type": "integer",
+                                    "title": "Routing metric for default gateway",
+                                    "propertyOrder": 15
+                                },
+                                "hwaddress": {
+                                    "type": "string",
+                                    "title": "MAC address",
+                                    "pattern": "^(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$",
+                                    "propertyOrder": 16
+                                },
+                                "pointopoint": {
+                                    "type": "string",
+                                    "title": "Point-to-point address",
+                                    "description": "For point-to-point configuration",
+                                    "format": "ipv4",
+                                    "propertyOrder": 17
+                                },
+                                "mtu": {
+                                    "type": "string",
+                                    "title": "MTU",
+                                    "default": 1500,
+                                    "propertyOrder": 18
+                                },
+                                "scope": {
+                                    "type": "string",
+                                    "title": "Address validity scope",
+                                    "enum": [
+                                        "global",
+                                        "link",
+                                        "host"
+                                    ],
+                                    "options": {
+                                        "enum_titles": [
+                                            "global",
+                                            "link",
+                                            "host"
+                                        ]
+                                    },
+                                    "propertyOrder": 19
+                                }
+                            },
+                            "required": ["address"],
+                            "defaultProperties": [
+                                "address",
+                                "netmask",
+                                "gateway",
+                                "mtu"
+                            ]
+                        }
+                    },
+                    "defaultProperties": [
+                        "name",
+                        "auto",
+                        "mode",
+                        "method",
+                        "options"
+                    ],
+                    "required": ["method", "name", "mode"]
+                }
+            ],
+            "options": {
+                "wb": {
+                    "hide_from_selection": true,
+                    "icon": "old-settings"
+                }
+            }
+        },
+        "method_dhcp": {
+            "title": "DHCP",
+            "allOf": [
+                { "$ref": "#/definitions/iface_common" },
+                {
+                    "type": "object",
+                    "properties": {
+                        "mode": {
+                            "type": "string",
+                            "title": "Mode",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["inet"]
+                        },
+                        "method": {
+                            "type": "string",
+                            "title": "Method",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["dhcp"]
+                        },
+                        "options": {
+                            "type": "object",
+                            "title": "Options",
+                            "properties": {
+                                "hwaddress": {
+                                    "type": "string",
+                                    "title": "MAC address",
+                                    "pattern": "^(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$",
+                                    "propertyOrder": 11
+                                },
+                                "hostname": {
+                                    "type": "string",
+                                    "title": "Hostname to be requested",
+                                    "propertyOrder": 12
+                                },
+                                "client": {
+                                    "type": "string",
+                                    "title": "Client identifier",
+                                    "propertyOrder": 13
+                                }
+                            },
+                            "defaultProperties": "hostname"
+                        }
+                    },
+                    "defaultProperties": [
+                        "name",
+                        "auto",
+                        "mode",
+                        "method",
+                        "options"
+                    ],
+                    "required": ["method", "name", "mode"]
+                }
+            ],
+            "options": {
+                "wb": {
+                    "hide_from_selection": true,
+                    "icon": "old-settings"
+                }
+            }
+        },
+        "method_can": {
+            "title": "CAN",
+            "allOf": [
+                { "$ref": "#/definitions/iface_common" },
+                {
+                    "type": "object",
+                    "properties": {
+                        "mode": {
+                            "type": "string",
+                            "title": "Mode",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["can"]
+                        },
+                        "method": {
+                            "type": "string",
+                            "title": "Method",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["static"]
+                        },
+                        "options": {
+                            "type": "object",
+                            "title": "Options",
+                            "properties": {
+                                "bitrate": {
+                                    "type": "string",
+                                    "title": "Bitrate",
+                                    "propertyOrder": 11
+                                }
+                            },
+                            "required": ["bitrate"]
+                        }
+                    },
+                    "defaultProperties": [
+                        "name",
+                        "allow-hotplug",
+                        "mode",
+                        "method",
+                        "options"
+                    ],
+                    "required": ["method", "name", "mode"],
+                    "options": {
+                        "wb": {
+                            "icon": "old-settings"
+                        }
+                    }
+                }
+            ]
+        },
+        "method_ppp": {
+            "title": "PPP",
+            "allOf": [
+                { "$ref": "#/definitions/iface_common" },
+                {
+                    "type": "object",
+                    "properties": {
+                        "mode": {
+                            "type": "string",
+                            "title": "Mode",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["inet"]
+                        },
+                        "method": {
+                            "type": "string",
+                            "title": "Method",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["ppp"]
+                        },
+                        "options": {
+                            "type": "object",
+                            "title": "Options",
+                            "properties": {
+                                "provider": {
+                                    "type": "string",
+                                    "title": "Provider name",
+                                    "description": "Refers to the file in /etc/ppp/peers",
+                                    "propertyOrder": 11
+                                },
+                                "unit": {
+                                    "type": "string",
+                                    "title": "PPP unit number",
+                                    "propertyOrder": 12
+                                },
+                                "options": {
+                                    "type": "string",
+                                    "title": "Additional options",
+                                    "propertyOrder": 13
+                                }
+                            },
+                            "defaultProperties": [
+                                "provider"
+                            ]
+                        }
+                    },
+                    "defaultProperties": [
+                        "name",
+                        "auto",
+                        "mode",
+                        "method",
+                        "options"
+                    ],
+                    "required": ["method", "name", "mode"]
+                }
+            ],
+            "options": {
+                "wb": {
+                    "hide_from_selection": true,
+                    "icon": "old-settings"
+                }
+            }
+        },
+        "method_manual": {
+            "title": "Manual",
+            "allOf": [
+                { "$ref": "#/definitions/iface_common" },
+                {
+                    "type": "object",
+                    "properties": {
+                        "mode": {
+                            "type": "string",
+                            "title": "Mode",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["inet"]
+                        },
+                        "method": {
+                            "type": "string",
+                            "title": "Method",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["manual"]
+                        },
+                        "options": {
+                            "type": "object",
+                            "title": "Options",
+                            "properties": {
+                                "hwaddress": {
+                                    "type": "string",
+                                    "title": "MAC address",
+                                    "pattern": "^(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$",
+                                    "propertyOrder": 11
+                                },
+                                "mtu": {
+                                    "type": "string",
+                                    "title": "MTU",
+                                    "propertyOrder": 12
+                                }
+                            },
+                            "defaultProperties": ["mtu"]
+                        }
+                    },
+                    "defaultProperties": [
+                        "name",
+                        "auto",
+                        "mode",
+                        "method"
+                    ],
+                    "required": ["method", "name", "mode"],
+                    "options": {
+                        "wb": {
+                            "hide_from_selection": true,
+                            "icon": "old-settings"
+                        }
+                    }
+                }
+            ]
+        },
+        "method_nm_ethernet": {
+            "title": "Ethernet",
+            "description": "Managed by NetworkManager",
+            "allOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "connection_interface-name": {
+                            "type": "string",
+                            "title": "Only for device",
+                            "propertyOrder": 3,
+                            "options": {
+                                "inputAttributes": {
+                                    "placeholder":  "use with any suitable device"
+                                },
+                                "wb": {
+                                    "show_editor": true
+                                }
+                            },
+                            "watch": {
+                                "devices": "data.devices"
+                            },
+                            "enumSource": [
+                                {
+                                    "source": "devices",
+                                    "filter": "{{if item.type == \"ethernet\"}}1{{endif}}",
+                                    "title": "{{item.iface}}",
+                                    "value": "{{item.iface}}"
+                                }
+                            ],
+                            "_format": "edWb"
+                        },
+                        "method": {
+                            "type": "string",
+                            "title": "Method",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["01_nm_ethernet"]
+                        },
+                        "802-3-ethernet_cloned-mac-address": {
+                            "$ref": "#/definitions/mac-addr",
+                            "propertyOrder": 16
+                        },
+                        "802-3-ethernet_mtu": {
+                            "$ref": "#/definitions/mtu",
+                            "propertyOrder": 18
+                        },
+                        "ipv4": {
+                            "title": "IPv4",
+                            "oneOf": [
+                                {"$ref": "#/definitions/nm_ipv4_auto"},
+                                {"$ref": "#/definitions/nm_ipv4_manual"},
+                                {
+                                    "title": "Shared to other computers",
+                                    "$ref": "#/definitions/nm_ipv4_shared"
+                                }
+                            ],
+                            "propertyOrder": 4,
+                            "options": {
+                                "keep_oneof_values": false
+                            }
+                        }
+                    },
+                    "required": ["method", "ipv4"],
+                    "options": {
+                        "disable_edit_json": true,
+                        "disable_properties": true,
+                        "wb": {
+                            "disable_panel": true,
+                            "icon": "ethernet"
+                        }
+                    }
+                },
+                {
+                    "$ref": "#/definitions/nm_connection"
+                }
+            ]
+        },
+        "method_nm_wifi": {
+            "title": "Wi-Fi",
+            "description": "Managed by NetworkManager",
+            "allOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "802-11-wireless_mode": {
+                            "type": "string",
+                            "title": "Mode",
+                            "enum": ["infrastructure", "mesh", "adhoc"],
+                            "propertyOrder": 3,
+                            "options": {
+                                "enum_titles": ["infrastructure", "mesh", "ad hoc"]
+                            }
+                        },
+                        "method": {
+                            "type": "string",
+                            "title": "Method",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["03_nm_wifi"]
+                        },
+                        "802-11-wireless_ssid": {
+                            "type": "string",
+                            "title": "Network name (SSID)",
+                            "propertyOrder": 4,
+                            "minLength": 1,
+                            "watch": {
+                                "ssids": "data.ssids"
+                            },
+                            "enumSource": [
+                                {
+                                    "source": "ssids"
+                                }
+                            ],
+                            "_format": "edWb"
+                        },
+                        "802-11-wireless-security": {
+                            "$ref": "#/definitions/802-11-wireless-security",
+                            "propertyOrder": 5
+                        },
+                        "ipv4": {
+                            "title": "IPv4",
+                            "oneOf": [
+                                {"$ref": "#/definitions/nm_ipv4_auto"},
+                                {"$ref": "#/definitions/nm_ipv4_manual"}
+                            ],
+                            "propertyOrder": 7,
+                            "options": {
+                                "keep_oneof_values": false
+                            }
+                        },
+                        "connection_interface-name": {
+                            "type": "string",
+                            "title": "Only for device",
+                            "propertyOrder": 8,
+                            "options": {
+                                "inputAttributes": {
+                                    "placeholder":  "use with any suitable device"
+                                },
+                                "wb": {
+                                    "show_editor": true
+                                }
+                            },
+                            "watch": {
+                                "devices": "data.devices"
+                            },
+                            "enumSource": [
+                                {
+                                    "source": "devices",
+                                    "filter": "{{if item.type == \"wifi\"}}1{{endif}}",
+                                    "title": "{{item.iface}}",
+                                    "value": "{{item.iface}}"
+                                }
+                            ],
+                            "_format": "edWb"
+                        },
+                        "802-11-wireless_cloned-mac-address": {
+                            "$ref": "#/definitions/mac-addr",
+                            "propertyOrder": 9
+                        },
+                        "802-11-wireless_mtu": {
+                            "$ref": "#/definitions/mtu",
+                            "propertyOrder": 10
+                        }
+                    },
+                    "required": ["method", "802-11-wireless_ssid", "802-11-wireless_mode", "802-11-wireless-security", "ipv4"]
+                },
+                {
+                    "$ref": "#/definitions/nm_connection"
+                }
+            ],
+            "options": {
+                "disable_edit_json": true,
+                "disable_properties": true,
+                "wb": {
+                    "disable_panel": true,
+                    "icon": "wifi"
+                }
+            }
+        },
+        "method_nm_wifi_ap": {
+            "title": "Wi-Fi access point",
+            "description": "Managed by NetworkManager",
+            "allOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "802-11-wireless_mode": {
+                            "type": "string",
+                            "enum": ["ap"],
+                            "options": {
+                                "hidden": true
+                            }
+                        },
+                        "method": {
+                            "type": "string",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["04_nm_wifi_ap"]
+                        },
+                        "802-11-wireless_ssid": {
+                            "type": "string",
+                            "title": "Network name (SSID)",
+                            "propertyOrder": 4,
+                            "minLength": 1
+                        },
+                        "802-11-wireless-security": {
+                            "$ref": "#/definitions/802-11-wireless-security",
+                            "propertyOrder": 5
+                        },
+                        "ipv4": {
+                            "title": "IPv4",
+                            "$ref": "#/definitions/nm_ipv4_shared",
+                            "propertyOrder": 7
+                        },
+                        "connection_interface-name": {
+                            "type": "string",
+                            "title": "Only for device",
+                            "propertyOrder": 8,
+                            "options": {
+                                "inputAttributes": {
+                                    "placeholder":  "use with any suitable device"
+                                },
+                                "wb": {
+                                    "show_editor": true
+                                }
+                            },
+                            "watch": {
+                                "devices": "data.devices"
+                            },
+                            "enumSource": [
+                                {
+                                    "source": "devices",
+                                    "filter": "{{if item.type == \"wifi\"}}1{{endif}}",
+                                    "title": "{{item.iface}}",
+                                    "value": "{{item.iface}}"
+                                }
+                            ],
+                            "_format": "edWb"
+                        },
+                        "802-11-wireless_cloned-mac-address": {
+                            "$ref": "#/definitions/mac-addr",
+                            "propertyOrder": 9
+                        },
+                        "802-11-wireless_mtu": {
+                            "$ref": "#/definitions/mtu",
+                            "propertyOrder": 10
+                        }
+                    },
+                    "required": ["method", "802-11-wireless_ssid", "802-11-wireless-security", "ipv4"]
+                },
+                {
+                    "$ref": "#/definitions/nm_connection"
+                }
+            ],
+            "options": {
+                "disable_edit_json": true,
+                "disable_properties": true,
+                "wb": {
+                    "disable_panel": true,
+                    "icon": "wifi"
+                }
+            }
+        },
+        "method_nm_modem": {
+            "title": "Modem",
+            "description": "Managed by NetworkManager",
+            "allOf":[
+                {
+                    "type": "object",
+                    "properties": {
+                        "method": {
+                            "type": "string",
+                            "title": "Method",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["02_nm_modem"]
+                        },
+                        "gsm_auto-config": {
+                            "type": "boolean",
+                            "default": true,
+                            "title": "gsm_auto-config_title",
+                            "_format": "checkbox",
+                            "propertyOrder": 3
+                        },
+                        "gsm_apn": {
+                            "type": "string",
+                            "title": "APN",
+                            "propertyOrder": 4,
+                            "minLength": 1,
+                            "options": {
+                                "dependencies": {
+                                    "gsm_auto-config": [false]
+                                },
+                                "wb": {
+                                    "show_editor": true
+                                }
+                            }
+                        },
+                        "ipv4": {
+                            "title": "IPv4",
+                            "oneOf": [
+                                {"$ref": "#/definitions/nm_ipv4_auto"},
+                                {"$ref": "#/definitions/nm_ipv4_manual"}
+                            ],
+                            "propertyOrder": 5,
+                            "options": {
+                                "keep_oneof_values": false
+                            }
+                        },
+                        "gsm_sim-slot": {
+                            "type": "integer",
+                            "title": "Only for SIM slot",
+                            "enum": [1, 2],
+                            "default": 1,
+                            "propertyOrder": 6,
+                            "options": {
+                                "inputAttributes": {
+                                    "placeholder":  "any SIM-slot"
+                                },
+                                "show_opt_in": true
+                            }
+                        },
+                        "connection_interface-name": {
+                            "type": "string",
+                            "title": "Only for device",
+                            "propertyOrder": 7,
+                            "options": {
+                                "inputAttributes": {
+                                    "placeholder":  "use with any suitable device"
+                                },
+                                "wb": {
+                                    "show_editor": true
+                                }
+                            },
+                            "watch": {
+                                "devices": "data.devices"
+                            },
+                            "enumSource": [
+                                {
+                                    "source": "devices",
+                                    "filter": "{{if item.type == \"modem\"}}1{{endif}}",
+                                    "title": "{{item.iface}}",
+                                    "value": "{{item.iface}}"
+                                }
+                            ],
+                            "_format": "edWb"
+                        }
+                    },
+                    "required": ["method"]
+                },
+                {
+                    "$ref": "#/definitions/nm_connection"
+                }
+            ],
+            "options": {
+                "disable_edit_json": true,
+                "disable_properties": true,
+                "wb": {
+                    "disable_panel": true,
+                    "icon": "modem"
+                }
+            }
+        },
+        "nm_connection": {
+            "properties": {
+                "connection_id": {
+                    "type": "string",
+                    "title": "Connection name",
+                    "minLength": 1,
+                    "propertyOrder": 1
+                },
+                "connection_autoconnect": {
+                    "type": "boolean",
+                    "default": true,
+                    "title": "Auto",
+                    "_format": "checkbox",
+                    "propertyOrder": 2
+                },
+                "connection_uuid": {
+                    "type": "string",
+                    "options": {
+                        "hidden": true
+                    },
+                    "default": ""
+                }
+            },
+            "required": ["connection_id", "connection_uuid"]
+        },
+        "nm_ipv4_manual": {
+            "type": "object",
+            "title": "Static IP",
+            "properties": {
+                "method": {
+                    "type": "string",
+                    "title": "IPv4 method",
+                    "options": {
+                        "hidden": true
+                    },
+                    "enum": ["manual"]
+                },
+                "address": {
+                    "type": "string",
+                    "title": "IP address",
+                    "format": "ipv4",
+                    "propertyOrder": 11
+                },
+                "netmask": {
+                    "type": "string",
+                    "title": "Network mask",
+                    "format": "ipv4",
+                    "propertyOrder": 12,
+                    "options": {
+                        "show_opt_in": true,
+                        "inputAttributes": {
+                            "placeholder":  "255.255.255.0"
+                        }
+                    }
+                },
+                "gateway": {
+                    "type": "string",
+                    "title": "Default gateway",
+                    "format": "ipv4",
+                    "propertyOrder": 14,
+                    "options": {
+                        "show_opt_in": true
+                    }
+                },
+                "route-metric": {
+                    "type": "integer",
+                    "title": "Routing metric for default gateway",
+                    "propertyOrder": 15,
+                    "options": {
+                        "show_opt_in": true,
+                        "inputAttributes": {
+                            "placeholder":  " "
+                        }
+                    }
+                }
+            },
+            "required": ["method", "address"],
+            "options": {
+                "disable_collapse": true,
+                "disable_properties": true,
+                "disable_edit_json": true
+            }
+        },
+        "nm_ipv4_auto": {
+            "type": "object",
+            "title": "DHCP",
+            "properties": {
+                "method": {
+                    "type": "string",
+                    "title": "IPv4 method",
+                    "options": {
+                        "hidden": true
+                    },
+                    "enum": ["auto"]
+                },
+                "dhcp-hostname": {
+                    "type": "string",
+                    "title": "Hostname to be requested",
+                    "propertyOrder": 12,
+                    "options": {
+                        "wb": {
+                            "show_editor": true
+                        }
+                    }
+                },
+                "dhcp-client-id": {
+                    "type": "string",
+                    "title": "Client identifier",
+                    "propertyOrder": 13,
+                    "options": {
+                        "wb": {
+                            "show_editor": true
+                        }
+                    }
+                }
+            },
+            "required": ["method"],
+            "options": {
+                "disable_collapse": true,
+                "disable_properties": true,
+                "disable_edit_json": true
+            }
+        },
+        "nm_ipv4_shared": {
+            "type": "object",
+            "properties": {
+                "method": {
+                    "type": "string",
+                    "title": "IPv4 method",
+                    "options": {
+                        "hidden": true
+                    },
+                    "enum": ["shared"]
+                },
+                "address": {
+                    "type": "string",
+                    "title": "IP address",
+                    "format": "ipv4",
+                    "propertyOrder": 11,
+                    "options": {
+                        "inputAttributes": {
+                            "placeholder":  "10.42.x.0"
+                        },
+                        "show_opt_in": true
+                    }
+                },
+                "netmask": {
+                    "type": "string",
+                    "title": "Network mask",
+                    "format": "ipv4",
+                    "propertyOrder": 12,
+                    "options": {
+                        "show_opt_in": true,
+                        "inputAttributes": {
+                            "placeholder":  "255.255.255.0"
+                        }
+                    }
+                }
+            },
+            "required": ["method"],
+            "options": {
+                "disable_collapse": true,
+                "disable_properties": true,
+                "disable_edit_json": true
+            }
+        }
+    },
+    "properties": {
+        "ui": {
+            "type": "object",
+            "properties": {
+                "connections": {
+                    "type": "array",
+                    "title": "Network connections",
+                    "items": {
+                        "title": "connection_title",
+                        "headerTemplate": "{{self.name}}{{self.connection_id]}}",
+                        "oneOf": [
+                            { "$ref": "#/definitions/method_nm_ethernet" },
+                            { "$ref": "#/definitions/method_nm_wifi" },
+                            { "$ref": "#/definitions/method_nm_wifi_ap" },
+                            { "$ref": "#/definitions/method_nm_modem" },
+                            { "$ref": "#/definitions/method_loopback" },
+                            { "$ref": "#/definitions/method_static" },
+                            { "$ref": "#/definitions/method_dhcp" },
+                            { "$ref": "#/definitions/method_ppp" },
+                            { "$ref": "#/definitions/method_can" },
+                            { "$ref": "#/definitions/method_manual" }
+                        ],
+                        "options": {
+                            "keep_oneof_values": false,
+                            "disable_collapse": true
+                        },
+                        "_format": "wb-multiple"
+                    },
+                    "propertyOrder": 1,
+                    "options": {
+                        "array_controls_top": true,
+                        "disable_array_delete_last_row": true,
+                        "disable_array_reorder": true,
+                        "disable_collapse": true,
+                        "disable_array_delete_all_rows": true,
+                        "wb": {
+                            "select_label": "Choose connection type",
+                            "sort_by_property": "method"
+                        }
+                    },
+                    "_format": "wb-array"
+                },
+                "con_switch": {
+                    "title": "Automatic connections switching",
+                    "type": "object",
+                    "propertyOrder": 2,
+                    "description": "con_switch_desc",
+                    "properties": {
+                        "connections": {
+                            "title": "Connections in descending order of priority",
+                            "type": "array",
+                            "uniqueItems": true,
+                            "propertyOrder": 2,
+                            "items": {
+                                "title": "connection_title",
+                                "type": "string",
+                                "minLength": 1,
+                                "watch": {
+                                    "connections": "ui.connections"
+                                },
+                                "enumSource": [
+                                    {
+                                        "source": "connections",
+                                        "filter": "{{if item.method in [\"01_nm_ethernet\",\"02_nm_modem\",\"03_nm_wifi\"]}}1{{endif}}{{endif}}",
+                                        "title": "{{item.connection_id}}",
+                                        "value": "{{item.connection_id}}"
+                                    }
+                                ],
+                                "_format": "edWb"
+                            },
+                            "options": {
+                                "disable_collapse": true,
+                                "disable_array_delete_last_row": true,
+                                "array_controls_top": true,
+                                "wb": {
+                                    "show_editor": true
+                                }
+                            },
+                            "_format": "table"
+                        },
+                        "debug": {
+                            "title": "Enable debug logging",
+                            "type": "boolean",
+                            "propertyOrder": 2,
+                            "_format": "checkbox",
+                            "default": false,
+                            "options": {
+                                "wb": {
+                                    "show_editor": true
+                                }
+                            }
+                        }
+                    },
+                    "options": {
+                        "compact": true,
+                        "wb": {
+                            "disable_title": true
+                        }
+                    }
+                }
+            },
+            "_format": "categories",
+            "required": ["connections"],
+            "options": {
+                "wb": {
+                    "disable_title": true
+                }
+            }
+        },
+        "data": {
+            "type": "object",
+            "properties": {
+                "ssids": {
+                    "type": "array"
+                },
+                "devices": {
+                    "type": "array"
+                }
+            },
+            "options": {
+                "hidden": true
+            }
+        }
+    },
+    "required": ["ui"],
+    "options": {
+        "wb": {
+            "disable_title": true
+        }
+    },
+
+    "translations": {
+        "en": {
+            "connection_title": "Connection",
+            "gsm_auto-config_title": "Define APN according to information from SIM-card",
+            "con_switch_desc": "The service is designed to switch to fallback connections when the main one is disconnected. Periodically checks the availability of the network through the current connection. If it does not work correctly, the next one in the list is activated. If a higher priority connection becomes available again, the service will switch to it and close the current connection.",
+            "mac-pattern-message": "Must be six hexadecimal byte values divided by colon (example f2:c8:14:48:d3:97)"
+        },
+        "ru": {
+            "Network connections": "Сетевые соединения",
+            "Auto": "Включать автоматически",
+            "Name": "Имя интерфейса",
+            "Allow hotplug": "Разрешить горячее подключение",
+            "Pre-up command": "Команды перед включением интерфейса",
+            "Up command": "Команда включения интерфейса",
+            "Post-up command": "Команда после включения интерфейса",
+            "Down command": "Команда выключения интерфейса",
+            "Pre-down command": "Команда перед выключением интерфейса",
+            "Post-down command": "Команда после выключения интерфейса",
+            "Loopback interface": "Loopback-интерфейс",
+            "name": "имя",
+            "Static IP": "Статический IP-адрес",
+            "IP address": "IP-адрес",
+            "Network mask": "Маска подсети",
+            "Broadcast address": "Широковещательный адрес",
+            "Default gateway": "Основной шлюз",
+            "Routing metric for default gateway": "Метрика основного шлюза",
+            "MAC address": "MAC-адрес",
+            "Address validity scope": "Область действия адреса",
+            "global": "глобальный",
+            "link": "подключение",
+            "host": "хост",
+            "address": "адрес",
+            "netmask": "маска подсети",
+            "gateway": "шлюз",
+            "auto": "автоматически",
+            "Mode": "Режим",
+            "Method": "Метод",
+            "Options": "Параметры",
+            "Hostname to be requested": "Имя хоста",
+            "Client identifier": "Идентификатор клиента",
+            "Bitrate": "Скорость обмена (бит/с)",
+            "allow-hotplug": "горячее подключение",
+            "Provider name": "Имя провайдера",
+            "PPP unit number": "Номер устройства PPP",
+            "Additional options": "Дополнительные параметры",
+            "Manual": "Пользовательский",
+            "Point-to-point address": "Адрес конечного узла",
+            "For point-to-point configuration": "Для конфигурации соединения точка-точка",
+            "Refers to the file in /etc/ppp/peers": "Указать имя файла конфигурации из директории /etc/ppp/peers",
+            "Managed by /etc/network/interfaces": "Управляется через /etc/network/interfaces",
+            "Managed by NetworkManager": "Управляется через NetworkManager",
+            "Interface": "Имя интерфейса",
+            "connection_title": "Соединение",
+            "gsm_auto-config_title": "Определить APN автоматически на основании информации об операторе SIM-карты",
+            "Connection name": "Название соединения",
+            "Only for SIM slot": "Только для SIM-слота",
+            "Only for device": "Только для устройства",
+            "Modem": "Модем",
+            "use with any suitable device": "для любого подходящего устройства",
+            "any SIM-slot": "для любого SIM-слота",
+            "Choose connection type": "Выберите тип соединения",
+            "Automatic connections switching": "Автоматическое переключение соединений",
+            "con_switch_desc": "Сервис предназначен для переключения на резервные соединения при потери связи через основное. Периодически проверяется доступность сети через текущее соединение. Если оно работает некорректно, активируется следующее по списку. Если более приоритетное соединение снова стало доступным, сервис переключится на него и закроет текущее резервное соединение.",
+            "Enable debug logging": "Включить отладочные сообщения",
+            "Connections in descending order of priority": "Соединения в порядке убывания приоритета",
+            "infrastructure": "инфраструктурный",
+            "Wi-Fi access point": "Wi-Fi точка доступа",
+            "mac-pattern-message": "Необходимо задать шесть байт в шестнадцатеричном виде, разделённых двоеточием (например f2:c8:14:48:d3:97)",
+            "Password": "Пароль",
+            "Security": "Защита",
+            "Network name (SSID)": "Название сети (SSID)",
+            "None": "Нет",
+            "Shared to other computers": "Общий с другими компьютерами"
+        }
+    }
+}
