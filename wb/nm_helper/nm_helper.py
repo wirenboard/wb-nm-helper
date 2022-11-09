@@ -60,6 +60,7 @@ def from_json():
         os.system("systemctl restart networking")
     network_manager = NetworkManagerAdapter.probe()
     if network_manager is not None:
+        # wb-connection-manager will be later restarted by wb-mqtt-confed
         os.system("systemctl stop wb-connection-manager")
         network_manager.apply(connections)
         # NetworkManager must be restarted to update managed devices

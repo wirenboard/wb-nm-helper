@@ -143,7 +143,7 @@
                 }
             }
         },
-        "method_loopback": {
+        "old_loopback": {
             "title": "Loopback interface",
             "allOf": [
                 { "$ref": "#/definitions/iface_common" },
@@ -166,6 +166,14 @@
                             },
                             "enum": ["loopback"]
                         },
+                        "type": {
+                            "type": "string",
+                            "title": "Type",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["loopback"]
+                        },
                         "options": {
                             "type": "object",
                             "title": "Options",
@@ -179,7 +187,7 @@
                         "method",
                         "mode"
                     ],
-                    "required": ["method", "name", "mode"],
+                    "required": ["type", "method", "name", "mode"],
                     "options": {
                         "wb": {
                             "hide_from_selection": true,
@@ -189,7 +197,7 @@
                 }
             ]
         },
-        "method_static": {
+        "old_static": {
             "title": "Static IP",
             "allOf": [
                 { "$ref": "#/definitions/iface_common" },
@@ -207,6 +215,14 @@
                         "method": {
                             "type": "string",
                             "title": "Method",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["static"]
+                        },
+                        "type": {
+                            "type": "string",
+                            "title": "Type",
                             "options": {
                                 "hidden": true
                             },
@@ -298,7 +314,7 @@
                         "method",
                         "options"
                     ],
-                    "required": ["method", "name", "mode"]
+                    "required": ["type", "method", "name", "mode"]
                 }
             ],
             "options": {
@@ -308,7 +324,7 @@
                 }
             }
         },
-        "method_dhcp": {
+        "old_dhcp": {
             "title": "DHCP",
             "allOf": [
                 { "$ref": "#/definitions/iface_common" },
@@ -326,6 +342,14 @@
                         "method": {
                             "type": "string",
                             "title": "Method",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["dhcp"]
+                        },
+                        "type": {
+                            "type": "string",
+                            "title": "Type",
                             "options": {
                                 "hidden": true
                             },
@@ -362,7 +386,7 @@
                         "method",
                         "options"
                     ],
-                    "required": ["method", "name", "mode"]
+                    "required": ["type", "method", "name", "mode"]
                 }
             ],
             "options": {
@@ -372,7 +396,7 @@
                 }
             }
         },
-        "method_can": {
+        "old_can": {
             "title": "CAN",
             "allOf": [
                 { "$ref": "#/definitions/iface_common" },
@@ -395,6 +419,14 @@
                             },
                             "enum": ["static"]
                         },
+                        "type": {
+                            "type": "string",
+                            "title": "Type",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["can"]
+                        },
                         "options": {
                             "type": "object",
                             "title": "Options",
@@ -413,9 +445,10 @@
                         "allow-hotplug",
                         "mode",
                         "method",
+                        "type",
                         "options"
                     ],
-                    "required": ["method", "name", "mode"],
+                    "required": ["type", "method", "name", "mode"],
                     "options": {
                         "wb": {
                             "icon": "old-settings"
@@ -424,7 +457,7 @@
                 }
             ]
         },
-        "method_ppp": {
+        "old_ppp": {
             "title": "PPP",
             "allOf": [
                 { "$ref": "#/definitions/iface_common" },
@@ -442,6 +475,14 @@
                         "method": {
                             "type": "string",
                             "title": "Method",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["ppp"]
+                        },
+                        "type": {
+                            "type": "string",
+                            "title": "Type",
                             "options": {
                                 "hidden": true
                             },
@@ -478,9 +519,10 @@
                         "auto",
                         "mode",
                         "method",
+                        "type",
                         "options"
                     ],
-                    "required": ["method", "name", "mode"]
+                    "required": ["type", "method", "name", "mode"]
                 }
             ],
             "options": {
@@ -490,7 +532,7 @@
                 }
             }
         },
-        "method_manual": {
+        "old_manual": {
             "title": "Manual",
             "allOf": [
                 { "$ref": "#/definitions/iface_common" },
@@ -508,6 +550,14 @@
                         "method": {
                             "type": "string",
                             "title": "Method",
+                            "options": {
+                                "hidden": true
+                            },
+                            "enum": ["manual"]
+                        },
+                        "type": {
+                            "type": "string",
+                            "title": "Type",
                             "options": {
                                 "hidden": true
                             },
@@ -538,7 +588,7 @@
                         "mode",
                         "method"
                     ],
-                    "required": ["method", "name", "mode"],
+                    "required": ["type", "method", "name", "mode"],
                     "options": {
                         "wb": {
                             "hide_from_selection": true,
@@ -548,7 +598,7 @@
                 }
             ]
         },
-        "method_nm_ethernet": {
+        "nm_ethernet": {
             "title": "Ethernet",
             "description": "Managed by NetworkManager",
             "allOf": [
@@ -580,9 +630,8 @@
                             ],
                             "_format": "edWb"
                         },
-                        "method": {
+                        "type": {
                             "type": "string",
-                            "title": "Method",
                             "options": {
                                 "hidden": true
                             },
@@ -612,7 +661,7 @@
                             }
                         }
                     },
-                    "required": ["method", "ipv4"],
+                    "required": ["type", "ipv4"],
                     "options": {
                         "disable_edit_json": true,
                         "disable_properties": true,
@@ -627,7 +676,7 @@
                 }
             ]
         },
-        "method_nm_wifi": {
+        "nm_wifi": {
             "title": "Wi-Fi",
             "description": "Managed by NetworkManager",
             "allOf": [
@@ -643,9 +692,8 @@
                                 "enum_titles": ["infrastructure", "mesh", "ad hoc"]
                             }
                         },
-                        "method": {
+                        "type": {
                             "type": "string",
-                            "title": "Method",
                             "options": {
                                 "hidden": true
                             },
@@ -715,7 +763,7 @@
                             "propertyOrder": 10
                         }
                     },
-                    "required": ["method", "802-11-wireless_ssid", "802-11-wireless_mode", "802-11-wireless-security", "ipv4"]
+                    "required": ["type", "802-11-wireless_ssid", "802-11-wireless_mode", "802-11-wireless-security", "ipv4"]
                 },
                 {
                     "$ref": "#/definitions/nm_connection"
@@ -730,7 +778,7 @@
                 }
             }
         },
-        "method_nm_wifi_ap": {
+        "nm_wifi_ap": {
             "title": "Wi-Fi access point",
             "description": "Managed by NetworkManager",
             "allOf": [
@@ -744,7 +792,7 @@
                                 "hidden": true
                             }
                         },
-                        "method": {
+                        "type": {
                             "type": "string",
                             "options": {
                                 "hidden": true
@@ -800,7 +848,7 @@
                             "propertyOrder": 10
                         }
                     },
-                    "required": ["method", "802-11-wireless_ssid", "802-11-wireless-security", "ipv4"]
+                    "required": ["type", "802-11-wireless_ssid", "802-11-wireless-security", "ipv4"]
                 },
                 {
                     "$ref": "#/definitions/nm_connection"
@@ -815,16 +863,15 @@
                 }
             }
         },
-        "method_nm_modem": {
+        "nm_modem": {
             "title": "Modem",
             "description": "Managed by NetworkManager",
             "allOf":[
                 {
                     "type": "object",
                     "properties": {
-                        "method": {
+                        "type": {
                             "type": "string",
-                            "title": "Method",
                             "options": {
                                 "hidden": true
                             },
@@ -901,7 +948,7 @@
                             "_format": "edWb"
                         }
                     },
-                    "required": ["method"]
+                    "required": ["type", "gsm_auto-config"]
                 },
                 {
                     "$ref": "#/definitions/nm_connection"
@@ -1094,16 +1141,16 @@
                         "title": "connection_title",
                         "headerTemplate": "{{self.name}}{{self.connection_id]}}",
                         "oneOf": [
-                            { "$ref": "#/definitions/method_nm_ethernet" },
-                            { "$ref": "#/definitions/method_nm_wifi" },
-                            { "$ref": "#/definitions/method_nm_wifi_ap" },
-                            { "$ref": "#/definitions/method_nm_modem" },
-                            { "$ref": "#/definitions/method_loopback" },
-                            { "$ref": "#/definitions/method_static" },
-                            { "$ref": "#/definitions/method_dhcp" },
-                            { "$ref": "#/definitions/method_ppp" },
-                            { "$ref": "#/definitions/method_can" },
-                            { "$ref": "#/definitions/method_manual" }
+                            { "$ref": "#/definitions/nm_ethernet" },
+                            { "$ref": "#/definitions/nm_wifi" },
+                            { "$ref": "#/definitions/nm_wifi_ap" },
+                            { "$ref": "#/definitions/nm_modem" },
+                            { "$ref": "#/definitions/old_loopback" },
+                            { "$ref": "#/definitions/old_static" },
+                            { "$ref": "#/definitions/old_dhcp" },
+                            { "$ref": "#/definitions/old_ppp" },
+                            { "$ref": "#/definitions/old_can" },
+                            { "$ref": "#/definitions/old_manual" }
                         ],
                         "options": {
                             "keep_oneof_values": false,
@@ -1120,7 +1167,7 @@
                         "disable_array_delete_all_rows": true,
                         "wb": {
                             "select_label": "Choose connection type",
-                            "sort_by_property": "method"
+                            "sort_by_property": "type"
                         }
                     },
                     "_format": "wb-array"
@@ -1286,7 +1333,8 @@
             "Security": "Защита",
             "Network name (SSID)": "Название сети (SSID)",
             "None": "Нет",
-            "Shared to other computers": "Общий с другими компьютерами"
+            "Shared to other computers": "Общий с другими компьютерами",
+            "Type": "Тип"
         }
     }
 }

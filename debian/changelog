@@ -1,3 +1,13 @@
+wb-nm-helper (1.0.1) stable; urgency=medium
+
+  * Hide old web-configurator for /etc/network/interfaces 
+  * Fix displaying of Wi-Fi and CAN connections defined in /etc/network/interfaces
+  * Fix parsing of /etc/network/interfaces with only comments
+  * Disable hostapd and dnsmasq when creating Wi-Fi AP managed by NetworkManager
+  * Add Readme.md
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.ru>  Tue, 08 Nov 2022 16:58:23 +0500
+
 wb-nm-helper (1.0.0) stable; urgency=medium
 
   * Initial release
