@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Dict, List, Optional
 
 import dbus
 
@@ -89,7 +89,7 @@ class NetworkManager(NMObject):
                 return c_obj
         return None
 
-    def get_active_connections(self) -> dict[str, NMActiveConnection]:
+    def get_active_connections(self) -> Dict[str, NMActiveConnection]:
         res = {}
         for path in self.get_property("ActiveConnections"):
             con = NMActiveConnection(path, self.bus)
@@ -117,10 +117,10 @@ class NetworkManager(NMObject):
     def get_version(self) -> str:
         return self.get_property("Version")
 
-    def get_devices(self) -> list[NMDevice]:
+    def get_devices(self) -> List[NMDevice]:
         return map(lambda path: NMDevice(path, self.bus), self.get_iface().GetDevices())
 
-    def get_connections(self) -> list[NMConnection]:
+    def get_connections(self) -> List[NMConnection]:
         settings_proxy = self.bus.get_object(
             "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager/Settings"
         )
@@ -170,7 +170,7 @@ class NMActiveConnection(NMObject):
     def __init__(self, path: str, bus: dbus.SystemBus):
         NMObject.__init__(self, path, bus, "org.freedesktop.NetworkManager.Connection.Active")
 
-    def get_ifaces(self) -> list[str]:
+    def get_ifaces(self) -> List[str]:
         res = []
         for dev_path in self.get_property("Devices"):
             dev = NMDevice(dev_path, self.bus)
@@ -185,7 +185,7 @@ class NMActiveConnection(NMObject):
 
     def get_ip4_connectivity(self):
         dev_paths = self.get_property("Devices")
-        if len(dev_paths):
+        if dev_paths:
             # check only first device and IPv4 connectivity
             dev = NMDevice(dev_paths[0], self.bus)
             return dev.get_property("Ip4Connectivity")
@@ -209,7 +209,7 @@ class NMWirelessDevice(NMObject):
     def request_wifi_scan(self) -> None:
         self.get_iface().RequestScan([])
 
-    def get_access_points(self) -> list[NMAccessPoint]:
+    def get_access_points(self) -> List[NMAccessPoint]:
         return map(
             lambda path: NMAccessPoint(path, self.bus),
             self.get_iface().GetAllAccessPoints(),

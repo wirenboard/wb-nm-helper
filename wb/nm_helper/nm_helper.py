@@ -1,12 +1,18 @@
+from __future__ import annotations
+
+import datetime
 import json
 import logging
 import os
 import re
+import subprocess
 import sys
 from typing import List
 
 from .network_interfaces_adapter import NetworkInterfacesAdapter
 from .network_manager_adapter import NetworkManagerAdapter
+
+WIFI_SCAN_TIMEOUT = datetime.timedelta(seconds=5)
 
 JSON_INDENT_LEVEL = 2
 CONNECTION_MANAGER_CONFIG_FILE = "/etc/wb-connection-manager.conf"
@@ -33,25 +39,45 @@ def not_fully_contains(dst: List[str], src: List[str]) -> bool:
     return False
 
 
-def get_adapters():
-    adapters = []
-    network_manager = NetworkManagerAdapter.probe()
-    if network_manager is not None:
-        adapters.append(network_manager)
-    network_interfaces = NetworkInterfacesAdapter.probe()
-    if network_interfaces is not None:
-        adapters.append(network_interfaces)
-    return adapters
+def scan_wifi() -> List[str]:
+    res = []
+    try:
+        pattern = re.compile(r"ESSID:\s*\"(.*)\"")
+        scan_result = subprocess.check_output(
+            ["iwlist", "scan"], timeout=WIFI_SCAN_TIMEOUT.total_seconds(), text=True
+        )
+        for line in scan_result.splitlines():
+            match = pattern.search(line)
+            if match and match.group(1):
+                res.append(match.group(1))
+        res.sort()
+    except subprocess.TimeoutExpired:
+        logging.info("Can't get Wi-Fi scanning results within %s", str(WIFI_SCAN_TIMEOUT))
+    except subprocess.CalledProcessError as ex:
+        logging.info("Error during Wi-Fi scan: %s", ex)
+    return res
+
+
+def get_hostapd_wlan():
+    return "wlan0"
+
+
+def get_dnsmasq_wlans() -> List[str]:
+    return "wlan0"
 
 
 def to_json():
     connections = []
-    ssids = []
     devices = []
-    for adapter in get_adapters():
-        connections = connections + adapter.get_connections()
-        ssids = ssids + adapter.get_wifi_ssids()
-        devices = devices + adapter.get_devices()
+
+    network_manager = NetworkManagerAdapter.probe()
+    if network_manager is not None:
+        connections = network_manager.get_connections()
+        devices = network_manager.get_devices()
+
+    network_interfaces = NetworkInterfacesAdapter.probe()
+    if network_interfaces is not None:
+        connections = connections + network_interfaces.get_connections()
 
     devices.sort(key=lambda v: v["type"])
 
@@ -64,7 +90,7 @@ def to_json():
 
     res = {
         "ui": {"connections": connections, "con_switch": switch_cfg},
-        "data": {"ssids": ssids, "devices": devices},
+        "data": {"ssids": scan_wifi(), "devices": devices},
     }
     json.dump(res, sys.stdout, sort_keys=True, indent=JSON_INDENT_LEVEL)
 

@@ -44,14 +44,12 @@ from pyparsing import (
     pythonStyleComment,
 )
 
-from .network_management_system import INetworkManagementSystem
-
 NETWORK_INTERFACES_CONFIG = "/etc/network/interfaces"
 
 ApplyResult = namedtuple("ApplyResult", ["unmanaged_connections", "managed_wlans"], defaults=[[], []])
 
 
-class NetworkInterfacesAdapter(INetworkManagementSystem):
+class NetworkInterfacesAdapter:
 
     interface = Word(alphanums + ":")
     key = Word(alphanums + "-_")
@@ -103,7 +101,7 @@ class NetworkInterfacesAdapter(INetworkManagementSystem):
         """
         if self.filename:
             self._read()
-        if len(self.content):
+        if self.content:
             return self.interface_file.parseString(self.content)
         return []
 
@@ -197,7 +195,7 @@ class NetworkInterfacesAdapter(INetworkManagementSystem):
             iface["type"] = method
             if method == "static" and iface.get("mode") == "can":
                 iface["type"] = "can"
-        return res
+        return [iface for iface in res if iface.get("type") is not None]
 
     @staticmethod
     def probe():
