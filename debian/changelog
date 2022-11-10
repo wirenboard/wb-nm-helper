@@ -1,6 +1,12 @@
+wb-nm-helper (1.0.3) stable; urgency=medium
+
+  * Stop hostapd and dnsmasq after removing wlan0 from /etc/network/interfaces
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.ru>  Thu, 10 Nov 2022 11:00:57 +0500
+
 wb-nm-helper (1.0.2) stable; urgency=medium
 
-  * 
+  * Fix connection creation error
 
  -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.ru>  Wed, 09 Nov 2022 20:52:29 +0500
 

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import datetime
 import logging
-import os
 import time
 from collections import namedtuple
 from enum import Enum
@@ -207,10 +206,6 @@ class Connection:
         set_ipv4_dbus_options(con, iface)
 
     def create(self, iface: JSONSettings) -> dbus.Dictionary:
-        # A new WiFi AP will be created
-        # NM conflicts with dnsmasq and hostapd so stop them
-        os.system("systemctl stop hostapd")
-        os.system("systemctl stop dnsmasq")
         con = DBUSSettings()
         self.set_dbus_options(con, iface)
         con.set_value("connection.type", self.dbus_type)

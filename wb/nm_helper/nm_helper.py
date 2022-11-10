@@ -54,10 +54,17 @@ def from_json():
         sys.exit(1)
 
     connections = cfg["ui"]["connections"]
+
     network_interfaces = NetworkInterfacesAdapter.probe()
     if network_interfaces is not None:
-        connections = network_interfaces.apply(connections)
+        apply_res = network_interfaces.apply(connections)
         os.system("systemctl restart networking")
+        if "wlan0" not in apply_res.managed_wlans:
+            # NM conflicts with dnsmasq and hostapd, so stop them
+            os.system("systemctl stop hostapd")
+            os.system("systemctl stop dnsmasq")
+        connections = apply_res.unmanaged_connections
+
     network_manager = NetworkManagerAdapter.probe()
     if network_manager is not None:
         # wb-connection-manager will be later restarted by wb-mqtt-confed
