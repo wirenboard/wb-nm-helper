@@ -1193,7 +1193,7 @@
                                 "enumSource": [
                                     {
                                         "source": "connections",
-                                        "filter": "{{if item.method in [\"01_nm_ethernet\",\"02_nm_modem\",\"03_nm_wifi\"]}}1{{endif}}{{endif}}",
+                                        "filter": "{{if item.type in [\"01_nm_ethernet\",\"02_nm_modem\",\"03_nm_wifi\"]}}1{{endif}}{{endif}}",
                                         "title": "{{item.connection_id}}",
                                         "value": "{{item.connection_id}}"
                                     }
