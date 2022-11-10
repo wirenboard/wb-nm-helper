@@ -11,6 +11,7 @@ Section: python
 Architecture: all
 Depends: ${python3:Depends}, ${misc:Depends}, python3-pyparsing, python3-dbus, python3-pycurl
 Description: Wirenboard network configuration python3 library
+ The package includes utility functions for wb-nm-helper.
 
 Package: wb-nm-helper
 Architecture: all
