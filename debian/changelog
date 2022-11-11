@@ -1,3 +1,9 @@
+wb-nm-helper (1.0.6) stable; urgency=medium
+
+  * Remove adhoc and mesh Wi-Fi modes
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.ru>  Fri, 11 Nov 2022 17:37:00 +0500
+
 wb-nm-helper (1.0.5) stable; urgency=medium
 
   * Fix displaying of Wi-Fi AP password
