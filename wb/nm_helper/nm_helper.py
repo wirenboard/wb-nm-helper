@@ -1,13 +1,36 @@
 import json
 import logging
 import os
+import re
 import sys
+from typing import List
 
 from .network_interfaces_adapter import NetworkInterfacesAdapter
 from .network_manager_adapter import NetworkManagerAdapter
 
 JSON_INDENT_LEVEL = 2
 CONNECTION_MANAGER_CONFIG_FILE = "/etc/wb-connection-manager.conf"
+
+
+def find_interface_strings(file_name: str) -> List[str]:
+    res = []
+    pattern = re.compile(r"^\s*interface\s*=\s*(.*)")
+    try:
+        with open(file_name, "r", encoding="utf-8") as file:
+            for line in file.readlines():
+                match = pattern.search(line.strip())
+                if match and match.group(1):
+                    res.append(match.group(1))
+    except FileNotFoundError:
+        pass
+    return res
+
+
+def not_fully_contains(dst: List[str], src: List[str]) -> bool:
+    for item in src:
+        if item not in dst:
+            return True
+    return False
 
 
 def get_adapters():
@@ -54,10 +77,20 @@ def from_json():
         sys.exit(1)
 
     connections = cfg["ui"]["connections"]
+
     network_interfaces = NetworkInterfacesAdapter.probe()
     if network_interfaces is not None:
-        connections = network_interfaces.apply(connections)
+        apply_res = network_interfaces.apply(connections)
+        # NM conflicts with dnsmasq and hostapd
+        # Stop them if wlan is not configured in /etc/network/interfaces
+        if not_fully_contains(apply_res.managed_wlans, find_interface_strings("/etc/dnsmasq.conf")):
+            os.system("systemctl stop dnsmasq")
+        if not_fully_contains(apply_res.managed_wlans, find_interface_strings("/etc/hostapd.conf")):
+            os.system("systemctl stop hostapd")
         os.system("systemctl restart networking")
+
+        connections = apply_res.unmanaged_connections
+
     network_manager = NetworkManagerAdapter.probe()
     if network_manager is not None:
         # wb-connection-manager will be later restarted by wb-mqtt-confed
