@@ -55,6 +55,9 @@
                         "hidden": true,
                         "dependencies": {
                             "security": "wpa-psk"
+                        },
+                        "wb": {
+                            "show_editor": true
                         }
                     }
                 },
@@ -66,6 +69,9 @@
                     "options": {
                         "dependencies": {
                             "key-mgmt": "wpa-psk"
+                        },
+                        "wb": {
+                            "show_editor": true
                         }
                     },
                     "propertyOrder": 2
