@@ -1,1 +1,1 @@
-buildDebArchAll defaultRunPythonChecks: false
+buildDebArchAll()
