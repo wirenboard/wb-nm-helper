@@ -1,3 +1,9 @@
+wb-nm-helper (1.0.9) stable; urgency=medium
+
+  * Update description for connections configured in /etc/network/interfaces
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.ru>  Mon, 14 Nov 2022 12:19:59 +0500
+
 wb-nm-helper (1.0.8) stable; urgency=medium
 
   * Rename device to interface in config editor
