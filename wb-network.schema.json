@@ -613,11 +613,11 @@
                     "properties": {
                         "connection_interface-name": {
                             "type": "string",
-                            "title": "Only for device",
+                            "title": "Only for interface",
                             "propertyOrder": 3,
                             "options": {
                                 "inputAttributes": {
-                                    "placeholder":  "use with any suitable device"
+                                    "placeholder":  "use with any suitable interface"
                                 },
                                 "wb": {
                                     "show_editor": true
@@ -737,11 +737,11 @@
                         },
                         "connection_interface-name": {
                             "type": "string",
-                            "title": "Only for device",
+                            "title": "Only for interface",
                             "propertyOrder": 8,
                             "options": {
                                 "inputAttributes": {
-                                    "placeholder":  "use with any suitable device"
+                                    "placeholder":  "use with any suitable interface"
                                 },
                                 "wb": {
                                     "show_editor": true
@@ -822,11 +822,11 @@
                         },
                         "connection_interface-name": {
                             "type": "string",
-                            "title": "Only for device",
+                            "title": "Only for interface",
                             "propertyOrder": 8,
                             "options": {
                                 "inputAttributes": {
-                                    "placeholder":  "use with any suitable device"
+                                    "placeholder":  "use with any suitable interface"
                                 },
                                 "wb": {
                                     "show_editor": true
@@ -1324,8 +1324,10 @@
             "Connection name": "Название соединения",
             "Only for SIM slot": "Только для SIM-слота",
             "Only for device": "Только для устройства",
+            "Only for interface": "Только для интерфейса",
             "Modem": "Модем",
             "use with any suitable device": "для любого подходящего устройства",
+            "use with any suitable interface": "для любого подходящего интерфейса",
             "any SIM-slot": "для любого SIM-слота",
             "Choose connection type": "Выберите тип соединения",
             "Automatic connections switching": "Автоматическое переключение соединений",
