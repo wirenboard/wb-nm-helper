@@ -1,3 +1,9 @@
+wb-nm-helper (1.0.7) stable; urgency=medium
+
+  * Remove adhoc and mesh Wi-Fi modes
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.ru>  Mon, 14 Nov 2022 11:59:03 +0500
+
 wb-nm-helper (1.0.6) stable; urgency=medium
 
   * Do not show default configured loopback
