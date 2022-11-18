@@ -1274,7 +1274,7 @@
         "en": {
             "connection_title": "Connection",
             "gsm_auto-config_title": "Define APN according to information from SIM-card",
-            "con_switch_desc": "The service is designed to switch to fallback connections when the main one is disconnected. Periodically checks the availability of the network through the current connection. If it does not work correctly, the next one in the list is activated. If a higher priority connection becomes available again, the service will switch to it and close the current connection.",
+            "con_switch_desc": "The controller checks the connection with the Internet every 5 seconds, if there is no connection, the current connection will down and the next one in the list will be activated. Further, every 60 seconds the controller will try to up one of the connections with a higher priority and, if it succeeds, will switch to it.",
             "mac-pattern-message": "Must be six hexadecimal byte values divided by colon (example f2:c8:14:48:d3:97)",
             "interfaces_description": "Configured in /etc/network/interfaces. If you want to configure it in NetworkManager, remove it and create new",
             "can_description": "Configured in /etc/network/interfaces"
@@ -1337,7 +1337,7 @@
             "any SIM-slot": "для любого SIM-слота",
             "Choose connection type": "Выберите тип соединения",
             "Automatic connections switching": "Автоматическое переключение соединений",
-            "con_switch_desc": "Сервис предназначен для переключения на резервные соединения при потери связи через основное. Периодически проверяется доступность сети через текущее соединение. Если оно работает некорректно, активируется следующее по списку. Если более приоритетное соединение снова стало доступным, сервис переключится на него и закроет текущее резервное соединение.",
+            "con_switch_desc": "Контроллер каждые 5 секунд проверяет связь с интернетом, если связи нет — текущее соединение завершится, и будет активировано следующее по списку. Далее контроллер каждые 60 секунд попытается поднять одно из соединений с более высоким приоритетом и, если это удастся, переключится на него.",
             "Enable debug logging": "Включить отладочные сообщения",
             "Connections in descending order of priority": "Соединения в порядке убывания приоритета",
             "Wi-Fi access point": "Wi-Fi точка доступа",
