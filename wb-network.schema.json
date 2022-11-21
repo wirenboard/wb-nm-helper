@@ -86,7 +86,6 @@
         },
         "iface_common": {
             "type": "object",
-            "description": "Managed by /etc/network/interfaces",
             "properties": {
                 "auto": {
                     "type": "boolean",
@@ -151,6 +150,7 @@
         },
         "old_loopback": {
             "title": "Loopback interface",
+            "description": "interfaces_description",
             "allOf": [
                 { "$ref": "#/definitions/iface_common" },
                 {
@@ -205,6 +205,7 @@
         },
         "old_static": {
             "title": "Static IP",
+            "description": "interfaces_description",
             "allOf": [
                 { "$ref": "#/definitions/iface_common" },
                 {
@@ -332,6 +333,7 @@
         },
         "old_dhcp": {
             "title": "DHCP",
+            "description": "interfaces_description",
             "allOf": [
                 { "$ref": "#/definitions/iface_common" },
                 {
@@ -404,6 +406,7 @@
         },
         "old_can": {
             "title": "CAN",
+            "description": "can_description",
             "allOf": [
                 { "$ref": "#/definitions/iface_common" },
                 {
@@ -465,6 +468,7 @@
         },
         "old_ppp": {
             "title": "PPP",
+            "description": "interfaces_description",
             "allOf": [
                 { "$ref": "#/definitions/iface_common" },
                 {
@@ -540,6 +544,7 @@
         },
         "old_manual": {
             "title": "Manual",
+            "description": "interfaces_description",
             "allOf": [
                 { "$ref": "#/definitions/iface_common" },
                 {
@@ -606,7 +611,7 @@
         },
         "nm_ethernet": {
             "title": "Ethernet",
-            "description": "Managed by NetworkManager",
+            "description": "Configured in NetworkManager",
             "allOf": [
                 {
                     "type": "object",
@@ -684,7 +689,7 @@
         },
         "nm_wifi": {
             "title": "Wi-Fi",
-            "description": "Managed by NetworkManager",
+            "description": "Configured in NetworkManager",
             "allOf": [
                 {
                     "type": "object",
@@ -784,7 +789,7 @@
         },
         "nm_wifi_ap": {
             "title": "Wi-Fi access point",
-            "description": "Managed by NetworkManager",
+            "description": "Configured in NetworkManager",
             "allOf": [
                 {
                     "type": "object",
@@ -869,7 +874,7 @@
         },
         "nm_modem": {
             "title": "Modem",
-            "description": "Managed by NetworkManager",
+            "description": "Configured in NetworkManager",
             "allOf":[
                 {
                     "type": "object",
@@ -1269,8 +1274,10 @@
         "en": {
             "connection_title": "Connection",
             "gsm_auto-config_title": "Define APN according to information from SIM-card",
-            "con_switch_desc": "The service is designed to switch to fallback connections when the main one is disconnected. Periodically checks the availability of the network through the current connection. If it does not work correctly, the next one in the list is activated. If a higher priority connection becomes available again, the service will switch to it and close the current connection.",
-            "mac-pattern-message": "Must be six hexadecimal byte values divided by colon (example f2:c8:14:48:d3:97)"
+            "con_switch_desc": "The controller checks the connection with the Internet every 5 seconds, if there is no connection, the current connection will down and the next one in the list will be activated. Further, every 60 seconds the controller will try to up one of the connections with a higher priority and, if it succeeds, will switch to it.",
+            "mac-pattern-message": "Must be six hexadecimal byte values divided by colon (example f2:c8:14:48:d3:97)",
+            "interfaces_description": "Configured in /etc/network/interfaces. Management via NetworkManager is available - this is a modern configuration service, support for which is currently being developed in Wiren Board. To switch to NetworkManager, delete and re-create the connection",
+            "can_description": "Configured in /etc/network/interfaces"
         },
         "ru": {
             "Network connections": "Сетевые соединения",
@@ -1314,8 +1321,9 @@
             "Point-to-point address": "Адрес конечного узла",
             "For point-to-point configuration": "Для конфигурации соединения точка-точка",
             "Refers to the file in /etc/ppp/peers": "Указать имя файла конфигурации из директории /etc/ppp/peers",
-            "Managed by /etc/network/interfaces": "Управляется через /etc/network/interfaces",
-            "Managed by NetworkManager": "Управляется через NetworkManager",
+            "interfaces_description": "Настроено в /etc/network/interfaces. Доступно управление через NetworkManager - это современный сервис настройки, поддержка которого сейчас развивается в Wiren Board. Для перехода на NetworkManager удалите и создайте соединение заново",
+            "can_description": "Настроено в /etc/network/interfaces",
+            "Configured in NetworkManager": "Настроено в NetworkManager",
             "Interface": "Имя интерфейса",
             "connection_title": "Соединение",
             "gsm_auto-config_title": "Определить APN автоматически на основании информации об операторе SIM-карты",
@@ -1329,7 +1337,7 @@
             "any SIM-slot": "для любого SIM-слота",
             "Choose connection type": "Выберите тип соединения",
             "Automatic connections switching": "Автоматическое переключение соединений",
-            "con_switch_desc": "Сервис предназначен для переключения на резервные соединения при потери связи через основное. Периодически проверяется доступность сети через текущее соединение. Если оно работает некорректно, активируется следующее по списку. Если более приоритетное соединение снова стало доступным, сервис переключится на него и закроет текущее резервное соединение.",
+            "con_switch_desc": "Контроллер каждые 5 секунд проверяет связь с интернетом, если связи нет — текущее соединение завершится, и будет активировано следующее по списку. Далее контроллер каждые 60 секунд попытается поднять одно из соединений с более высоким приоритетом и, если это удастся, переключится на него.",
             "Enable debug logging": "Включить отладочные сообщения",
             "Connections in descending order of priority": "Соединения в порядке убывания приоритета",
             "Wi-Fi access point": "Wi-Fi точка доступа",
