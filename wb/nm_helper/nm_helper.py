@@ -58,14 +58,6 @@ def scan_wifi() -> List[str]:
     return res
 
 
-def get_hostapd_wlan():
-    return "wlan0"
-
-
-def get_dnsmasq_wlans() -> List[str]:
-    return "wlan0"
-
-
 def to_json():
     connections = []
     devices = []
