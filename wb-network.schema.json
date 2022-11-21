@@ -1276,7 +1276,7 @@
             "gsm_auto-config_title": "Define APN according to information from SIM-card",
             "con_switch_desc": "The controller checks the connection with the Internet every 5 seconds, if there is no connection, the current connection will down and the next one in the list will be activated. Further, every 60 seconds the controller will try to up one of the connections with a higher priority and, if it succeeds, will switch to it.",
             "mac-pattern-message": "Must be six hexadecimal byte values divided by colon (example f2:c8:14:48:d3:97)",
-            "interfaces_description": "Configured in /etc/network/interfaces. If you want to configure it in NetworkManager, remove it and create new",
+            "interfaces_description": "Configured in /etc/network/interfaces. Management via NetworkManager is available - this is a modern configuration service, support for which is currently being developed in Wiren Board. To switch to NetworkManager, delete and re-create the connection",
             "can_description": "Configured in /etc/network/interfaces"
         },
         "ru": {
@@ -1321,8 +1321,8 @@
             "Point-to-point address": "Адрес конечного узла",
             "For point-to-point configuration": "Для конфигурации соединения точка-точка",
             "Refers to the file in /etc/ppp/peers": "Указать имя файла конфигурации из директории /etc/ppp/peers",
-            "interfaces_description": "Настроено в /etc/network/interfaces",
-            "can_description": "Настроено в /etc/network/interfaces. Если необходимо настроить это соединение в NetworkManager'е, удалите и создайте новое",
+            "interfaces_description": "Настроено в /etc/network/interfaces. Доступно управление через NetworkManager - это современный сервис настройки, поддержка которого сейчас развивается в Wiren Board. Для перехода на NetworkManager удалите и создайте соединение заново",
+            "can_description": "Настроено в /etc/network/interfaces",
             "Configured in NetworkManager": "Настроено в NetworkManager",
             "Interface": "Имя интерфейса",
             "connection_title": "Соединение",
