@@ -212,8 +212,8 @@ class Connection:
     def can_manage(self, cfg: DBUSSettings):
         return cfg.get_opt("connection.type") == self.dbus_type
 
-    def get_dbus_settings(self, con: NMConnection) -> DBUSSettings:
-        # pylint: disable=no-self-use
+    @staticmethod
+    def get_dbus_settings(con: NMConnection) -> DBUSSettings:
         return DBUSSettings(con.get_settings())
 
     def get_connection(self, con: NMConnection):
@@ -263,7 +263,8 @@ class WiFiConnection(Connection):
         ]
         Connection.__init__(self, "802-11-wireless", METHOD_WIFI, params)
 
-    def get_dbus_settings(self, con: NMConnection) -> DBUSSettings:
+    @staticmethod
+    def get_dbus_settings(con: NMConnection) -> DBUSSettings:
         return WiFiDBUSSettings(con)
 
     def can_manage(self, cfg: DBUSSettings) -> bool:
