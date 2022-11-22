@@ -49,6 +49,19 @@ NETWORK_INTERFACES_CONFIG = "/etc/network/interfaces"
 ApplyResult = namedtuple("ApplyResult", ["unmanaged_connections", "managed_wlans"], defaults=[[], []])
 
 
+def is_default_configured_loopback(iface):
+    default = {
+        "auto": True,
+        "method": "loopback",
+        "mode": "inet",
+        "name": "lo",
+        "options": {},
+        "type": "loopback",
+    }
+
+    return iface == default
+
+
 class NetworkInterfacesAdapter:
 
     interface = Word(alphanums + ":")
@@ -151,6 +164,7 @@ class NetworkInterfacesAdapter:
             {
               "name": "eth0",
               "auto": True,
+              "type": "static",
               "method": "static",
               "options": {
                 "address": "192.168.1.1",
@@ -195,7 +209,16 @@ class NetworkInterfacesAdapter:
             iface["type"] = method
             if method == "static" and iface.get("mode") == "can":
                 iface["type"] = "can"
-        return [iface for iface in res if iface.get("type") is not None]
+
+        # do not show default configured loopback
+        # it is managed by systemd and doesn't need to be mentioned in config
+        # filter interfaces without type
+        return list(
+            filter(
+                lambda iface: (not is_default_configured_loopback(iface)) and ("type" in iface),
+                res,
+            )
+        )
 
     @staticmethod
     def probe():

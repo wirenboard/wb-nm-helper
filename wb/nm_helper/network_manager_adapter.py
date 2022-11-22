@@ -270,7 +270,7 @@ class WiFiConnection(Connection):
     def can_manage(self, cfg: DBUSSettings) -> bool:
         return (
             super().can_manage(cfg)
-            and (cfg.get_opt("802-11-wireless.mode") != "ap")
+            and (cfg.get_opt("802-11-wireless.mode") == "infrastructure")
             and (
                 cfg.get_opt("802-11-wireless-security") is None
                 or cfg.get_opt("802-11-wireless-security.key-mgmt") == "wpa-psk"

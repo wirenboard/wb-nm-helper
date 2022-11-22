@@ -1,8 +1,38 @@
-wb-nm-helper (1.0.5) stable; urgency=medium
+wb-nm-helper (1.10.0) stable; urgency=medium
 
   * Scan Wi-Fi networks using iwlist
 
- -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.ru>  Fri, 11 Nov 2022 14:24:33 +0500
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Tue, 22 Nov 2022 14:35:39 +0500
+
+wb-nm-helper (1.0.9) stable; urgency=medium
+
+  * Update description for connections configured in /etc/network/interfaces
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.ru>  Mon, 14 Nov 2022 12:19:59 +0500
+
+wb-nm-helper (1.0.8) stable; urgency=medium
+
+  * Rename device to interface in config editor
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.ru>  Mon, 14 Nov 2022 12:09:10 +0500
+
+wb-nm-helper (1.0.7) stable; urgency=medium
+
+  * Remove adhoc and mesh Wi-Fi modes
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.ru>  Mon, 14 Nov 2022 11:59:03 +0500
+
+wb-nm-helper (1.0.6) stable; urgency=medium
+
+  * Do not show default configured loopback
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.ru>  Mon, 14 Nov 2022 10:43:05 +0500
+
+wb-nm-helper (1.0.5) stable; urgency=medium
+
+  * Fix displaying of Wi-Fi AP password
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.ru>  Fri, 11 Nov 2022 15:06:01 +0500
 
 wb-nm-helper (1.0.4) stable; urgency=medium
 
