@@ -96,7 +96,6 @@ def get_active_connections(
 
 def curl_get(iface: str, url: str) -> str:
     buffer = BytesIO()
-    # pylint: disable=c-extension-no-member
     curl = pycurl.Curl()
     curl.setopt(curl.URL, url)
     curl.setopt(curl.WRITEDATA, buffer)
@@ -115,7 +114,7 @@ def check_connectivity(active_cn: NMActiveConnection) -> bool:
     if ifaces:
         try:
             return curl_get(ifaces[0], CONNECTIVITY_CHECK_URL).startswith("NetworkManager is online")
-        except pycurl.error as ex:  # pylint: disable=c-extension-no-member
+        except pycurl.error as ex:
             logging.debug("Error during connectivity check: %s", ex)
     return False
 
