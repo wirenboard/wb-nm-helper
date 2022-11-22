@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import datetime
-import logging
-import time
 from collections import namedtuple
 from enum import Enum
 from ipaddress import IPv4Interface
+from typing import List, TypedDict
 
 import dbus
 
@@ -13,8 +11,6 @@ from .network_management_system import (
     DEVICE_TYPE_ETHERNET,
     DEVICE_TYPE_MODEM,
     DEVICE_TYPE_WIFI,
-    DeviceDesc,
-    INetworkManagementSystem,
 )
 from .network_manager import (
     NM_DEVICE_TYPE_ETHERNET,
@@ -23,10 +19,7 @@ from .network_manager import (
     NM_WIFI_MODE_DEFAULT,
     NetworkManager,
     NMConnection,
-    NMWirelessDevice,
 )
-
-WIFI_SCAN_TIMEOUT = datetime.timedelta(seconds=5)
 
 METHOD_ETHERNET = "01_nm_ethernet"
 METHOD_MODEM = "02_nm_modem"
@@ -37,6 +30,11 @@ METHOD_WIFI_AP = "04_nm_wifi_ap"
 class ParamPathType(Enum):
     FLAT = 1
     TREE = 2
+
+
+class DeviceDesc(TypedDict):
+    type: str
+    iface: str
 
 
 Param = namedtuple(
@@ -129,7 +127,7 @@ class JSONSettings:
             if value is not None:
                 self.params[path.replace(".", "_")] = value
 
-    def set_opts(self, src: DBUSSettings, params: list[Param]) -> None:
+    def set_opts(self, src: DBUSSettings, params: List[Param]) -> None:
         for param in params:
             self.set_value(
                 param.path,
@@ -148,7 +146,7 @@ class DBUSSettings:
     def set_value(self, path: str, value) -> None:
         set_opt_by_tree_path(self.params, path, value, dbus.Dictionary(signature="sv"))
 
-    def set_opts(self, src: JSONSettings, params: list[Param]) -> None:
+    def set_opts(self, src: JSONSettings, params: List[Param]) -> None:
         for param in params:
             self.set_value(param.path, get_converted_value(src.get_opt(param.path), param.to_dbus))
 
@@ -196,7 +194,7 @@ def get_ipv4_dbus_options(res: JSONSettings, cfg: DBUSSettings) -> None:
 
 
 class Connection:
-    def __init__(self, dbus_type: str, ui_type: str, additional_params: list[Param]) -> None:
+    def __init__(self, dbus_type: str, ui_type: str, additional_params: List[Param]) -> None:
         self.dbus_type = dbus_type
         self.ui_type = ui_type
         self.params = connection_params + additional_params
@@ -214,7 +212,8 @@ class Connection:
     def can_manage(self, cfg: DBUSSettings):
         return cfg.get_opt("connection.type") == self.dbus_type
 
-    def get_dbus_settings(self, con: NMConnection) -> DBUSSettings:
+    @staticmethod
+    def get_dbus_settings(con: NMConnection) -> DBUSSettings:
         return DBUSSettings(con.get_settings())
 
     def get_connection(self, con: NMConnection):
@@ -248,7 +247,7 @@ class WiFiDBUSSettings(DBUSSettings):
             try:
                 return self.con.get_iface().GetSecrets(name)[name]["psk"]
             except dbus.exceptions.DBusException as ex:
-                if "org.freedesktop.NetworkManager.Settings.Connection.SettingNotFound" == ex.get_dbus_name():
+                if ex.get_dbus_name() == "org.freedesktop.NetworkManager.Settings.Connection.SettingNotFound":
                     return None
         return super().get_opt(path, default)
 
@@ -264,7 +263,8 @@ class WiFiConnection(Connection):
         ]
         Connection.__init__(self, "802-11-wireless", METHOD_WIFI, params)
 
-    def get_dbus_settings(self, con: NMConnection) -> DBUSSettings:
+    @staticmethod
+    def get_dbus_settings(con: NMConnection) -> DBUSSettings:
         return WiFiDBUSSettings(con)
 
     def can_manage(self, cfg: DBUSSettings) -> bool:
@@ -322,7 +322,7 @@ def apply(iface, c_handler, network_manager: NetworkManager):
     network_manager.add_connection(c_handler.create(json_settings))
 
 
-class NetworkManagerAdapter(INetworkManagementSystem):
+class NetworkManagerAdapter:
     @staticmethod
     def probe():
         try:
@@ -355,14 +355,10 @@ class NetworkManagerAdapter(INetworkManagementSystem):
 
     def apply(self, interfaces):
         self.remove_undefined_connections(interfaces)
-        unmanaged_interfaces = []
         for iface in interfaces:
             handler = self.handlers.get(iface["type"])
             if handler is not None:
                 apply(iface, handler, self.network_manager)
-            else:
-                unmanaged_interfaces.append(iface)
-        return unmanaged_interfaces
 
     def get_connections(self):
         res = []
@@ -375,45 +371,7 @@ class NetworkManagerAdapter(INetworkManagementSystem):
         res.sort(key=lambda v: v.get("connection_id", ""))
         return res
 
-    def scan_if_needed(self, dev: NMWirelessDevice) -> None:
-        last_scan_ms = dev.get_property("LastScan")
-        # nmcli requests scan if last one was more than 30 seconds ago
-        if (last_scan_ms != -1) and (
-            time.clock_gettime_ns(time.CLOCK_BOOTTIME) / 1000000 - last_scan_ms < 30000
-        ):
-            return
-        dev.request_wifi_scan()
-        # Documentation says:
-        #   To know when the scan is finished, use the "PropertiesChanged" signal
-        #   from "org.freedesktop.DBus.Properties" to listen to changes to the "LastScan" property.
-        #
-        # Simply poll "LastScan"
-        start = datetime.datetime.now()
-        while start + WIFI_SCAN_TIMEOUT >= datetime.datetime.now():
-            if last_scan_ms != dev.get_property("LastScan"):
-                return
-            time.sleep(1)
-
-    def get_wifi_ssids(self) -> list[str]:
-        dev = self.network_manager.find_device_by_param("DeviceType", NM_DEVICE_TYPE_WIFI)
-        if not dev:
-            return []
-        try:
-            wireless_dev = NMWirelessDevice(dev)
-            self.scan_if_needed(wireless_dev)
-            res = []
-            for access_point in wireless_dev.get_access_points():
-                ssid = to_ascii_string(access_point.get_property("Ssid"))
-                if len(ssid) > 0:
-                    res.append(ssid)
-            res.sort()
-            return res
-        except dbus.exceptions.DBusException as ex:
-            logging.info("Error during Wi-Fi scan: %s", ex)
-
-        return []
-
-    def get_devices(self) -> list[DeviceDesc]:
+    def get_devices(self) -> List[DeviceDesc]:
         devices = []
         type_mapping = {
             NM_DEVICE_TYPE_ETHERNET: DEVICE_TYPE_ETHERNET,

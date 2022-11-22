@@ -44,8 +44,6 @@ from pyparsing import (
     pythonStyleComment,
 )
 
-from .network_management_system import INetworkManagementSystem
-
 NETWORK_INTERFACES_CONFIG = "/etc/network/interfaces"
 
 ApplyResult = namedtuple("ApplyResult", ["unmanaged_connections", "managed_wlans"], defaults=[[], []])
@@ -64,7 +62,7 @@ def is_default_configured_loopback(iface):
     return iface == default
 
 
-class NetworkInterfacesAdapter(INetworkManagementSystem):
+class NetworkInterfacesAdapter:
 
     interface = Word(alphanums + ":")
     key = Word(alphanums + "-_")
@@ -116,7 +114,7 @@ class NetworkInterfacesAdapter(INetworkManagementSystem):
         """
         if self.filename:
             self._read()
-        if len(self.content):
+        if self.content:
             return self.interface_file.parseString(self.content)
         return []
 
@@ -212,9 +210,15 @@ class NetworkInterfacesAdapter(INetworkManagementSystem):
             if method == "static" and iface.get("mode") == "can":
                 iface["type"] = "can"
 
-        # do not show default configured loopback,
+        # do not show default configured loopback
         # it is managed by systemd and doesn't need to be mentioned in config
-        return list(filter(lambda iface: not is_default_configured_loopback(iface), res))
+        # filter interfaces without type
+        return list(
+            filter(
+                lambda iface: (not is_default_configured_loopback(iface)) and ("type" in iface),
+                res,
+            )
+        )
 
     @staticmethod
     def probe():

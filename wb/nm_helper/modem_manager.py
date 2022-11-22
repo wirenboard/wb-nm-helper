@@ -2,6 +2,7 @@ import dbus
 
 
 class ModemManager:
+    # pylint: disable=too-few-public-methods
     def __init__(self):
         self.bus = dbus.SystemBus()
         self.mm_proxy = self.bus.get_object("org.freedesktop.ModemManager1", "/org/freedesktop/ModemManager1")

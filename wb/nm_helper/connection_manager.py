@@ -4,9 +4,10 @@ import datetime
 import json
 import logging
 import signal
+import sys
 import time
 from io import BytesIO
-from typing import Optional
+from typing import Dict, List, Optional
 
 import dbus
 import pycurl
@@ -35,6 +36,7 @@ CONFIG_FILE = "/etc/wb-connection-manager.conf"
 
 
 class ConnectionStateFilter(logging.Filter):
+    # pylint: disable=too-few-public-methods
     def __init__(self):
         logging.Filter.__init__(self)
         self.last_event = {}
@@ -76,19 +78,19 @@ def wait_connection_deactivation(con: NMActiveConnection, timeout) -> None:
             if current_state == NM_ACTIVE_CONNECTION_STATE_DEACTIVATED:
                 return
         except dbus.exceptions.DBusException as ex:
-            if "org.freedesktop.DBus.Error.UnknownMethod" == ex.get_dbus_name():
+            if ex.get_dbus_name() == "org.freedesktop.DBus.Error.UnknownMethod":
                 # Connection object is already removed from bus
                 return
         time.sleep(1)
 
 
 def get_active_connections(
-    connection_ids: list[str], active_connections: dict[str, NMActiveConnection]
-) -> dict[str, NMActiveConnection]:
+    connection_ids: List[str], active_connections: Dict[str, NMActiveConnection]
+) -> Dict[str, NMActiveConnection]:
     res = {}
-    for cn_id, cn in active_connections.items():
+    for cn_id, connection in active_connections.items():
         if cn_id in connection_ids:
-            res[cn_id] = cn
+            res[cn_id] = connection
     return res
 
 
@@ -109,7 +111,7 @@ def curl_get(iface: str, url: str) -> str:
 # Use NM's implementation after fixing the bug
 def check_connectivity(active_cn: NMActiveConnection) -> bool:
     ifaces = active_cn.get_ifaces()
-    if len(ifaces):
+    if ifaces:
         try:
             return curl_get(ifaces[0], CONNECTIVITY_CHECK_URL).startswith("NetworkManager is online")
         except pycurl.error as ex:
@@ -117,8 +119,15 @@ def check_connectivity(active_cn: NMActiveConnection) -> bool:
     return False
 
 
+def log_active_connections(active_connections: Dict[str, NMActiveConnection]):
+    if logging.getLogger().isEnabledFor(logging.DEBUG):
+        logging.debug("Active connections")
+        for cn_id, con in active_connections.items():
+            logging.debug("%s %s", cn_id, con.get_path())
+
+
 class ConnectionManager:
-    def __init__(self, network_manager: NetworkManager, connection_priority: list[str]) -> None:
+    def __init__(self, network_manager: NetworkManager, connection_priority: List[str]) -> None:
         self.network_manager = network_manager
         self.connection_up_time = {}
         self.connection_priority = connection_priority
@@ -153,10 +162,10 @@ class ConnectionManager:
             )
             self.network_manager.deactivate_connection(active_connection)
             wait_connection_deactivation(active_connection, CONNECTION_DEACTIVATION_TIMEOUT)
-        mm = ModemManager()
+        modem_manager = ModemManager()
         sim_slot = get_sim_slot(con)
         if sim_slot != NM_SETTINGS_GSM_SIM_SLOT_DEFAULT:
-            if not mm.set_primary_sim_slot(dev_path, sim_slot):
+            if not modem_manager.set_primary_sim_slot(dev_path, sim_slot):
                 return None
             # After switching SIM card MM recreates device with new path
             dev = self.wait_device_for_connection(con, DEVICE_WAITING_TIMEOUT)
@@ -207,7 +216,7 @@ class ConnectionManager:
         self.network_manager.deactivate_connection(active_cn)
         wait_connection_deactivation(active_cn, CONNECTION_DEACTIVATION_TIMEOUT)
 
-    def deactivate_connections(self, connections: dict[str, NMActiveConnection]) -> None:
+    def deactivate_connections(self, connections: Dict[str, NMActiveConnection]) -> None:
         for cn_id, con in connections.items():
             self.deactivate_connection(con)
             data = {"cn_id": cn_id}
@@ -219,18 +228,12 @@ class ConnectionManager:
         self.deactivate_connection(active_cn)
         return True
 
-    def log_active_connections(self, active_connections: dict[str, NMActiveConnection]):
-        if logging.getLogger().isEnabledFor(logging.DEBUG):
-            logging.debug("Active connections")
-            for cn_id, con in active_connections.items():
-                logging.debug("%s %s", cn_id, con.get_path())
-
     def check(self) -> None:
         for index, cn_id in enumerate(self.connection_priority):
             data = {"cn_id": cn_id}
             try:
                 active_connections = self.network_manager.get_active_connections()
-                self.log_active_connections(active_connections)
+                log_active_connections(active_connections)
                 active_cn = None
                 if cn_id in active_connections:
                     active_cn = active_connections[cn_id]
@@ -250,8 +253,7 @@ class ConnectionManager:
                             # Not a problem if less priority connections still be active
                             logging.warning("Error during connections deactivation: %s", ex)
                         return
-                    else:
-                        logging.info('"%s" has limited connectivity', cn_id, extra=data)
+                    logging.info('"%s" has limited connectivity', cn_id, extra=data)
             # Something went wrong during connection checking.
             # Proceed to next connection to be always on-line
             except dbus.exceptions.DBusException as ex:
@@ -271,7 +273,7 @@ def main():
             cfg = json.load(file)
     except (FileNotFoundError, PermissionError, OSError, json.decoder.JSONDecodeError) as ex:
         logging.error("Loading %s failed: %s", CONFIG_FILE, ex)
-        exit(EXIT_NOTCONFIGURED)
+        sys.exit(EXIT_NOTCONFIGURED)
 
     log_level = logging.DEBUG if cfg.get("debug", False) else logging.INFO
     if log_level > logging.DEBUG:
@@ -283,9 +285,9 @@ def main():
 
     connections = cfg.get("connections", [])
     if len(connections) > 0:
-        cm = ConnectionManager(NetworkManager(), connections)
+        manager = ConnectionManager(NetworkManager(), connections)
         while True:
-            cm.check()
+            manager.check()
             time.sleep(CHECK_PERIOD.total_seconds())
     else:
         logging.info("Nothing to manage")
