@@ -50,7 +50,7 @@ def scan_wifi() -> List[str]:
             match = pattern.search(line)
             if match and match.group(1):
                 res.append(match.group(1))
-        res.sort()
+        res = sorted(set(res))
     except subprocess.TimeoutExpired:
         logging.info("Can't get Wi-Fi scanning results within %s", str(WIFI_SCAN_TIMEOUT))
     except subprocess.CalledProcessError as ex:

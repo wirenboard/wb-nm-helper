@@ -235,7 +235,7 @@ class NetworkInterfacesAdapter:
                 iface.pop("type", None)
                 self.interfaces.append(iface)
                 if iface["name"].startswith("wlan"):
-                    res.managed_wlans(iface["name"])
+                    res.managed_wlans.append(iface["name"])
             else:
                 res.unmanaged_connections.append(iface)
         with open(NETWORK_INTERFACES_CONFIG, "w", encoding="utf-8") as file:
