@@ -73,11 +73,7 @@ def to_bool_default_true(val) -> bool:
 
 
 def to_bool_default_false(val) -> bool:
-    return bool(val) if val is not None else True
-
-
-def from_bool(val: bool):
-    return 1 if val is True else 0
+    return bool(val) if val is not None else False
 
 
 def get_converted_value(value, convert_fn=None):
@@ -164,7 +160,7 @@ connection_params = [
     Param("connection.uuid", to_dbus=not_empty_string),
     Param("connection.id"),
     Param("connection.interface-name", to_dbus=not_empty_string),
-    Param("connection.autoconnect", from_bool, to_bool_default_true),
+    Param("connection.autoconnect", from_dbus=to_bool_default_true),
 ]
 
 
@@ -263,6 +259,14 @@ class WiFiConnection(Connection):
         ]
         Connection.__init__(self, "802-11-wireless", METHOD_WIFI, params)
 
+    def set_dbus_options(self, con: DBUSSettings, iface: JSONSettings):
+        super().set_dbus_options(con, iface)
+        if "802-11-wireless-security" in con.params:
+            if iface.get_opt("802-11-wireless-security.security") == "none":
+                del con.params["802-11-wireless-security"]
+                if con.get_opt("802-11-wireless.security") is not None:
+                    del con.params["802-11-wireless"]["security"]
+
     @staticmethod
     def get_dbus_settings(con: NMConnection) -> DBUSSettings:
         return WiFiDBUSSettings(con)
@@ -300,7 +304,7 @@ class ModemConnection(Connection):
     def __init__(self) -> None:
         params = [
             Param("gsm.sim-slot", from_dbus=minus_one_is_none),
-            Param("gsm.auto-config", from_bool, to_bool_default_false),
+            Param("gsm.auto-config", from_dbus=to_bool_default_false),
             Param("gsm.apn", to_dbus_byte_array, to_ascii_string),
         ]
         Connection.__init__(self, "gsm", METHOD_MODEM, params)
