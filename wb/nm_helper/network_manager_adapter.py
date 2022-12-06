@@ -168,7 +168,8 @@ def set_ipv4_dbus_options(con: DBUSSettings, iface: JSONSettings) -> None:
     # remove deprecated parameter ipv4.addresses
     con.set_value("ipv4.addresses", None)
     con.set_opts(iface, ipv4_params)
-    if iface.get_opt("ipv4.method", "auto") == "manual":
+    method = iface.get_opt("ipv4.method", "auto")
+    if (method == "manual") or (method == "shared" and iface.get_opt("ipv4.address") is not None):
         net = IPv4Interface(
             "%s/%s" % (iface.get_opt("ipv4.address"), iface.get_opt("ipv4.netmask", "255.255.255.0"))
         )

@@ -1,3 +1,9 @@
+wb-nm-helper (1.10.3) stable; urgency=medium
+
+  * Fix Wi-Fi access point's subnet address editing
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Tue, 06 Dec 2022 18:31:32 +0500
+
 wb-nm-helper (1.10.2) stable; urgency=medium
 
   * Fix Wi-Fi access point security parameters editing
