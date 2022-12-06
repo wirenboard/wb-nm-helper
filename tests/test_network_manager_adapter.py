@@ -4,11 +4,12 @@ import pytest
 from wb.nm_helper.network_manager_adapter import DBUSSettings, JSONSettings, WiFiAp
 
 
-def test_wifiap_set_dbus_options():
-    cases = [
+@pytest.mark.parametrize(
+    "json,dbus_old,dbus_new",
+    [
         # Remove WPA-PSK security
-        {
-            "json": {
+        (
+            {
                 "802-11-wireless-security": {"security": "none"},
                 "802-11-wireless_mode": "ap",
                 "802-11-wireless_ssid": "WirenBoard-APT6KWYK",
@@ -19,7 +20,7 @@ def test_wifiap_set_dbus_options():
                 "connection_id": "wb-ap",
                 "connection_uuid": "d12c8d3c-1abe-4832-9b71-4ed6e3c20885",
             },
-            "dbus_old": dbus.Dictionary(
+            dbus.Dictionary(
                 {
                     dbus.String("connection"): dbus.Dictionary(
                         {
@@ -60,7 +61,7 @@ def test_wifiap_set_dbus_options():
                 },
                 signature=dbus.Signature("sa{sv}"),
             ),
-            "dbus_new": dbus.Dictionary(
+            dbus.Dictionary(
                 {
                     dbus.String("connection"): dbus.Dictionary(
                         {
@@ -88,13 +89,13 @@ def test_wifiap_set_dbus_options():
                 },
                 signature=dbus.Signature("sa{sv}"),
             ),
-        },
-    ]
-
+        )
+    ],
+)
+def test_wifiap_set_dbus_options(json, dbus_old, dbus_new):
     ap = WiFiAp()
-    for test_case in cases:
-        json = JSONSettings(test_case["json"])
-        dbus_old = DBUSSettings(test_case["dbus_old"])
-        dbus_new = DBUSSettings(test_case["dbus_new"])
-        ap.set_dbus_options(dbus_old, json)
-        assert dbus_old.params == dbus_new.params
+    json_settings = JSONSettings(json)
+    dbus_old_settings = DBUSSettings(dbus_old)
+    dbus_new_settings = DBUSSettings(dbus_new)
+    ap.set_dbus_options(dbus_old_settings, json_settings)
+    assert dbus_old_settings.params == dbus_new_settings.params
