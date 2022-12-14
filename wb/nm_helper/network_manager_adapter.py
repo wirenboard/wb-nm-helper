@@ -306,16 +306,6 @@ class WiFiAp(WiFiConnection):
             # Disable WPS as it can lead to connection problems with MacOS and Linux
             con.set_value("802-11-wireless-security.wps-method", 1)
 
-    def get_connection(self, con: NMConnection):
-        res = super().get_connection(con)
-        if (
-            (res is not None)
-            and ("802-11-wireless-security" in res)
-            and ("wps-method" in res["802-11-wireless-security"])
-        ):
-            del res["802-11-wireless-security"]["wps-method"]
-        return res
-
 
 class ModemConnection(Connection):
     def __init__(self) -> None:
