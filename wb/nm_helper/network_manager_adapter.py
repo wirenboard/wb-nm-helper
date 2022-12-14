@@ -300,6 +300,12 @@ class WiFiAp(WiFiConnection):
     def can_manage(self, cfg: DBUSSettings) -> bool:
         return Connection.can_manage(self, cfg) and (cfg.get_opt("802-11-wireless.mode") == "ap")
 
+    def set_dbus_options(self, con: DBUSSettings, iface: JSONSettings):
+        super().set_dbus_options(con, iface)
+        if "802-11-wireless-security" in con.params:
+            # Disable WPS as it can lead to connection problems with MacOS and Linux
+            con.set_value("802-11-wireless-security.wps-method", 1)
+
 
 class ModemConnection(Connection):
     def __init__(self) -> None:
