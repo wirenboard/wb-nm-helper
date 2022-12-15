@@ -1,3 +1,9 @@
+wb-nm-helper (1.10.5) stable; urgency=medium
+
+  * Hide system connections (rndis) on UI
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Thu, 15 Dec 2022 15:14:00 +0400
+
 wb-nm-helper (1.10.4) stable; urgency=medium
 
   * Disable WPS for Wi-Fi access points.

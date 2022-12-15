@@ -58,6 +58,14 @@ def scan_wifi() -> List[str]:
     return res
 
 
+def filter_system_connections(connections: List[dict]) -> List[dict]:
+    system_connections = [
+        "wb-rndis",
+        "wb-ecm"
+    ]
+    return [c for c in connections if c.get("connection_id", None) not in system_connections]
+
+
 def to_json():
     connections = []
     devices = []
@@ -70,6 +78,8 @@ def to_json():
     network_interfaces = NetworkInterfacesAdapter.probe()
     if network_interfaces is not None:
         connections = connections + network_interfaces.get_connections()
+
+    connections = filter_system_connections(connections)
 
     devices.sort(key=lambda v: v["type"])
 
