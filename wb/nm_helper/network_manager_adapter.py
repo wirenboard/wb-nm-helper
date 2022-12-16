@@ -161,6 +161,7 @@ connection_params = [
     Param("connection.id"),
     Param("connection.interface-name", to_dbus=not_empty_string),
     Param("connection.autoconnect", from_dbus=to_bool_default_true),
+    Param("connection.read-only", from_dbus=to_bool_default_false),
 ]
 
 
