@@ -993,13 +993,6 @@
                         "hidden": true
                     },
                     "default": ""
-                },
-                "connection_read-only": {
-                    "type": "boolean",
-                    "options": {
-                        "hidden": true
-                    },
-                    "default": false
                 }
             },
             "required": ["connection_id", "connection_uuid"]

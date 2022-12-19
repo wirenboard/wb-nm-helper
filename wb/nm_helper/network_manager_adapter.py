@@ -161,7 +161,6 @@ connection_params = [
     Param("connection.id"),
     Param("connection.interface-name", to_dbus=not_empty_string),
     Param("connection.autoconnect", from_dbus=to_bool_default_true),
-    Param("connection.read-only", from_dbus=to_bool_default_false),
 ]
 
 
@@ -208,6 +207,11 @@ class Connection:
         return con.params
 
     def can_manage(self, cfg: DBUSSettings):
+        user_data = cfg.get_opt("user.data")
+        if user_data is not None:
+            if to_bool_default_false(user_data.get("data.read-only")):
+                return False
+
         return cfg.get_opt("connection.type") == self.dbus_type
 
     @staticmethod

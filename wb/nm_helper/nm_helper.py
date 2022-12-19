@@ -58,10 +58,6 @@ def scan_wifi() -> List[str]:
     return res
 
 
-def filter_readonly_connections(connections: List[dict]) -> List[dict]:
-    return [c for c in connections if not c.get("connection_read-only", False)]
-
-
 def to_json():
     connections = []
     devices = []
@@ -74,8 +70,6 @@ def to_json():
     network_interfaces = NetworkInterfacesAdapter.probe()
     if network_interfaces is not None:
         connections = connections + network_interfaces.get_connections()
-
-    connections = filter_readonly_connections(connections)
 
     devices.sort(key=lambda v: v["type"])
 
