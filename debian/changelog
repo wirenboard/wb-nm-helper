@@ -1,8 +1,14 @@
-wb-nm-helper (1.10.5) stable; urgency=medium
+wb-nm-helper (1.10.6) stable; urgency=medium
 
   * Hide system connections (rndis) on UI
 
- -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Thu, 15 Dec 2022 15:14:00 +0400
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Mon, 19 Dec 2022 21:14:00 +0400
+
+wb-nm-helper (1.10.5) stable; urgency=medium
+
+  * Fix parsing of /etc/network/interfaces without new line at the end of a file
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Mon, 19 Dec 2022 17:51:10 +0500
 
 wb-nm-helper (1.10.4) stable; urgency=medium
 
