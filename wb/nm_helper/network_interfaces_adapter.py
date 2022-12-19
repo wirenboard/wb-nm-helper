@@ -90,12 +90,10 @@ class NetworkInterfacesAdapter:
 
     interface_file = ZeroOrMore(interface_block).ignore(pythonStyleComment)
 
-    def __init__(self, input_file_name=None, content=None):
+    def __init__(self, input_file_name=None):
         self.filename = None
-        self.content = None
-        if content:
-            self.content = content
-        elif input_file_name is not None:
+        self.content = "\n"
+        if input_file_name is not None:
             self.filename = input_file_name
             self._read()
         if self.content is not None:
@@ -107,6 +105,8 @@ class NetworkInterfacesAdapter:
         """
         with open(self.filename, "r", encoding="utf-8") as file:
             self.content = file.read()
+        if not self.content.endswith("\n"):
+            self.content = self.content + "\n"
 
     def get(self):
         """
