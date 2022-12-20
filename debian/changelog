@@ -1,3 +1,9 @@
+wb-nm-helper (1.11.0) stable; urgency=medium
+
+  * Hide connections configured with user.data.read-only=true on UI
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Mon, 19 Dec 2022 21:14:00 +0400
+
 wb-nm-helper (1.10.5) stable; urgency=medium
 
   * Fix parsing of /etc/network/interfaces without new line at the end of a file

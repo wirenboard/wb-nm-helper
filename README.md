@@ -133,3 +133,11 @@ successfully requested primary SIM switch in mode
     ]
 }
 ```
+
+### Скрытие соединения в homeUI
+
+Чтобы сделать соединение недоступным для редактирования из homeUI, необходимо добавить в `.nmconnection`:
+```
+[user]
+data.read-only=true
+```
