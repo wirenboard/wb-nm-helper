@@ -1,6 +1,6 @@
-wb-nm-helper (1.10.6) stable; urgency=medium
+wb-nm-helper (1.11.0) stable; urgency=medium
 
-  * Hide system connections (rndis) on UI
+  * Hide connections configured with user.data.read-only=true on UI
 
  -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Mon, 19 Dec 2022 21:14:00 +0400
 
