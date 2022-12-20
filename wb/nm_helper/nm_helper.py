@@ -12,7 +12,7 @@ from typing import List
 from .network_interfaces_adapter import NetworkInterfacesAdapter
 from .network_manager_adapter import NetworkManagerAdapter
 
-WIFI_SCAN_TIMEOUT = datetime.timedelta(seconds=5)
+WIFI_SCAN_TIMEOUT = datetime.timedelta(seconds=10)
 
 JSON_INDENT_LEVEL = 2
 CONNECTION_MANAGER_CONFIG_FILE = "/etc/wb-connection-manager.conf"
@@ -44,7 +44,7 @@ def scan_wifi() -> List[str]:
     try:
         pattern = re.compile(r"ESSID:\s*\"(.*)\"")
         scan_result = subprocess.check_output(
-            ["iwlist", "scan"], timeout=WIFI_SCAN_TIMEOUT.total_seconds(), text=True
+            ["iwlist", "wlan0", "scan"], timeout=WIFI_SCAN_TIMEOUT.total_seconds(), text=True
         )
         for line in scan_result.splitlines():
             match = pattern.search(line)

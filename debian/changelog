@@ -1,3 +1,9 @@
+wb-nm-helper (1.10.6) stable; urgency=medium
+
+  * Increase Wi-Fi scan timeout
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Tue, 20 Dec 2022 10:27:43 +0500
+
 wb-nm-helper (1.10.5) stable; urgency=medium
 
   * Fix parsing of /etc/network/interfaces without new line at the end of a file
