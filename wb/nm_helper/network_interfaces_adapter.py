@@ -221,12 +221,12 @@ class NetworkInterfacesAdapter:
         )
 
     @staticmethod
-    def probe():
-        if exists(NETWORK_INTERFACES_CONFIG):
-            return NetworkInterfacesAdapter(NETWORK_INTERFACES_CONFIG)
+    def probe(config: str = NETWORK_INTERFACES_CONFIG):
+        if exists(config):
+            return NetworkInterfacesAdapter(config)
         return None
 
-    def apply(self, interfaces) -> ApplyResult:
+    def apply(self, interfaces, dry_run: bool) -> ApplyResult:
         supported_types = ["loopback", "dhcp", "static", "can", "manual", "ppp"]
         res = ApplyResult()
         self.interfaces = []
@@ -238,8 +238,9 @@ class NetworkInterfacesAdapter:
                     res.managed_wlans.append(iface["name"])
             else:
                 res.unmanaged_connections.append(iface)
-        with open(NETWORK_INTERFACES_CONFIG, "w", encoding="utf-8") as file:
-            file.write(self.format())
+        if not dry_run:
+            with open(self.filename, "w", encoding="utf-8") as file:
+                file.write(self.format())
         return res
 
     def get_connections(self):
