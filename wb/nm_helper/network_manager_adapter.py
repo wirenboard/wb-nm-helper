@@ -207,6 +207,11 @@ class Connection:
         return con.params
 
     def can_manage(self, cfg: DBUSSettings):
+        user_data = cfg.get_opt("user.data")
+        if user_data is not None:
+            if to_bool_default_false(user_data.get("data.read-only")):
+                return False
+
         return cfg.get_opt("connection.type") == self.dbus_type
 
     @staticmethod
