@@ -1086,6 +1086,17 @@
                             "show_editor": true
                         }
                     }
+                },
+                "route-metric": {
+                    "type": "integer",
+                    "title": "Routing metric for default gateway",
+                    "propertyOrder": 15,
+                    "options": {
+                        "show_opt_in": true,
+                        "inputAttributes": {
+                            "placeholder":  " "
+                        }
+                    }
                 }
             },
             "required": ["method"],
@@ -1127,6 +1138,17 @@
                         "show_opt_in": true,
                         "inputAttributes": {
                             "placeholder":  "255.255.255.0"
+                        }
+                    }
+                },
+                "route-metric": {
+                    "type": "integer",
+                    "title": "Routing metric for default gateway",
+                    "propertyOrder": 15,
+                    "options": {
+                        "show_opt_in": true,
+                        "inputAttributes": {
+                            "placeholder":  " "
                         }
                     }
                 }
