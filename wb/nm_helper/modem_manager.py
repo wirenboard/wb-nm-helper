@@ -1,4 +1,5 @@
 import dbus
+import logging
 
 
 class ModemManager:
@@ -13,6 +14,11 @@ class ModemManager:
             if obj == modem_path:
                 modem_proxy = self.bus.get_object("org.freedesktop.ModemManager1", obj)
                 modem = dbus.Interface(modem_proxy, "org.freedesktop.ModemManager1.Modem")
+                modem_properties = dbus.Interface(modem, "org.freedesktop.DBus.Properties")
+                current_sim = modem_properties.Get("org.freedesktop.ModemManager1.Modem", "PrimarySimSlot")
+                if current_sim == slot_index:
+                    logging.debug('Sim slot is already set to {}, no need for any changes'.format(current_sim))
+                    return True
                 modem.SetPrimarySimSlot(slot_index)
                 return True
         return False
