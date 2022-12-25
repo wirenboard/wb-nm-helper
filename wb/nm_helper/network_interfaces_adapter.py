@@ -46,7 +46,7 @@ from pyparsing import (
 
 NETWORK_INTERFACES_CONFIG = "/etc/network/interfaces"
 
-ApplyResult = namedtuple("ApplyResult", ["unmanaged_connections", "managed_wlans"], defaults=[[], []])
+ApplyResult = namedtuple("ApplyResult", ["unmanaged_connections", "managed_interfaces"], defaults=[[], []])
 
 
 def is_default_configured_loopback(iface):
@@ -234,8 +234,7 @@ class NetworkInterfacesAdapter:
             if iface.get("type") in supported_types:
                 iface.pop("type", None)
                 self.interfaces.append(iface)
-                if iface["name"].startswith("wlan"):
-                    res.managed_wlans.append(iface["name"])
+                res.managed_interfaces.append(iface["name"])
             else:
                 res.unmanaged_connections.append(iface)
         if not dry_run:

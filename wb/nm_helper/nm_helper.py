@@ -100,9 +100,10 @@ def from_json(cfg, args) -> dict:
         apply_res = network_interfaces.apply(connections, args.dry_run)
         # NM conflicts with dnsmasq and hostapd
         # Stop them if wlan is not configured in /etc/network/interfaces
-        if not_fully_contains(apply_res.managed_wlans, find_interface_strings(args.dnsmasq_conf)):
+        managed_wlans = [iface for iface in apply_res.managed_interfaces if iface.startswith("wlan")]
+        if not_fully_contains(managed_wlans, find_interface_strings(args.dnsmasq_conf)):
             manager.StopUnit("dnsmasq.service", "fail")
-        if not_fully_contains(apply_res.managed_wlans, find_interface_strings(args.hostapd_conf)):
+        if not_fully_contains(managed_wlans, find_interface_strings(args.hostapd_conf)):
             manager.StopUnit("hostapd.service", "fail")
         manager.RestartUnit("networking.service", "fail")
 
