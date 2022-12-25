@@ -234,8 +234,13 @@ class TestNetworkManagerHelperExport(dbusmock.DBusTestCase):
             interfaces_conf="tests/data/interfaces",
             dnsmasq_conf="tests/data/dnsmasq.conf",
             hostapd_conf="tests/data/hostapd.conf",
+            state_file="tests/data/wb-nm-helper.json",
             dry_run=True
         ))
 
         assert len(res["connections"]) == 0
         assert res["debug"] == False
+
+        with open("tests/data/wb-nm-helper.json", "r") as f:
+            state = json.load(f)
+        assert state["count"] == 3

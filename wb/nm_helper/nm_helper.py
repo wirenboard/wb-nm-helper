@@ -3,8 +3,10 @@ from __future__ import annotations
 import argparse
 import datetime
 import dbus
+import hashlib
 import json
 import logging
+import os
 import re
 import subprocess
 import sys
@@ -85,6 +87,13 @@ def to_json(args) -> dict:
 def from_json(cfg, args) -> dict:
     connections = cfg["ui"]["connections"]
 
+    old_cfg, new_cfg = None, {"count": 0}
+    try:
+        with open(args.state_file, "r") as file:
+            old_cfg = json.load(file)
+    except:
+        pass
+
     if args.dry_run:
         manager = type("Systemd", (object,), {
             "StopUnit": lambda self, name, mode: None,
@@ -95,17 +104,28 @@ def from_json(cfg, args) -> dict:
         systemd1 = system_bus.get_object('org.freedesktop.systemd1', '/org/freedesktop/systemd1')
         manager = dbus.Interface(systemd1, 'org.freedesktop.systemd1.Manager')
 
+    managed_interfaces = []
     network_interfaces = NetworkInterfacesAdapter.probe(args.interfaces_conf)
     if network_interfaces is not None:
         apply_res = network_interfaces.apply(connections, args.dry_run)
+        managed_interfaces = apply_res.managed_interfaces
         # NM conflicts with dnsmasq and hostapd
         # Stop them if wlan is not configured in /etc/network/interfaces
-        managed_wlans = [iface for iface in apply_res.managed_interfaces if iface.startswith("wlan")]
+        managed_wlans = [iface for iface in managed_interfaces if iface.startswith("wlan")]
         if not_fully_contains(managed_wlans, find_interface_strings(args.dnsmasq_conf)):
             manager.StopUnit("dnsmasq.service", "fail")
         if not_fully_contains(managed_wlans, find_interface_strings(args.hostapd_conf)):
             manager.StopUnit("hostapd.service", "fail")
-        manager.RestartUnit("networking.service", "fail")
+
+        network_interfaces_managed_connections = [c for c in connections if c.get("name") in managed_interfaces]
+        new_cfg = {
+            "hash": hashlib.md5(json.dumps(network_interfaces_managed_connections, sort_keys=True).encode()).hexdigest(),
+            "count": len(network_interfaces_managed_connections)
+        }
+        if old_cfg is None or old_cfg["hash"] != new_cfg["hash"]:
+            manager.RestartUnit("networking.service", "fail")
+        else:
+            logging.info("No changes in /etc/network/interfaces, skipping networking restart")
 
         connections = apply_res.unmanaged_connections
 
@@ -114,8 +134,17 @@ def from_json(cfg, args) -> dict:
         # wb-connection-manager will be later restarted by wb-mqtt-confed
         manager.StopUnit("wb-connection-manager.service", "fail")
         network_manager.apply(connections, args.dry_run)
+
         # NetworkManager must be restarted to update managed devices
-        manager.RestartUnit("NetworkManager.service", "fail")
+        if old_cfg is None or old_cfg["count"] > new_cfg["count"]:
+            manager.RestartUnit("NetworkManager.service", "fail")
+        else:
+            logging.info("No devices are released from /etc/network/interfaces control, skipping NetworkManager restart")
+
+    os.makedirs(os.path.dirname(args.state_file), exist_ok=True)
+    with open(args.state_file, "w", encoding="utf-8") as file:
+        file.write(json.dumps(new_cfg))
+
     return cfg["ui"]["con_switch"]
 
 
@@ -131,6 +160,7 @@ def main() -> None:
     parser.add_argument("--scan-timeout", type=int, default=10, help="Scan timeout in seconds")
     parser.add_argument("--indent", type=int, default=2, help="Indentation level for JSON output")
     parser.add_argument("--dry-run", action="store_true", help="Don't apply changes")
+    parser.add_argument("--state-file", type=str, default="/var/lib/wb-nm-helper/wb-nm-helper.json", help="State file")
     args = parser.parse_args()
 
     res = None
