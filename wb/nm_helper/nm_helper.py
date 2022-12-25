@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import dbus
 import json
 import logging
-import os
 import re
 import subprocess
 import sys
@@ -85,26 +85,36 @@ def to_json(args) -> dict:
 def from_json(cfg, args) -> dict:
     connections = cfg["ui"]["connections"]
 
+    if args.dry_run:
+        manager = type("Systemd", (object,), {
+            "StopUnit": lambda self, name, mode: None,
+            "RestartUnit": lambda self, name, mode: None
+        })()
+    else:
+        system_bus = dbus.SystemBus()
+        systemd1 = system_bus.get_object('org.freedesktop.systemd1', '/org/freedesktop/systemd1')
+        manager = dbus.Interface(systemd1, 'org.freedesktop.systemd1.Manager')
+
     network_interfaces = NetworkInterfacesAdapter.probe(args.interfaces_conf)
     if network_interfaces is not None:
         apply_res = network_interfaces.apply(connections, args.dry_run)
         # NM conflicts with dnsmasq and hostapd
         # Stop them if wlan is not configured in /etc/network/interfaces
         if not_fully_contains(apply_res.managed_wlans, find_interface_strings(args.dnsmasq_conf)):
-            os.system("systemctl stop dnsmasq")
+            manager.StopUnit("dnsmasq.service", "fail")
         if not_fully_contains(apply_res.managed_wlans, find_interface_strings(args.hostapd_conf)):
-            os.system("systemctl stop hostapd")
-        os.system("systemctl restart networking")
+            manager.StopUnit("hostapd.service", "fail")
+        manager.RestartUnit("networking.service", "fail")
 
         connections = apply_res.unmanaged_connections
 
     network_manager = NetworkManagerAdapter.probe()
     if network_manager is not None:
         # wb-connection-manager will be later restarted by wb-mqtt-confed
-        os.system("systemctl stop wb-connection-manager")
+        manager.StopUnit("wb-connection-manager.service", "fail")
         network_manager.apply(connections, args.dry_run)
         # NetworkManager must be restarted to update managed devices
-        os.system("systemctl restart NetworkManager")
+        manager.RestartUnit("NetworkManager.service", "fail")
     return cfg["ui"]["con_switch"]
 
 
