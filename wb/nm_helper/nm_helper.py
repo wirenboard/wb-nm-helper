@@ -37,12 +37,21 @@ def not_fully_contains(dst: List[str], src: List[str]) -> bool:
     return False
 
 
-def scan_wifi(iface: str, timeout: int) -> List[str]:
+"""Scans for Wi-Fi networks
+
+:param iface - interface to scan
+:type iface: str
+:param timeout_s - timeout in seconds (if the timeout expires, the iwlist process will be killed)
+:type timeout_s: int
+:returns: a list of ESSID names or an empty list if scan failed
+:rtype: list
+"""
+def scan_wifi(iface: str, timeout_s: int) -> List[str]:
     res = []
     try:
         pattern = re.compile(r"ESSID:\s*\"(.*)\"")
         scan_result = subprocess.check_output(
-            ["iwlist", iface, "scan"], timeout=datetime.timedelta(seconds=timeout).total_seconds(), text=True
+            ["iwlist", iface, "scan"], timeout=datetime.timedelta(seconds=timeout_s).total_seconds(), text=True
         )
         for line in scan_result.splitlines():
             match = pattern.search(line)
@@ -50,7 +59,7 @@ def scan_wifi(iface: str, timeout: int) -> List[str]:
                 res.append(match.group(1))
         res = sorted(set(res))
     except subprocess.TimeoutExpired:
-        logging.info("Can't get Wi-Fi scanning results within %d", timeout)
+        logging.info("Can't get Wi-Fi scanning results within %d", timeout_s)
     except subprocess.CalledProcessError as ex:
         logging.info("Error during Wi-Fi scan: %s", ex)
     return res
