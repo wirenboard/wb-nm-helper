@@ -5,7 +5,13 @@ wb-nm-helper (1.12.0) stable; urgency=medium
   * Add nm_helper tests
   * Restart networking.service and NetworkManager.service only if required
 
- -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Fri, 23 Dec 2022 10:27:43 +0400
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Mon, 26 Dec 2022 10:27:43 +0400
+
+wb-nm-helper (1.11.2) stable; urgency=medium
+
+  * Don't force SIM slot change if it's already set to proper value
+
+ -- Aleksandr Kazadaev <aleksandr.kazadaev@wirenboard.com>  Fri, 23 Dec 2022 13:18:42 +0300
 
 wb-nm-helper (1.11.1) stable; urgency=medium
 
