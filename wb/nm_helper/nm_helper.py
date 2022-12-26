@@ -93,6 +93,25 @@ def to_json(args) -> dict:
     }
 
 
+"""Returns a Systemd manager object
+
+:param dry_run: if True, a dummy object will be returned
+:type dry_run: bool
+:returns: a Systemd manager object
+:rtype: dbus.Interface
+"""
+def get_systemd_manager(dry_run: bool):
+    if dry_run:
+        return type("Systemd", (object,), {
+            "StopUnit": lambda self, name, mode: None,
+            "RestartUnit": lambda self, name, mode: None
+        })()
+    else:
+        system_bus = dbus.SystemBus()
+        systemd1 = system_bus.get_object('org.freedesktop.systemd1', '/org/freedesktop/systemd1')
+        return dbus.Interface(systemd1, 'org.freedesktop.systemd1.Manager')
+
+
 def from_json(cfg, args) -> dict:
     connections = cfg["ui"]["connections"]
 
@@ -103,15 +122,7 @@ def from_json(cfg, args) -> dict:
     except:
         pass
 
-    if args.dry_run:
-        manager = type("Systemd", (object,), {
-            "StopUnit": lambda self, name, mode: None,
-            "RestartUnit": lambda self, name, mode: None
-        })()
-    else:
-        system_bus = dbus.SystemBus()
-        systemd1 = system_bus.get_object('org.freedesktop.systemd1', '/org/freedesktop/systemd1')
-        manager = dbus.Interface(systemd1, 'org.freedesktop.systemd1.Manager')
+    manager = get_systemd_manager(args.dry_run)
 
     managed_interfaces = []
     network_interfaces = NetworkInterfacesAdapter.probe(args.interfaces_conf)
