@@ -133,7 +133,7 @@ class ConnectionManager:
         self.connection_priority = connection_priority
 
     def wait_device_for_connection(
-        self, con: NMConnection, dev_path, timeout: datetime.timedelta
+        self, con: NMConnection, dev_path: str, timeout: datetime.timedelta
     ) -> Optional[NMDevice]:
         logging.debug("Waiting for device {} to change".format(dev_path))
         start = datetime.datetime.now()
@@ -168,7 +168,8 @@ class ConnectionManager:
             wait_connection_deactivation(active_connection, CONNECTION_DEACTIVATION_TIMEOUT)
         modem_manager = ModemManager()
         sim_slot = get_sim_slot(con)
-        if sim_slot != modem_manager.get_primary_sim_slot(dev_path):
+        current_sim_slot = modem_manager.get_primary_sim_slot(dev_path)
+        if sim_slot != NM_SETTINGS_GSM_SIM_SLOT_DEFAULT and sim_slot != current_sim_slot:
             if not modem_manager.set_primary_sim_slot(dev_path, sim_slot):
                 return None
             # After switching SIM card MM recreates device with new path
