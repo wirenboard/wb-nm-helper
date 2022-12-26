@@ -133,15 +133,19 @@ class ConnectionManager:
         self.connection_priority = connection_priority
 
     def wait_device_for_connection(
-        self, con: NMConnection, timeout: datetime.timedelta
+        self, con: NMConnection, dev_path, timeout: datetime.timedelta
     ) -> Optional[NMDevice]:
-        logging.debug("Waiting for device")
+        logging.debug("Waiting for device {} to change".format(dev_path))
         start = datetime.datetime.now()
         while start + timeout >= datetime.datetime.now():
             try:
                 dev = self.network_manager.find_device_for_connection(con)
                 if dev:
-                    return dev
+                    new_dev_path = dev.get_property("Udi")
+                    logging.debug("Current device path: {}".format(new_dev_path))
+                    if dev_path != new_dev_path:
+                        logging.debug('Device path changed from {} to {}'.format(dev_path, new_dev_path))
+                        return dev
             except dbus.exceptions.DBusException as ex:
                 # Some exceptions can be raised during waiting, because MM and NM remove and create devices
                 logging.debug("Error during device waiting: %s", ex)
@@ -164,11 +168,11 @@ class ConnectionManager:
             wait_connection_deactivation(active_connection, CONNECTION_DEACTIVATION_TIMEOUT)
         modem_manager = ModemManager()
         sim_slot = get_sim_slot(con)
-        if sim_slot != NM_SETTINGS_GSM_SIM_SLOT_DEFAULT:
+        if sim_slot != modem_manager.get_primary_sim_slot(dev_path):
             if not modem_manager.set_primary_sim_slot(dev_path, sim_slot):
                 return None
             # After switching SIM card MM recreates device with new path
-            dev = self.wait_device_for_connection(con, DEVICE_WAITING_TIMEOUT)
+            dev = self.wait_device_for_connection(con, dev_path, DEVICE_WAITING_TIMEOUT)
             if not dev:
                 logging.debug("New device for connection is not found")
                 return None
