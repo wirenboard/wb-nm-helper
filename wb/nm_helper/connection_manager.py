@@ -27,6 +27,7 @@ EXIT_NOTCONFIGURED = 6
 
 # Settings
 CHECK_PERIOD = datetime.timedelta(seconds=5)
+DEFAULT_STICKY_CONNECTION_PERIOD = datetime.timedelta(minutes=15)
 CONNECTION_ACTIVATION_RETRY_TIMEOUT = datetime.timedelta(seconds=60)
 DEVICE_WAITING_TIMEOUT = datetime.timedelta(seconds=30)
 CONNECTION_ACTIVATION_TIMEOUT = datetime.timedelta(seconds=30)
@@ -127,10 +128,18 @@ def log_active_connections(active_connections: Dict[str, NMActiveConnection]):
 
 
 class ConnectionManager:
-    def __init__(self, network_manager: NetworkManager, connection_priority: List[str]) -> None:
+    def __init__(self, network_manager: NetworkManager, cfg: Dict) -> None:
         self.network_manager = network_manager
         self.connection_up_time = {}
-        self.connection_priority = connection_priority
+        self.connection_priority = cfg.get('connections', [])
+        self.active_connection = None
+        if cfg.get('sticky_period'):
+            self.sticky_connection_period = datetime.timedelta(seconds=int(cfg.get('sticky_period')))
+        else:
+            self.sticky_connection_period = DEFAULT_STICKY_CONNECTION_PERIOD
+        logging.debug(
+            'Initialized sticky_connection_period as {} seconds'.format(self.sticky_connection_period.total_seconds()))
+        self.sticky_connection_timeout = None
 
     def wait_device_for_connection(
         self, con: NMConnection, dev_path: str, timeout: datetime.timedelta
@@ -215,6 +224,15 @@ class ConnectionManager:
         activate_fn = activation_fns.get(settings["connection"]["type"])
         if activate_fn:
             con = activate_fn(dev, con)
+        if con:
+            logging.debug('Activated device {}'.format(cn_id))
+            self.active_connection = con
+            if settings.get('connection').get('type') == 'gsm':
+                self.sticky_connection_timeout = datetime.datetime.now() + self.sticky_connection_period
+                logging.debug('GSM detected, sticky connection timeout set')
+            else:
+                self.sticky_connection_timeout = None
+                logging.debug('GSM not detected, sticky connection timeout cleared')
         return con
 
     def deactivate_connection(self, active_cn: NMActiveConnection) -> None:
@@ -229,11 +247,27 @@ class ConnectionManager:
 
     def deactivate_if_limited_connectivity(self, active_cn: NMActiveConnection) -> bool:
         if check_connectivity(active_cn):
+            logging.debug('Connectivity via {} OK'.format(active_cn.interface_name))
             return False
         self.deactivate_connection(active_cn)
         return True
 
     def check(self) -> None:
+        if self.sticky_connection_timeout and self.sticky_connection_timeout > datetime.datetime.now():
+            logging.debug('sticky timeout detected, run check_gsm()')
+            self.check_gsm()
+        else:
+            logging.debug('sticky timeout not detected, run check_generic()')
+            self.check_generic()
+
+    def check_gsm(self) -> None:
+        if check_connectivity(self.active_connection):
+            logging.debug('check_gsm(): connection OK')
+            return
+        logging.debug('check_gsm(): connection seems down, falling back to check_generic()')
+        self.check_generic()
+
+    def check_generic(self) -> None:
         for index, cn_id in enumerate(self.connection_priority):
             data = {"cn_id": cn_id}
             try:
@@ -288,9 +322,8 @@ def main():
 
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-    connections = cfg.get("connections", [])
-    if len(connections) > 0:
-        manager = ConnectionManager(NetworkManager(), connections)
+    if len(cfg.get("connections", [])) > 0:
+        manager = ConnectionManager(NetworkManager(), cfg)
         while True:
             manager.check()
             time.sleep(CHECK_PERIOD.total_seconds())
