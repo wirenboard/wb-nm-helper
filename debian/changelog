@@ -1,3 +1,9 @@
+wb-nm-helper (1.11.3) stable; urgency=medium
+
+  * Add sticky connection feature for GSM connections
+
+ -- Aleksandr Kazadaev <aleksandr.kazadaev@wirenboard.com>  Tue, 27 Dec 2022 18:50:42 +0300
+
 wb-nm-helper (1.11.2) stable; urgency=medium
 
   * Don't force SIM slot change if it's already set to proper value
