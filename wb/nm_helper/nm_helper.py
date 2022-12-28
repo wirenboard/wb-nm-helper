@@ -116,10 +116,12 @@ def from_json(cfg, args) -> Dict:
     manager = get_systemd_manager(args.dry_run)
 
     managed_interfaces = []
+    released_interfaces = []
     network_interfaces = NetworkInterfacesAdapter.probe(args.interfaces_conf)
     if network_interfaces is not None:
         apply_res = network_interfaces.apply(connections, args.dry_run)
         managed_interfaces = apply_res.managed_interfaces
+        released_interfaces = apply_res.released_interfaces
         # NM conflicts with dnsmasq and hostapd
         # Stop them if wlan is not configured in /etc/network/interfaces
         managed_wlans = [iface for iface in managed_interfaces if iface.startswith("wlan")]
@@ -139,7 +141,8 @@ def from_json(cfg, args) -> Dict:
         network_manager.apply(connections, args.dry_run)
 
         # NetworkManager must be restarted to update managed devices
-        manager.RestartUnit("NetworkManager.service", "fail")
+        if len(released_interfaces) > 0:
+            manager.RestartUnit("NetworkManager.service", "fail")
 
     return cfg["ui"]["con_switch"]
 

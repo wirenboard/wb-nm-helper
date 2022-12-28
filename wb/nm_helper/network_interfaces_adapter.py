@@ -47,7 +47,7 @@ from pyparsing import (
 
 NETWORK_INTERFACES_CONFIG = "/etc/network/interfaces"
 
-ApplyResult = namedtuple("ApplyResult", ["unmanaged_connections", "managed_interfaces"], defaults=[[], []])
+ApplyResult = namedtuple("ApplyResult", ["unmanaged_connections", "managed_interfaces", "released_interfaces"], defaults=[[], [], []])
 
 
 def is_default_configured_loopback(iface):
@@ -244,6 +244,7 @@ class NetworkInterfacesAdapter:
         for iface in old_iface_names:
             if iface not in new_iface_names and not dry_run:
                 os.system("ifdown %s" % iface)
+                res.released_interfaces.append(iface["name"])
 
         if not dry_run:
             with open(self.filename, "w", encoding="utf-8") as file:
