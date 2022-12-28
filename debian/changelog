@@ -1,3 +1,11 @@
+wb-nm-helper (1.12.0) stable; urgency=medium
+
+  * Add arguments to wb-nm-helper
+  * Increase default Wi-Fi scan timeout
+  * Add nm_helper tests
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Mon, 26 Dec 2022 10:27:43 +0400
+
 wb-nm-helper (1.11.2) stable; urgency=medium
 
   * Don't force SIM slot change if it's already set to proper value
