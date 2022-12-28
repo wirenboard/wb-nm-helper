@@ -28,7 +28,6 @@
 
 from collections import namedtuple
 from os.path import exists
-import os
 
 from pyparsing import (
     CharsNotIn,
@@ -230,7 +229,6 @@ class NetworkInterfacesAdapter:
     def apply(self, interfaces, dry_run: bool) -> ApplyResult:
         supported_types = ["loopback", "dhcp", "static", "can", "manual", "ppp"]
         res = ApplyResult()
-        old_iface_names = [c["name"] for c in self.interfaces]
         self.interfaces = []
         for iface in interfaces:
             if iface.get("type") in supported_types:
@@ -239,12 +237,6 @@ class NetworkInterfacesAdapter:
                 res.managed_interfaces.append(iface["name"])
             else:
                 res.unmanaged_connections.append(iface)
-
-        new_iface_names = [c["name"] for c in self.interfaces]
-        for iface in old_iface_names:
-            if iface not in new_iface_names and not dry_run:
-                os.system("ifdown %s" % iface)
-
         if not dry_run:
             with open(self.filename, "w", encoding="utf-8") as file:
                 file.write(self.format())
