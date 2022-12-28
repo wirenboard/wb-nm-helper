@@ -27,7 +27,7 @@ EXIT_NOTCONFIGURED = 6
 
 # Settings
 CHECK_PERIOD = datetime.timedelta(seconds=5)
-DEFAULT_STICKY_CONNECTION_PERIOD = datetime.timedelta(minutes=15)
+DEFAULT_STICKY_SIM_PERIOD = datetime.timedelta(minutes=15)
 CONNECTION_ACTIVATION_RETRY_TIMEOUT = datetime.timedelta(seconds=60)
 DEVICE_WAITING_TIMEOUT = datetime.timedelta(seconds=30)
 CONNECTION_ACTIVATION_TIMEOUT = datetime.timedelta(seconds=30)
@@ -112,11 +112,16 @@ def curl_get(iface: str, url: str) -> str:
 # Use NM's implementation after fixing the bug
 def check_connectivity(active_cn: NMActiveConnection) -> bool:
     ifaces = active_cn.get_ifaces()
-    if ifaces:
+    logging.debug('interfaces for {}: {}'.format(active_cn.get_connection_id(), ifaces))
+    if ifaces and ifaces[0]:
         try:
-            return curl_get(ifaces[0], CONNECTIVITY_CHECK_URL).startswith("NetworkManager is online")
+            ok = curl_get(ifaces[0], CONNECTIVITY_CHECK_URL).startswith("NetworkManager is online")
+            logging.debug('Connectivity via {} is {}'.format(ifaces[0], ok))
+            return ok
         except pycurl.error as ex:
-            logging.debug("Error during connectivity check: %s", ex)
+            logging.debug("Error during {} connectivity check: {}".format(ifaces[0], ex))
+    else:
+        logging.debug('Connection {} seems to have no interfaces'.format(active_cn.get_connection_id()))
     return False
 
 
@@ -128,18 +133,23 @@ def log_active_connections(active_connections: Dict[str, NMActiveConnection]):
 
 
 class ConnectionManager:
+
     def __init__(self, network_manager: NetworkManager, cfg: Dict) -> None:
         self.network_manager = network_manager
         self.connection_up_time = {}
         self.connection_priority = cfg.get('connections', [])
-        self.active_connection = None
-        if cfg.get('sticky_period'):
-            self.sticky_connection_period = datetime.timedelta(seconds=int(cfg.get('sticky_period')))
+        self.sticky_sim_period = None
+        self.deny_sim_switch_until = None
+        self.current_connection = None
+        self.initialize_sticky_sim_period(cfg)
+
+    def initialize_sticky_sim_period(self, cfg):
+        if cfg.get('sticky_sim_period'):
+            self.sticky_sim_period = datetime.timedelta(seconds=int(cfg.get('sticky_sim_period')))
         else:
-            self.sticky_connection_period = DEFAULT_STICKY_CONNECTION_PERIOD
+            self.sticky_sim_period = DEFAULT_STICKY_SIM_PERIOD
         logging.debug(
-            'Initialized sticky_connection_period as {} seconds'.format(self.sticky_connection_period.total_seconds()))
-        self.sticky_connection_timeout = None
+            'Initialized sticky_sim_period as {} seconds'.format(self.sticky_sim_period.total_seconds()))
 
     def wait_device_for_connection(
         self, con: NMConnection, dev_path: str, timeout: datetime.timedelta
@@ -168,6 +178,11 @@ class ConnectionManager:
         # So deactivate active connection if it exists
         active_connection = dev.get_active_connection()
         if active_connection:
+            logging.debug('active gsm connection is {}'.format(active_connection))
+            if active_connection.get_connection_type() == 'gsm' and self.deny_sim_switch_until \
+                    and self.deny_sim_switch_until > datetime.datetime.now():
+                logging.debug('deny_sim_switch_until is still active, not changing SIM')
+                return None
             old_active_connection_id = active_connection.get_connection_id()
             logging.debug('Deactivate active connection "%s"', old_active_connection_id)
             self.connection_up_time[old_active_connection_id] = (
@@ -175,6 +190,8 @@ class ConnectionManager:
             )
             self.network_manager.deactivate_connection(active_connection)
             wait_connection_deactivation(active_connection, CONNECTION_DEACTIVATION_TIMEOUT)
+        else:
+            logging.debug('no active gsm conection detected')
         modem_manager = ModemManager()
         sim_slot = get_sim_slot(con)
         current_sim_slot = modem_manager.get_primary_sim_slot(dev_path)
@@ -224,15 +241,8 @@ class ConnectionManager:
         activate_fn = activation_fns.get(settings["connection"]["type"])
         if activate_fn:
             con = activate_fn(dev, con)
-        if con:
-            logging.debug('Activated device {}'.format(cn_id))
-            self.active_connection = con
-            if settings.get('connection').get('type') == 'gsm':
-                self.sticky_connection_timeout = datetime.datetime.now() + self.sticky_connection_period
-                logging.debug('GSM detected, sticky connection timeout set')
-            else:
-                self.sticky_connection_timeout = None
-                logging.debug('GSM not detected, sticky connection timeout cleared')
+            if con:
+                logging.debug('Activated connection {}'.format(cn_id))
         return con
 
     def deactivate_connection(self, active_cn: NMActiveConnection) -> None:
@@ -245,54 +255,42 @@ class ConnectionManager:
             data = {"cn_id": cn_id}
             logging.info('"%s" is deactivated', cn_id, extra=data)
 
-    def deactivate_if_limited_connectivity(self, active_cn: NMActiveConnection) -> bool:
-        if check_connectivity(active_cn):
-            logging.debug('Connectivity via {} OK'.format(active_cn.interface_name))
-            return False
-        self.deactivate_connection(active_cn)
-        return True
-
     def check(self) -> None:
-        if self.sticky_connection_timeout and self.sticky_connection_timeout > datetime.datetime.now():
-            logging.debug('sticky timeout detected, run check_gsm()')
-            self.check_gsm()
-        else:
-            logging.debug('sticky timeout not detected, run check_generic()')
-            self.check_generic()
-
-    def check_gsm(self) -> None:
-        if check_connectivity(self.active_connection):
-            logging.debug('check_gsm(): connection OK')
-            return
-        logging.debug('check_gsm(): connection seems down, falling back to check_generic()')
-        self.check_generic()
-
-    def check_generic(self) -> None:
+        logging.debug('check()')
         for index, cn_id in enumerate(self.connection_priority):
             data = {"cn_id": cn_id}
             try:
+                logging.debug('Checking connection {}'.format(cn_id))
                 active_connections = self.network_manager.get_active_connections()
                 log_active_connections(active_connections)
                 active_cn = None
                 if cn_id in active_connections:
                     active_cn = active_connections[cn_id]
+                    logging.debug('Found {} as already active'.format(cn_id))
                 else:
+                    logging.debug('Trying to activate {} for check'.format(cn_id))
                     if self.is_time_to_activate(cn_id):
                         active_cn = self.activate_connection(cn_id)
                         self.connection_up_time[cn_id] = datetime.datetime.now()
                 if active_cn:
-                    if not self.deactivate_if_limited_connectivity(active_cn):
-                        logging.info('"%s" is active', cn_id, extra=data)
+                    if check_connectivity(active_cn):
+                        logging.info('Connection "%s" has connectivity', cn_id, extra=data)
                         try:
                             less_priority_connections = get_active_connections(
-                                self.connection_priority[index + 1 :], active_connections
+                                self.connection_priority[index + 1:], active_connections
                             )
                             self.deactivate_connections(less_priority_connections)
                         except dbus.exceptions.DBusException as ex:
                             # Not a problem if less priority connections still be active
                             logging.warning("Error during connections deactivation: %s", ex)
+                        if self.current_connection != cn_id:
+                            self.current_connection_changed(active_cn, cn_id)
                         return
-                    logging.info('"%s" has limited connectivity', cn_id, extra=data)
+                    else:
+                        self.deactivate_connection(active_cn)
+                        logging.info('"%s" has limited connectivity', cn_id, extra=data)
+
+
             # Something went wrong during connection checking.
             # Proceed to next connection to be always on-line
             except dbus.exceptions.DBusException as ex:
@@ -303,6 +301,16 @@ class ConnectionManager:
                     'Error during connection "%s" checking: %s', cn_id, ex, extra=data, exc_info=True
                 )
                 self.connection_up_time[cn_id] = datetime.datetime.now()
+
+    def current_connection_changed(self, active_cn, cn_id):
+        logging.debug('Current device changed to {}'.format(cn_id))
+        if active_cn.get_connection_type() == 'gsm':
+            self.deny_sim_switch_until = datetime.datetime.now() + self.sticky_sim_period
+            logging.debug('Active connection is GSM, sticky SIM timeout set')
+        else:
+            self.deny_sim_switch_until = None
+            logging.debug('Active connection is not GSM, sticky SIM timeout cleared')
+        self.current_connection = cn_id
 
 
 def main():
