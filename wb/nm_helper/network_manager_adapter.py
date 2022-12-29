@@ -322,8 +322,10 @@ class ModemConnection(Connection):
         Connection.__init__(self, "gsm", METHOD_MODEM, params)
 
 
-def apply(iface, c_handler, network_manager: NetworkManager):
+def apply(iface, c_handler, network_manager: NetworkManager, dry_run: bool) -> None:
     json_settings = JSONSettings(iface)
+    if dry_run:
+        return
     if json_settings.get_opt("connection.uuid"):
         for con in network_manager.get_connections():
             dbus_settings = DBUSSettings(con.get_settings())
@@ -369,12 +371,13 @@ class NetworkManagerAdapter:
                     con.delete()
                     break
 
-    def apply(self, interfaces):
-        self.remove_undefined_connections(interfaces)
+    def apply(self, interfaces, dry_run: bool) -> None:
+        if not dry_run:
+            self.remove_undefined_connections(interfaces)
         for iface in interfaces:
             handler = self.handlers.get(iface["type"])
             if handler is not None:
-                apply(iface, handler, self.network_manager)
+                apply(iface, handler, self.network_manager, dry_run)
 
     def get_connections(self):
         res = []
