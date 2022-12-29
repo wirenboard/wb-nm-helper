@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import argparse
 import datetime
+import dbus
 import json
 import logging
-import os
 import re
 import subprocess
 import sys
@@ -11,11 +12,6 @@ from typing import List
 
 from .network_interfaces_adapter import NetworkInterfacesAdapter
 from .network_manager_adapter import NetworkManagerAdapter
-
-WIFI_SCAN_TIMEOUT = datetime.timedelta(seconds=5)
-
-JSON_INDENT_LEVEL = 2
-CONNECTION_MANAGER_CONFIG_FILE = "/etc/wb-connection-manager.conf"
 
 
 def find_interface_strings(file_name: str) -> List[str]:
@@ -39,12 +35,21 @@ def not_fully_contains(dst: List[str], src: List[str]) -> bool:
     return False
 
 
-def scan_wifi() -> List[str]:
+"""Scans for Wi-Fi networks
+
+:param iface - interface to scan
+:type iface: str
+:param timeout_s - timeout in seconds (if the timeout expires, the iwlist process will be killed)
+:type timeout_s: int
+:returns: a list of ESSID names or an empty list if scan failed
+:rtype: list
+"""
+def scan_wifi(iface: str, timeout_s: int) -> List[str]:
     res = []
     try:
         pattern = re.compile(r"ESSID:\s*\"(.*)\"")
         scan_result = subprocess.check_output(
-            ["iwlist", "scan"], timeout=WIFI_SCAN_TIMEOUT.total_seconds(), text=True
+            ["iwlist", iface, "scan"], timeout=datetime.timedelta(seconds=timeout_s).total_seconds(), text=True
         )
         for line in scan_result.splitlines():
             match = pattern.search(line)
@@ -52,13 +57,13 @@ def scan_wifi() -> List[str]:
                 res.append(match.group(1))
         res = sorted(set(res))
     except subprocess.TimeoutExpired:
-        logging.info("Can't get Wi-Fi scanning results within %s", str(WIFI_SCAN_TIMEOUT))
+        logging.info("Can't get Wi-Fi scanning results within %d", timeout_s)
     except subprocess.CalledProcessError as ex:
         logging.info("Error during Wi-Fi scan: %s", ex)
     return res
 
 
-def to_json():
+def to_json(args) -> Dict:
     connections = []
     devices = []
 
@@ -67,7 +72,7 @@ def to_json():
         connections = network_manager.get_connections()
         devices = network_manager.get_devices()
 
-    network_interfaces = NetworkInterfacesAdapter.probe()
+    network_interfaces = NetworkInterfacesAdapter.probe(args.interfaces_conf)
     if network_interfaces is not None:
         connections = connections + network_interfaces.get_connections()
 
@@ -75,55 +80,95 @@ def to_json():
 
     switch_cfg = {}
     try:
-        with open(CONNECTION_MANAGER_CONFIG_FILE, encoding="utf-8") as file:
+        with open(args.config, encoding="utf-8") as file:
             switch_cfg = json.load(file)
     except (FileNotFoundError, PermissionError, OSError, json.decoder.JSONDecodeError) as ex:
-        logging.error("Loading %s failed: %s", CONNECTION_MANAGER_CONFIG_FILE, ex)
+        logging.error("Loading %s failed: %s", args.config, ex)
 
-    res = {
+    return {
         "ui": {"connections": connections, "con_switch": switch_cfg},
-        "data": {"ssids": scan_wifi(), "devices": devices},
+        "data": {"ssids": [] if args.no_scan else scan_wifi(args.scan_iface, args.scan_timeout), "devices": devices},
     }
-    json.dump(res, sys.stdout, sort_keys=True, indent=JSON_INDENT_LEVEL)
 
 
-def from_json():
-    try:
-        cfg = json.load(sys.stdin)
-    except ValueError:
-        print("Invalid JSON", file=sys.stdout)
-        sys.exit(1)
+"""Returns a Systemd manager object
 
+:param dry_run: if True, a dummy object will be returned
+:type dry_run: bool
+:returns: a Systemd manager object
+:rtype: dbus.Interface
+"""
+def get_systemd_manager(dry_run: bool):
+    if dry_run:
+        return type("Systemd", (object,), {
+            "StopUnit": lambda self, name, mode: None,
+            "RestartUnit": lambda self, name, mode: None
+        })()
+    else:
+        system_bus = dbus.SystemBus()
+        systemd1 = system_bus.get_object('org.freedesktop.systemd1', '/org/freedesktop/systemd1')
+        return dbus.Interface(systemd1, 'org.freedesktop.systemd1.Manager')
+
+
+def from_json(cfg, args) -> Dict:
     connections = cfg["ui"]["connections"]
 
-    network_interfaces = NetworkInterfacesAdapter.probe()
+    manager = get_systemd_manager(args.dry_run)
+
+    managed_interfaces = []
+    network_interfaces = NetworkInterfacesAdapter.probe(args.interfaces_conf)
     if network_interfaces is not None:
-        apply_res = network_interfaces.apply(connections)
+        apply_res = network_interfaces.apply(connections, args.dry_run)
+        managed_interfaces = apply_res.managed_interfaces
         # NM conflicts with dnsmasq and hostapd
         # Stop them if wlan is not configured in /etc/network/interfaces
-        if not_fully_contains(apply_res.managed_wlans, find_interface_strings("/etc/dnsmasq.conf")):
-            os.system("systemctl stop dnsmasq")
-        if not_fully_contains(apply_res.managed_wlans, find_interface_strings("/etc/hostapd.conf")):
-            os.system("systemctl stop hostapd")
-        os.system("systemctl restart networking")
+        managed_wlans = [iface for iface in managed_interfaces if iface.startswith("wlan")]
+        if not_fully_contains(managed_wlans, find_interface_strings(args.dnsmasq_conf)):
+            manager.StopUnit("dnsmasq.service", "fail")
+        if not_fully_contains(managed_wlans, find_interface_strings(args.hostapd_conf)):
+            manager.StopUnit("hostapd.service", "fail")
+
+        manager.RestartUnit("networking.service", "fail")
 
         connections = apply_res.unmanaged_connections
 
     network_manager = NetworkManagerAdapter.probe()
     if network_manager is not None:
         # wb-connection-manager will be later restarted by wb-mqtt-confed
-        os.system("systemctl stop wb-connection-manager")
-        network_manager.apply(connections)
+        manager.StopUnit("wb-connection-manager.service", "fail")
+        network_manager.apply(connections, args.dry_run)
+
         # NetworkManager must be restarted to update managed devices
-        os.system("systemctl restart NetworkManager")
-    json.dump(cfg["ui"]["con_switch"], sys.stdout, sort_keys=True, indent=JSON_INDENT_LEVEL)
+        manager.RestartUnit("NetworkManager.service", "fail")
+
+    return cfg["ui"]["con_switch"]
 
 
-def main():
-    if len(sys.argv) > 1 and sys.argv[1] == "-s":
-        from_json()
+def main() -> None:
+    parser = argparse.ArgumentParser(description="NM helper", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-s", "--save", action="store_true", help="Save configuration")
+    parser.add_argument("-c", "--config", type=str, default="/etc/wb-connection-manager.conf", help="Config file")
+    parser.add_argument("--dnsmasq-conf", type=str, default="/etc/dnsmasq.conf", help="dnsmasq config file")
+    parser.add_argument("--hostapd-conf", type=str, default="/etc/hostapd.conf", help="hostapd config file")
+    parser.add_argument("--interfaces-conf", type=str, default="/etc/network/interfaces", help="interfaces config file")
+    parser.add_argument("--no-scan", action="store_true", help="Don't scan for Wi-Fi networks")
+    parser.add_argument("--scan-iface", type=str, default="wlan0", help="Interface to scan for Wi-Fi networks")
+    parser.add_argument("--scan-timeout", type=int, default=10, help="Scan timeout in seconds")
+    parser.add_argument("--indent", type=int, default=2, help="Indentation level for JSON output")
+    parser.add_argument("--dry-run", action="store_true", help="Don't apply changes")
+    args = parser.parse_args()
+
+    res = None
+    if args.save:
+        try:
+            cfg = json.load(sys.stdin)
+        except ValueError:
+            print("Invalid JSON", file=sys.stdout)
+            sys.exit(1)
+        res = from_json(cfg, args)
     else:
-        to_json()
+        res = to_json(args)
+    json.dump(res, sys.stdout, sort_keys=True, indent=args.indent)
 
 
 if __name__ == "__main__":

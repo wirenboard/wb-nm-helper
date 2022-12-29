@@ -1,8 +1,17 @@
-wb-nm-helper (1.11.3) stable; urgency=medium
+wb-nm-helper (1.13.0) stable; urgency=medium
 
-  * Add sticky connection feature for GSM connections
+  * Add sanity check for active connections in check()
+  * Add sticky SIM period to avoid changing SIMs too often 
 
- -- Aleksandr Kazadaev <aleksandr.kazadaev@wirenboard.com>  Tue, 27 Dec 2022 18:50:42 +0300
+ -- Aleksandr Kazadaev <aleksandr.kazadaev@wirenboard.com>  Tue, 29 Dec 2022 13:43:42 +0300
+
+wb-nm-helper (1.12.0) stable; urgency=medium
+
+  * Add arguments to wb-nm-helper
+  * Increase default Wi-Fi scan timeout
+  * Add nm_helper tests
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Mon, 26 Dec 2022 10:27:43 +0400
 
 wb-nm-helper (1.11.2) stable; urgency=medium
 
