@@ -29,6 +29,7 @@
 from collections import namedtuple
 from os.path import exists
 import os
+import json
 
 from pyparsing import (
     CharsNotIn,
@@ -227,10 +228,14 @@ class NetworkInterfacesAdapter:
             return NetworkInterfacesAdapter(config)
         return None
 
-    def apply(self, interfaces, dry_run: bool) -> ApplyResult:
+    def apply(self, interfaces, dry_run: bool) -> tuple[ApplyResult, bool]:
         supported_types = ["loopback", "dhcp", "static", "can", "manual", "ppp"]
         res = ApplyResult()
-        old_iface_names = [c["name"] for c in self.interfaces]
+
+        old_interfaces = self.interfaces
+        for iface in old_interfaces:
+            iface.pop("type", None)
+
         self.interfaces = []
         for iface in interfaces:
             if iface.get("type") in supported_types:
@@ -240,16 +245,18 @@ class NetworkInterfacesAdapter:
             else:
                 res.unmanaged_connections.append(iface)
 
+        is_changed = json.dumps(old_interfaces, sort_keys=True) != json.dumps(self.interfaces, sort_keys=True)
+
         new_iface_names = [c["name"] for c in self.interfaces]
-        for iface in old_iface_names:
-            if iface not in new_iface_names and not dry_run:
-                os.system("ifdown %s" % iface)
+        for iface in old_interfaces:
+            if iface["name"] not in new_iface_names and not dry_run:
+                os.system("ifdown %s" % iface["name"])
                 res.released_interfaces.append(iface["name"])
 
         if not dry_run:
             with open(self.filename, "w", encoding="utf-8") as file:
                 file.write(self.format())
-        return res
+        return res, is_changed
 
     def get_connections(self):
         return self.interfaces
