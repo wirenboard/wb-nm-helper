@@ -1,4 +1,5 @@
 import dbus
+import json
 import pytest
 
 from wb.nm_helper.network_interfaces_adapter import NetworkInterfacesAdapter
@@ -27,3 +28,19 @@ from wb.nm_helper.network_interfaces_adapter import NetworkInterfacesAdapter
 def test_parsing(file_name, connections):
     adapter = NetworkInterfacesAdapter(file_name)
     assert adapter.get_connections() == connections
+
+
+def test_apply():
+    adapter = NetworkInterfacesAdapter("tests/data/interfaces")
+    with open("tests/data/ui.json", "r") as f:
+        cfg = json.load(f)
+    res = adapter.apply(cfg["ui"]["connections"], True)
+
+    assert len(res.unmanaged_connections) == 5
+    assert res.managed_interfaces == ['eth0', 'eth1', 'wlan0']
+    assert res.released_interfaces == []
+    assert res.is_changed == False
+
+    cfg["ui"]["connections"][7]["auto"] = True
+    res = adapter.apply(cfg["ui"]["connections"], True)
+    assert res.is_changed == True

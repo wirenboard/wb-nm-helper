@@ -237,7 +237,7 @@ class NetworkInterfacesAdapter:
         supported_types = ["loopback", "dhcp", "static", "can", "manual", "ppp"]
         res = ApplyResult()
 
-        old_interfaces = self.interfaces
+        old_interfaces = sorted(self.interfaces, key=lambda x: x["name"])
         for iface in old_interfaces:
             iface.pop("type", None)
 
@@ -249,6 +249,8 @@ class NetworkInterfacesAdapter:
                 res.managed_interfaces.append(iface["name"])
             else:
                 res.unmanaged_connections.append(iface)
+
+        self.interfaces = sorted(self.interfaces, key=lambda x: x["name"])
 
         new_iface_names = [c["name"] for c in self.interfaces]
         for i, iface in enumerate(old_interfaces):

@@ -121,7 +121,7 @@
       },
       {
         "name": "wlan0",
-        "auto": true,
+        "auto": false,
         "mode": "inet",
         "method": "static",
         "options": {
