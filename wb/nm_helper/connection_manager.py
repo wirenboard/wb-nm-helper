@@ -264,7 +264,8 @@ class ConnectionManager:
                 active_connections = self.network_manager.get_active_connections()
                 log_active_connections(active_connections)
                 active_cn = None
-                if cn_id in active_connections:
+                if cn_id in active_connections and \
+                        active_connections.get(cn_id).get_property("State") == NM_ACTIVE_CONNECTION_STATE_ACTIVATED:
                     active_cn = active_connections[cn_id]
                     logging.debug('Found {} as already active'.format(cn_id))
                 else:
