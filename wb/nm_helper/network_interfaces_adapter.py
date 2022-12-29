@@ -254,8 +254,9 @@ class NetworkInterfacesAdapter:
 
         new_iface_names = [c["name"] for c in self.interfaces]
         for i, iface in enumerate(old_interfaces):
-            if iface["name"] not in new_iface_names and not dry_run:
-                os.system("ifdown %s" % iface["name"])
+            if iface["name"] not in new_iface_names:
+                if not dry_run:
+                    os.system("ifdown %s" % iface["name"])
                 res.released_interfaces.append(iface["name"])
                 del old_interfaces[i]
 
