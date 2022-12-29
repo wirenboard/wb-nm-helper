@@ -135,7 +135,7 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
         assert res["data"]["devices"][3]["iface"] == "wlan1"
         assert res["data"]["devices"][3]["type"] == "wifi"
         assert res["ui"]["con_switch"]["debug"] == False
-        assert len(res["ui"]["connections"]) == 8
+        assert len(res["ui"]["connections"]) == 9
         assert res["ui"]["connections"][0]["802-11-wireless-security"]["security"] == "none"
         assert res["ui"]["connections"][0]["802-11-wireless_mode"] == "ap"
         assert res["ui"]["connections"][0]["802-11-wireless_ssid"] == "WirenBoard-XXXXXXXX"
