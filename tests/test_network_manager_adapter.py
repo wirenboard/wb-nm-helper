@@ -1,7 +1,12 @@
 import dbus
 import pytest
 
-from wb.nm_helper.network_manager_adapter import DBUSSettings, JSONSettings, WiFiAp
+from wb.nm_helper.network_manager_adapter import (
+    DBUSSettings,
+    JSONSettings,
+    ModemConnection,
+    WiFiAp,
+)
 
 
 @pytest.mark.parametrize(
@@ -180,6 +185,88 @@ from wb.nm_helper.network_manager_adapter import DBUSSettings, JSONSettings, WiF
 )
 def test_wifiap_set_dbus_options(json, dbus_old, dbus_new):
     ap = WiFiAp()
+    json_settings = JSONSettings(json)
+    dbus_old_settings = DBUSSettings(dbus_old)
+    dbus_new_settings = DBUSSettings(dbus_new)
+    ap.set_dbus_options(dbus_old_settings, json_settings)
+    assert dbus_old_settings.params == dbus_new_settings.params
+
+
+@pytest.mark.parametrize(
+    "json,dbus_old,dbus_new",
+    [
+        # Set GSM APN
+        (
+            {
+                "connection_autoconnect": False,
+                "connection_id": "wb-gsm-sim1",
+                "connection_uuid": "5d4297ba-c319-4c05-a153-17cb42e6e196",
+                "gsm_apn": "internet",
+                "gsm_auto-config": False,
+                "gsm_sim-slot": 1,
+                "ipv4": {"method": "auto"},
+                "type": "02_nm_modem",
+            },
+            dbus.Dictionary(
+                {
+                    dbus.String("connection"): dbus.Dictionary(
+                        {
+                            dbus.String("autoconnect"): False,
+                            dbus.String("id"): "wb-gsm-sim1",
+                            dbus.String("type"): "gsm",
+                            dbus.String("uuid"): "5d4297ba-c319-4c05-a153-17cb42e6e196",
+                        },
+                        signature=dbus.Signature("sv"),
+                    ),
+                    dbus.String("gsm"): dbus.Dictionary(
+                        {
+                            dbus.String("auto-config"): dbus.Boolean(True, variant_level=1),
+                            dbus.String("sim-slot"): dbus.Int32(1, variant_level=1),
+                        },
+                        signature=dbus.Signature("sv"),
+                    ),
+                    dbus.String("ipv4"): dbus.Dictionary(
+                        {
+                            dbus.String("method"): "auto",
+                        },
+                        signature=dbus.Signature("sv"),
+                    ),
+                },
+                signature=dbus.Signature("sa{sv}"),
+            ),
+            dbus.Dictionary(
+                {
+                    dbus.String("connection"): dbus.Dictionary(
+                        {
+                            dbus.String("autoconnect"): False,
+                            dbus.String("id"): "wb-gsm-sim1",
+                            dbus.String("type"): "gsm",
+                            dbus.String("uuid"): "5d4297ba-c319-4c05-a153-17cb42e6e196",
+                        },
+                        signature=dbus.Signature("sv"),
+                    ),
+                    dbus.String("gsm"): dbus.Dictionary(
+                        {
+                            dbus.String("auto-config"): False,
+                            dbus.String("apn"): "internet",
+                            dbus.String("sim-slot"): dbus.Int32(1, variant_level=1),
+                        },
+                        signature=dbus.Signature("sv"),
+                    ),
+                    dbus.String("ipv4"): dbus.Dictionary(
+                        {
+                            dbus.String("method"): "auto",
+                        },
+                        signature=dbus.Signature("sv"),
+                    ),
+                },
+                signature=dbus.Signature("sa{sv}"),
+            ),
+        ),
+    ],
+)
+def test_modem_set_dbus_options(json, dbus_old, dbus_new):
+    ap = ModemConnection()
     json_settings = JSONSettings(json)
     dbus_old_settings = DBUSSettings(dbus_old)
     dbus_new_settings = DBUSSettings(dbus_new)

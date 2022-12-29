@@ -317,7 +317,7 @@ class ModemConnection(Connection):
         params = [
             Param("gsm.sim-slot", from_dbus=minus_one_is_none),
             Param("gsm.auto-config", from_dbus=to_bool_default_false),
-            Param("gsm.apn", to_dbus_byte_array, to_ascii_string),
+            Param("gsm.apn"),
         ]
         Connection.__init__(self, "gsm", METHOD_MODEM, params)
 
