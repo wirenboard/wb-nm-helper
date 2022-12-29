@@ -245,13 +245,14 @@ class NetworkInterfacesAdapter:
             else:
                 res.unmanaged_connections.append(iface)
 
-        is_changed = json.dumps(old_interfaces, sort_keys=True) != json.dumps(self.interfaces, sort_keys=True)
-
         new_iface_names = [c["name"] for c in self.interfaces]
-        for iface in old_interfaces:
+        for i, iface in enumerate(old_interfaces):
             if iface["name"] not in new_iface_names and not dry_run:
                 os.system("ifdown %s" % iface["name"])
                 res.released_interfaces.append(iface["name"])
+                del old_interfaces[i]
+
+        is_changed = json.dumps(old_interfaces, sort_keys=True) != json.dumps(self.interfaces, sort_keys=True)
 
         if not dry_run:
             with open(self.filename, "w", encoding="utf-8") as file:
