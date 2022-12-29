@@ -119,7 +119,7 @@ def from_json(cfg, args) -> Dict:
     released_interfaces = []
     network_interfaces = NetworkInterfacesAdapter.probe(args.interfaces_conf)
     if network_interfaces is not None:
-        apply_res, is_changed = network_interfaces.apply(connections, args.dry_run)
+        apply_res = network_interfaces.apply(connections, args.dry_run)
         managed_interfaces = apply_res.managed_interfaces
         released_interfaces = apply_res.released_interfaces
         # NM conflicts with dnsmasq and hostapd
@@ -130,7 +130,7 @@ def from_json(cfg, args) -> Dict:
         if not_fully_contains(managed_wlans, find_interface_strings(args.hostapd_conf)):
             manager.StopUnit("hostapd.service", "fail")
 
-        if is_changed:
+        if apply_res.is_changed:
             manager.RestartUnit("networking.service", "fail")
 
         connections = apply_res.unmanaged_connections

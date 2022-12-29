@@ -26,7 +26,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-from collections import namedtuple
+from dataclasses import dataclass, field
 from os.path import exists
 import os
 import json
@@ -48,7 +48,12 @@ from pyparsing import (
 
 NETWORK_INTERFACES_CONFIG = "/etc/network/interfaces"
 
-ApplyResult = namedtuple("ApplyResult", ["unmanaged_connections", "managed_interfaces", "released_interfaces"], defaults=[[], [], []])
+@dataclass
+class ApplyResult:
+    unmanaged_connections: list = field(default_factory=list)
+    managed_interfaces: list = field(default_factory=list)
+    released_interfaces: list = field(default_factory=list)
+    is_changed: bool = False
 
 
 def is_default_configured_loopback(iface):
@@ -228,7 +233,7 @@ class NetworkInterfacesAdapter:
             return NetworkInterfacesAdapter(config)
         return None
 
-    def apply(self, interfaces, dry_run: bool) -> tuple[ApplyResult, bool]:
+    def apply(self, interfaces, dry_run: bool) -> ApplyResult:
         supported_types = ["loopback", "dhcp", "static", "can", "manual", "ppp"]
         res = ApplyResult()
 
@@ -252,12 +257,12 @@ class NetworkInterfacesAdapter:
                 res.released_interfaces.append(iface["name"])
                 del old_interfaces[i]
 
-        is_changed = json.dumps(old_interfaces, sort_keys=True) != json.dumps(self.interfaces, sort_keys=True)
+        res.is_changed = json.dumps(old_interfaces, sort_keys=True) != json.dumps(self.interfaces, sort_keys=True)
 
         if not dry_run:
             with open(self.filename, "w", encoding="utf-8") as file:
                 file.write(self.format())
-        return res, is_changed
+        return res
 
     def get_connections(self):
         return self.interfaces
