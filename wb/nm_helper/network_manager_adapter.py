@@ -322,10 +322,10 @@ class ModemConnection(Connection):
         Connection.__init__(self, "gsm", METHOD_MODEM, params)
 
 
-def apply(iface, c_handler, network_manager: NetworkManager, dry_run: bool) -> None:
+def apply(iface, c_handler, network_manager: NetworkManager, dry_run: bool) -> bool:
     json_settings = JSONSettings(iface)
     if dry_run:
-        return
+        return False
     if json_settings.get_opt("connection.uuid"):
         for con in network_manager.get_connections():
             dbus_settings = DBUSSettings(con.get_settings())
@@ -333,11 +333,13 @@ def apply(iface, c_handler, network_manager: NetworkManager, dry_run: bool) -> N
                 if dbus_settings.get_opt("connection.id") == json_settings.get_opt("connection.id"):
                     c_handler.set_dbus_options(dbus_settings, json_settings)
                     con.update_settings(dbus_settings.params)
+                    return True
                 else:
                     con.delete()
                     network_manager.add_connection(c_handler.create(json_settings))
-                return
+                    return False
     network_manager.add_connection(c_handler.create(json_settings))
+    return False
 
 
 class NetworkManagerAdapter:
@@ -371,13 +373,16 @@ class NetworkManagerAdapter:
                     con.delete()
                     break
 
-    def apply(self, interfaces, dry_run: bool) -> None:
+    def apply(self, interfaces, dry_run: bool) -> bool:
         if not dry_run:
             self.remove_undefined_connections(interfaces)
+        is_restart_required = False
         for iface in interfaces:
             handler = self.handlers.get(iface["type"])
             if handler is not None:
-                apply(iface, handler, self.network_manager, dry_run)
+                res = apply(iface, handler, self.network_manager, dry_run)
+                is_restart_required = True if is_restart_required else res
+        return is_restart_required
 
     def get_connections(self):
         res = []

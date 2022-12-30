@@ -116,10 +116,12 @@ def from_json(cfg, args) -> Dict:
     manager = get_systemd_manager(args.dry_run)
 
     managed_interfaces = []
+    released_interfaces = []
     network_interfaces = NetworkInterfacesAdapter.probe(args.interfaces_conf)
     if network_interfaces is not None:
         apply_res = network_interfaces.apply(connections, args.dry_run)
         managed_interfaces = apply_res.managed_interfaces
+        released_interfaces = apply_res.released_interfaces
         # NM conflicts with dnsmasq and hostapd
         # Stop them if wlan is not configured in /etc/network/interfaces
         managed_wlans = [iface for iface in managed_interfaces if iface.startswith("wlan")]
@@ -128,7 +130,8 @@ def from_json(cfg, args) -> Dict:
         if not_fully_contains(managed_wlans, find_interface_strings(args.hostapd_conf)):
             manager.StopUnit("hostapd.service", "fail")
 
-        manager.RestartUnit("networking.service", "fail")
+        if apply_res.is_changed:
+            manager.RestartUnit("networking.service", "fail")
 
         connections = apply_res.unmanaged_connections
 
@@ -136,10 +139,11 @@ def from_json(cfg, args) -> Dict:
     if network_manager is not None:
         # wb-connection-manager will be later restarted by wb-mqtt-confed
         manager.StopUnit("wb-connection-manager.service", "fail")
-        network_manager.apply(connections, args.dry_run)
+        res = network_manager.apply(connections, args.dry_run)
 
         # NetworkManager must be restarted to update managed devices
-        manager.RestartUnit("NetworkManager.service", "fail")
+        if res or len(released_interfaces) > 0:
+            manager.RestartUnit("NetworkManager.service", "fail")
 
     return cfg["ui"]["con_switch"]
 
