@@ -197,6 +197,13 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
         assert res["ui"]["connections"][7]["options"]["hostname"] == "WirenBoard"
         assert res["ui"]["connections"][7]["options"]["pre-up"] == "wb-set-mac"
         assert res["ui"]["connections"][7]["type"] == "dhcp"
+        assert res["ui"]["connections"][8]["allow-hotplug"] == True
+        assert res["ui"]["connections"][8]["auto"] == False
+        assert res["ui"]["connections"][8]["method"] == "static"
+        assert res["ui"]["connections"][8]["mode"] == "can"
+        assert res["ui"]["connections"][8]["name"] == "can0"
+        assert res["ui"]["connections"][8]["options"]["bitrate"] == "125000"
+        assert res["ui"]["connections"][8]["type"] == "can"
 
 
 class TestNetworkManagerHelperExport(dbusmock.DBusTestCase):
