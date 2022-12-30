@@ -139,10 +139,10 @@ def from_json(cfg, args) -> Dict:
     if network_manager is not None:
         # wb-connection-manager will be later restarted by wb-mqtt-confed
         manager.StopUnit("wb-connection-manager.service", "fail")
-        network_manager.apply(connections, args.dry_run)
+        res = network_manager.apply(connections, args.dry_run)
 
         # NetworkManager must be restarted to update managed devices
-        if len(released_interfaces) > 0:
+        if res or len(released_interfaces) > 0:
             manager.RestartUnit("NetworkManager.service", "fail")
 
     return cfg["ui"]["con_switch"]
