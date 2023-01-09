@@ -1,3 +1,9 @@
+wb-nm-helper (1.13.0) stable; urgency=medium
+
+  * Remove MAC address / MTU properties
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Mon, 09 Jan 2023 15:20:00 +0400
+
 wb-nm-helper (1.12.2) stable; urgency=medium
 
   * ifdown removed interfaces

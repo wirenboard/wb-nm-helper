@@ -648,14 +648,6 @@
                             },
                             "enum": ["01_nm_ethernet"]
                         },
-                        "802-3-ethernet_cloned-mac-address": {
-                            "$ref": "#/definitions/mac-addr",
-                            "propertyOrder": 16
-                        },
-                        "802-3-ethernet_mtu": {
-                            "$ref": "#/definitions/mtu",
-                            "propertyOrder": 18
-                        },
                         "ipv4": {
                             "title": "IPv4",
                             "oneOf": [
@@ -670,6 +662,16 @@
                             "options": {
                                 "keep_oneof_values": false
                             }
+                        }
+                    },
+                    "_properties_that_are_not_supported_for_now": {
+                        "802-3-ethernet_cloned-mac-address": {
+                            "$ref": "#/definitions/mac-addr",
+                            "propertyOrder": 16
+                        },
+                        "802-3-ethernet_mtu": {
+                            "$ref": "#/definitions/mtu",
+                            "propertyOrder": 18
                         }
                     },
                     "required": ["type", "ipv4"],
@@ -762,7 +764,9 @@
                                 }
                             ],
                             "_format": "edWb"
-                        },
+                        }
+                    },
+                    "_properties_that_are_not_supported_for_now": {
                         "802-11-wireless_cloned-mac-address": {
                             "$ref": "#/definitions/mac-addr",
                             "propertyOrder": 9
@@ -847,7 +851,9 @@
                                 }
                             ],
                             "_format": "edWb"
-                        },
+                        }
+                    },
+                    "_properties_that_are_not_supported_for_now": {
                         "802-11-wireless_cloned-mac-address": {
                             "$ref": "#/definitions/mac-addr",
                             "propertyOrder": 9
