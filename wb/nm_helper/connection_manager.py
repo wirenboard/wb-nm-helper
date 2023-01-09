@@ -136,7 +136,7 @@ class ConnectionManager:
 
     def __init__(self, network_manager: NetworkManager, cfg: Dict) -> None:
         self.network_manager = network_manager
-        self.connection_up_time = {}
+        self.connection_retry_timeouts = {}
         self.connection_priority = cfg.get('connections', [])
         self.sticky_sim_period = None
         self.deny_sim_switch_until = None
@@ -187,7 +187,7 @@ class ConnectionManager:
                 return None
             old_active_connection_id = active_connection.get_connection_id()
             logging.debug('Deactivate active connection "%s"', old_active_connection_id)
-            self.connection_up_time[old_active_connection_id] = datetime.datetime.now()
+            self.connection_retry_timeouts[old_active_connection_id] = datetime.datetime.now()
             self.network_manager.deactivate_connection(active_connection)
             wait_connection_deactivation(active_connection, CONNECTION_DEACTIVATION_TIMEOUT)
         else:
@@ -217,8 +217,8 @@ class ConnectionManager:
         return None
 
     def is_time_to_activate(self, cn_id: str) -> bool:
-        if cn_id in self.connection_up_time:
-            if self.connection_up_time[cn_id] > datetime.datetime.now():
+        if cn_id in self.connection_retry_timeouts:
+            if self.connection_retry_timeouts[cn_id] > datetime.datetime.now():
                 return False
         return True
 
@@ -258,8 +258,8 @@ class ConnectionManager:
     def check(self) -> None:
         logging.debug('check(): starting iteration')
         logging.debug('GSM_STICKY_TIMEOUT: {}'.format(self.deny_sim_switch_until))
-        for k in self.connection_up_time:
-            logging.debug('CONNECTION_UP_TIME[{}]: {}'.format(k, self.connection_up_time[k]))
+        for k in self.connection_retry_timeouts:
+            logging.debug('CONNECTION_RETRY_TIMEOUTS[{}]: {}'.format(k, self.connection_retry_timeouts[k]))
         for index, cn_id in enumerate(self.connection_priority):
             data = {"cn_id": cn_id}
             try:
@@ -276,7 +276,7 @@ class ConnectionManager:
                     if self.is_time_to_activate(cn_id):
                         logging.debug('Will try to activate {} for check'.format(cn_id))
                         active_cn = self.activate_connection(cn_id)
-                        self.hit_connection_up_time(cn_id)
+                        self.hit_connection_retry_timeout(cn_id)
                     else:
                         logging.debug('No time to activate {} yet'.format(cn_id))
                 if active_cn:
@@ -302,15 +302,15 @@ class ConnectionManager:
             # Proceed to next connection to be always on-line
             except dbus.exceptions.DBusException as ex:
                 logging.warning('Error during connection "%s" checking: %s', cn_id, ex, extra=data)
-                self.hit_connection_up_time(cn_id)
+                self.hit_connection_retry_timeout(cn_id)
             except Exception as ex:  # pylint: disable=broad-except
                 logging.critical(
                     'Error during connection "%s" checking: %s', cn_id, ex, extra=data, exc_info=True
                 )
-                self.hit_connection_up_time(cn_id)
+                self.hit_connection_retry_timeout(cn_id)
 
-    def hit_connection_up_time(self, cn_id):
-        self.connection_up_time[cn_id] = datetime.datetime.now() + CONNECTION_ACTIVATION_RETRY_TIMEOUT
+    def hit_connection_retry_timeout(self, cn_id):
+        self.connection_retry_timeouts[cn_id] = datetime.datetime.now() + CONNECTION_ACTIVATION_RETRY_TIMEOUT
 
     def current_connection_changed(self, active_cn, cn_id):
         logging.info('Current connection changed to {}'.format(cn_id))
