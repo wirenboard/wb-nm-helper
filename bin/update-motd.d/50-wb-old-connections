@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# stolen from networkmanager postinst script
+
+NIF=/etc/network/interfaces
+if [ -f $NIF ]; then
+    ifaces=$(grep -v '^#' $NIF | awk '/iface/ {print $2}' | sort -u | sed -e 's/lo//' -e 's/can.*//' -e '/^$/d' -e 's/^/ - /')
+    if [ -n "$ifaces" ]; then
+        echo ""
+        echo "The following network interfaces were found in $NIF"
+        echo "which means they are currently configured by ifupdown:"
+        echo ""
+        echo "$ifaces"
+        echo ""
+        echo "If you want to manage those interfaces with NetworkManager instead"
+        echo "remove their configuration from $NIF"
+        echo "or use web interface config editor to remove them."
+        echo ""
+    fi
+fi

@@ -1,3 +1,9 @@
+wb-nm-helper (1.12.3) stable; urgency=medium
+
+  * notify about interfaces configured by ifupdown in motd
+
+ -- Nikita Maslov <nikita.maslov@wirenboard.ru>  Mon, 09 Jan 2023 21:45:08 +0600
+
 wb-nm-helper (1.12.2) stable; urgency=medium
 
   * ifdown removed interfaces
