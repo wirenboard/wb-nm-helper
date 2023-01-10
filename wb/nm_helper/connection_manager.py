@@ -190,6 +190,11 @@ class ConnectionManager:
             self.connection_retry_timeouts[old_active_connection_id] = datetime.datetime.now()
             self.network_manager.deactivate_connection(active_connection)
             wait_connection_deactivation(active_connection, CONNECTION_DEACTIVATION_TIMEOUT)
+            if self.current_connection == old_active_connection_id:
+                logging.debug('We deactivated current connection, resetting current connection pointer')
+                self.current_connection = None
+            else:
+                logging.debug('We deactivated non-current connection')
         else:
             logging.debug('No active gsm connection detected')
         modem_manager = ModemManager()
