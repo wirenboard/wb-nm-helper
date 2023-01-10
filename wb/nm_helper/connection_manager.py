@@ -152,7 +152,7 @@ class ConnectionManager:
             'Initialized sticky_sim_period as {} seconds'.format(self.sticky_sim_period.total_seconds()))
 
     def wait_gsm_device_for_connection(
-        self, con: NMConnection, dev_path: str, timeout: datetime.timedelta
+        self, con: NMConnection, dev_path: str, sim_slot: str, timeout: datetime.timedelta
     ) -> Optional[NMDevice]:
         logging.debug("Waiting for GSM device path {} to change".format(dev_path))
         start = datetime.datetime.now()
@@ -164,7 +164,7 @@ class ConnectionManager:
                     logging.debug("Current device path: {}".format(new_dev_path))
                     if dev_path != new_dev_path:
                         logging.debug('Device path changed from {} to {}'.format(dev_path, new_dev_path))
-                        logging.info('Changed SIM slot')
+                        logging.info('Changed SIM slot to {} to check connectivity'.format(sim_slot))
                         return dev
             except dbus.exceptions.DBusException as ex:
                 # Some exceptions can be raised during waiting, because MM and NM remove and create devices
@@ -204,7 +204,7 @@ class ConnectionManager:
             if not modem_manager.set_primary_sim_slot(dev_path, sim_slot):
                 return None
             # After switching SIM card MM recreates device with new path
-            dev = self.wait_gsm_device_for_connection(con, dev_path, DEVICE_WAITING_TIMEOUT)
+            dev = self.wait_gsm_device_for_connection(con, dev_path, str(sim_slot), DEVICE_WAITING_TIMEOUT)
             if not dev:
                 logging.debug("New device for connection is not found")
                 return None
