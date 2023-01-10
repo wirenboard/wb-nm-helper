@@ -1,7 +1,6 @@
 wb-nm-helper (1.13.0) stable; urgency=medium
 
-  * Add sanity check for active connections in check()
-  * Add sticky SIM period to avoid changing SIMs too often 
+  * Add adjustable minimum interval between SIM slot changes
 
  -- Aleksandr Kazadaev <aleksandr.kazadaev@wirenboard.com>  Tue, 29 Dec 2022 13:43:42 +0300
 

@@ -144,8 +144,8 @@ class ConnectionManager:
         self.initialize_sticky_sim_period(cfg)
 
     def initialize_sticky_sim_period(self, cfg):
-        if cfg.get('sticky_sim_period'):
-            self.sticky_sim_period = datetime.timedelta(seconds=int(cfg.get('sticky_sim_period')))
+        if cfg.get('sticky_sim_period_s'):
+            self.sticky_sim_period = datetime.timedelta(seconds=int(cfg.get('sticky_sim_period_s')))
         else:
             self.sticky_sim_period = DEFAULT_STICKY_SIM_PERIOD
         logging.debug(
@@ -170,22 +170,8 @@ class ConnectionManager:
                 # Some exceptions can be raised during waiting, because MM and NM remove and create devices
                 logging.debug("Error during device waiting: %s", ex)
             time.sleep(1)
-        logging.info("Timeout reached while trying to change SIM slot")
+        logging.debug("Timeout reached while trying to change SIM slot")
         return None
-
-    def can_change_sim_slot(self, dev: NMDevice):
-        active_connection = dev.get_active_connection()
-        if active_connection:
-            logging.debug('Active gsm connection is {}'.format(active_connection))
-            if active_connection.get_connection_type() == 'gsm' and self.deny_sim_switch_until \
-                    and self.deny_sim_switch_until > datetime.datetime.now():
-                logging.info('SIM switch disabled until {}, not changing SIM'.format(
-                    self.deny_sim_switch_until.isoformat()
-                ))
-                return False
-        else:
-            logging.debug('No active gsm connection found')
-        return True
 
     def activate_gsm_connection(self, dev: NMDevice, con: NMConnection) -> Optional[NMActiveConnection]:
         dev_path = dev.get_property("Udi")
@@ -241,7 +227,7 @@ class ConnectionManager:
             con_type = con.get_settings().get('connection').get('type')
             if con_type == 'gsm' and self.deny_sim_switch_until \
                     and self.deny_sim_switch_until > datetime.datetime.now():
-                logging.info('SIM switch disabled until {}, not changing SIM'.format(
+                logging.debug('SIM switch disabled until {}, not changing SIM'.format(
                     self.deny_sim_switch_until.isoformat())
                 )
                 return False
@@ -268,7 +254,7 @@ class ConnectionManager:
         if activate_fn:
             con = activate_fn(dev, con)
             if con:
-                logging.info('Activated connection {}'.format(cn_id))
+                logging.debug('Activated connection {}'.format(cn_id))
         return con
 
     def deactivate_connection(self, active_cn: NMActiveConnection) -> None:
@@ -283,9 +269,9 @@ class ConnectionManager:
 
     def check(self) -> None:
         logging.debug('check(): starting iteration')
-        logging.debug('GSM_STICKY_TIMEOUT: {}'.format(self.deny_sim_switch_until))
+        logging.debug('GSM Sticky Timeout: {}'.format(self.deny_sim_switch_until))
         for k in self.connection_retry_timeouts:
-            logging.debug('CONNECTION_RETRY_TIMEOUTS[{}]: {}'.format(k, self.connection_retry_timeouts[k]))
+            logging.debug('Connection Retry Timeout for {}: {}'.format(k, self.connection_retry_timeouts[k]))
         for index, cn_id in enumerate(self.connection_priority):
             data = {"cn_id": cn_id}
             try:
