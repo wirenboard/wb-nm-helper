@@ -173,6 +173,20 @@ class ConnectionManager:
         logging.info("Timeout reached while trying to change SIM slot")
         return None
 
+    def can_change_sim_slot(self, dev: NMDevice):
+        active_connection = dev.get_active_connection()
+        if active_connection:
+            logging.debug('Active gsm connection is {}'.format(active_connection))
+            if active_connection.get_connection_type() == 'gsm' and self.deny_sim_switch_until \
+                    and self.deny_sim_switch_until > datetime.datetime.now():
+                logging.info('SIM switch disabled until {}, not changing SIM'.format(
+                    self.deny_sim_switch_until.isoformat()
+                ))
+                return False
+        else:
+            logging.debug('No active gsm connection found')
+        return True
+
     def activate_gsm_connection(self, dev: NMDevice, con: NMConnection) -> Optional[NMActiveConnection]:
         dev_path = dev.get_property("Udi")
         logging.debug('Device path "%s"', dev_path)
@@ -181,10 +195,6 @@ class ConnectionManager:
         active_connection = dev.get_active_connection()
         if active_connection:
             logging.debug('Active gsm connection is {}'.format(active_connection))
-            if active_connection.get_connection_type() == 'gsm' and self.deny_sim_switch_until \
-                    and self.deny_sim_switch_until > datetime.datetime.now():
-                logging.info('SIM switch disabled until {}, not changing SIM'.format(self.deny_sim_switch_until.isoformat()))
-                return None
             old_active_connection_id = active_connection.get_connection_id()
             logging.debug('Deactivate active connection "%s"', old_active_connection_id)
             self.connection_retry_timeouts[old_active_connection_id] = datetime.datetime.now()
@@ -224,7 +234,18 @@ class ConnectionManager:
     def is_time_to_activate(self, cn_id: str) -> bool:
         if cn_id in self.connection_retry_timeouts:
             if self.connection_retry_timeouts[cn_id] > datetime.datetime.now():
+                logging.debug('Retry timeout is still effective for {}'.format(cn_id))
                 return False
+        con = self.network_manager.find_connection(cn_id)
+        if con:
+            con_type = con.get_settings().get('connection').get('type')
+            if con_type == 'gsm' and self.deny_sim_switch_until \
+                    and self.deny_sim_switch_until > datetime.datetime.now():
+                logging.info('SIM switch disabled until {}, not changing SIM'.format(
+                    self.deny_sim_switch_until.isoformat())
+                )
+                return False
+        logging.debug('OK to activate {}'.format(cn_id))
         return True
 
     def activate_connection(self, cn_id: str) -> NMActiveConnection:
@@ -277,13 +298,10 @@ class ConnectionManager:
                     active_cn = active_connections[cn_id]
                     logging.debug('Found {} as already active'.format(cn_id))
                 else:
-
                     if self.is_time_to_activate(cn_id):
                         logging.debug('Will try to activate {} for check'.format(cn_id))
                         active_cn = self.activate_connection(cn_id)
                         self.hit_connection_retry_timeout(cn_id)
-                    else:
-                        logging.debug('No time to activate {} yet'.format(cn_id))
                 if active_cn:
                     if check_connectivity(active_cn):
                         logging.debug('Connection "%s" has connectivity', cn_id, extra=data)
