@@ -648,6 +648,10 @@
                             },
                             "enum": ["01_nm_ethernet"]
                         },
+                        "802-3-ethernet_mtu": {
+                            "$ref": "#/definitions/mtu",
+                            "propertyOrder": 18
+                        },
                         "ipv4": {
                             "title": "IPv4",
                             "oneOf": [
@@ -754,6 +758,10 @@
                                 }
                             ],
                             "_format": "edWb"
+                        },
+                        "802-11-wireless_mtu": {
+                            "$ref": "#/definitions/mtu",
+                            "propertyOrder": 10
                         }
                     },
                     "required": ["type", "802-11-wireless_ssid", "802-11-wireless_mode", "802-11-wireless-security", "ipv4"]
@@ -831,6 +839,10 @@
                                 }
                             ],
                             "_format": "edWb"
+                        },
+                        "802-11-wireless_mtu": {
+                            "$ref": "#/definitions/mtu",
+                            "propertyOrder": 10
                         }
                     },
                     "required": ["type", "802-11-wireless_ssid", "802-11-wireless-security", "ipv4"]

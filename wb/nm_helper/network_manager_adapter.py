@@ -232,6 +232,7 @@ class Connection:
 class EthernetConnection(Connection):
     def __init__(self) -> None:
         params = [
+            Param("802-3-ethernet.mtu"),
         ]
         Connection.__init__(self, "802-3-ethernet", METHOD_ETHERNET, params)
 
@@ -255,6 +256,7 @@ class WiFiDBUSSettings(DBUSSettings):
 class WiFiConnection(Connection):
     def __init__(self) -> None:
         params = [
+            Param("802-3-ethernet.mtu"),
             Param("802-11-wireless.ssid", to_dbus_byte_array, to_ascii_string),
             Param("802-11-wireless.mode", from_dbus=lambda v: NM_WIFI_MODE_DEFAULT if v is None else v),
             Param("802-11-wireless-security.key-mgmt", json_path_type=ParamPathType.TREE),
