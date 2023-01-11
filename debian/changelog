@@ -1,3 +1,10 @@
+wb-nm-helper (1.14.0) stable; urgency=medium
+
+  * notify about interfaces configured by ifupdown in motd
+  * highlight ifupdown interfaces in web editor
+
+ -- Nikita Maslov <nikita.maslov@wirenboard.ru>  Wed, 11 Jan 2023 14:28:53 +0600
+
 wb-nm-helper (1.13.0) stable; urgency=medium
 
   * Remove MAC address properties
