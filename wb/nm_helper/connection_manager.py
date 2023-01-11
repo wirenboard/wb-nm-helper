@@ -34,15 +34,25 @@ CONNECTION_ACTIVATION_TIMEOUT = datetime.timedelta(seconds=30)
 CONNECTION_DEACTIVATION_TIMEOUT = datetime.timedelta(seconds=30)
 CONNECTIVITY_CHECK_URL = "http://network-test.debian.org/nm"
 CONFIG_FILE = "/etc/wb-connection-manager.conf"
+LOG_RATE_LIMIT_DEFAULT = datetime.timedelta(seconds=600)
 
 
 class ConnectionStateFilter(logging.Filter):
+
+    rate_limit_timeouts = {}
+
     # pylint: disable=too-few-public-methods
     def __init__(self):
         logging.Filter.__init__(self)
         self.last_event = {}
 
     def filter(self, record):
+        if "rate_limit_tag" in record.__dict__ and "rate_limit_timeout" in record.__dict__:
+            tag = record.__dict__["rate_limit_tag"]
+            if tag not in self.rate_limit_timeouts or self.rate_limit_timeouts.get(tag) < datetime.datetime.now():
+                self.rate_limit_timeouts[tag] = datetime.datetime.now() + record.__dict__["rate_limit_timeout"]
+            else:
+                return False
         if "cn_id" in record.__dict__:
             cn_id = record.__dict__["cn_id"]
             if cn_id in self.last_event:
@@ -243,11 +253,17 @@ class ConnectionManager:
         }
         con = self.network_manager.find_connection(cn_id)
         if not con:
-            logging.warning('"%s" is not found', cn_id)
+            logging.warning(
+                'Connection "{}" not found'.format(cn_id), 
+                extra={'rate_limit_tag': 'CON_NOT_FOUND_' + cn_id, 'rate_limit_timeout': LOG_RATE_LIMIT_DEFAULT}
+            )
             return None
         dev = self.network_manager.find_device_for_connection(con)
         if not dev:
-            logging.warning('Device for connection "%s" is not found', cn_id)
+            logging.warning(
+                'Device for connection "{}" not found'.format(cn_id), 
+                extra={'rate_limit_tag': 'DEV_NOT_FOUND_' + cn_id, 'rate_limit_timeout': LOG_RATE_LIMIT_DEFAULT}
+            )
             return None
         settings = con.get_settings()
         activate_fn = activation_fns.get(settings["connection"]["type"])
