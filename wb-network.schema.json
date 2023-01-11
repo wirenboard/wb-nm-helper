@@ -1260,6 +1260,19 @@
                                     "show_editor": true
                                 }
                             }
+                        },
+                        "sticky_sim_period_s": {
+                            "title": "Deny SIM switching period (seconds)",
+                            "description": "After successfully establishing a modem connection, do not try changing SIM slot for this amount of seconds",
+                            "type": "integer",
+                            "propertyOrder": 3,
+                            "default": 900,
+                            "minimum": 0,
+                            "options": {
+                                "wb": {
+                                    "show_editor": true
+                                }
+                            }
                         }
                     },
                     "options": {
@@ -1379,7 +1392,9 @@
             "Network name (SSID)": "Название сети (SSID)",
             "None": "Нет",
             "Shared to other computers": "Общий с другими компьютерами",
-            "Type": "Тип"
+            "Type": "Тип",
+            "Deny SIM switching period (seconds)": "Не переключать SIM-слот в течение этого периода (секунды)",
+            "After successfully establishing a modem connection, do not try changing SIM slot for this amount of seconds": "После успешного подключения через модем, не пытаться менять SIM-слот даже на более приоритетный в течение этого количества секунд"
         }
     }
 }
