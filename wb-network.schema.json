@@ -1320,7 +1320,7 @@
             "mac-pattern-message": "Must be six hexadecimal byte values divided by colon (example f2:c8:14:48:d3:97)",
             "interfaces_description": "Configured in /etc/network/interfaces",
             "old_interface_deprecated_description": "Management via NetworkManager is available - this is a modern configuration service, support for which is currently being developed in Wiren Board. To switch to NetworkManager, <b>remove this connection</b> and use a pre-defined one (or create a new connection from scratch)",
-            "loopback_deprecated_description": "Manual loopback definitions should be removed when NetworkManager is used"
+            "loopback_deprecated_description": "Manual loopback definitions <b>should be removed</b>, systemd handles loopback automatically"
         },
         "ru": {
             "Network connections": "Сетевые соединения",
@@ -1366,7 +1366,7 @@
             "Refers to the file in /etc/ppp/peers": "Указать имя файла конфигурации из директории /etc/ppp/peers",
             "interfaces_description": "Настроено в /etc/network/interfaces",
             "old_interface_deprecated_description": "Доступно управление через NetworkManager - это современный сервис настройки, поддержка которого сейчас развивается в Wiren Board. Для перехода на NetworkManager <b>удалите это соединение</b> и используйте существующее из списка выше (или создайте новое, если нужно)",
-            "loopback_deprecated_description": "При использовании NetworkManager ручные определения loopback-интерфейсов можно удалить",
+            "loopback_deprecated_description": "Ручные определения loopback-интерфейсов <b>можно удалить</b>, systemd создаёт loopback автоматически",
             "Configured in NetworkManager": "Настроено в NetworkManager",
             "Interface": "Имя интерфейса",
             "connection_title": "Соединение",
