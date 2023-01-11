@@ -819,7 +819,7 @@
                             "propertyOrder": 5
                         },
                         "nat": {
-                            "title": "Enable NAT",
+                            "title": "Share Internet connection",
                             "type": "boolean",
                             "default": true,
                             "_format": "checkbox",
@@ -1377,7 +1377,7 @@
             "None": "Нет",
             "Shared to other computers": "Общий с другими компьютерами",
             "Type": "Тип",
-            "Enable NAT": "Включить NAT"
+            "Share Internet connection": "Разрешить доступ в Интернет"
         }
     }
 }

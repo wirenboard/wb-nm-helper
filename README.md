@@ -141,3 +141,11 @@ successfully requested primary SIM switch in mode
 [user]
 wb.read-only=true
 ```
+
+### Доступ в Internet через Wi-Fi AP
+
+Чтобы клиенты, подключенные к точке доступа Wi-Fi, не имели выход во внешние сети, необходимо добавить в `.nmconnection`:
+```
+[user]
+wb.disable-nat=true
+```
