@@ -183,6 +183,12 @@ class NMActiveConnection(NMObject):
         settings = con.get_settings()
         return str(settings["connection"]["id"])
 
+    def get_connection_type(self) -> str:
+        cn_path = self.get_property("Connection")
+        con = NMConnection(cn_path, self.bus)
+        settings = con.get_settings()
+        return str(settings["connection"]["type"])
+
     def get_ip4_connectivity(self):
         dev_paths = self.get_property("Devices")
         if dev_paths:
