@@ -1,8 +1,21 @@
-wb-nm-helper (1.13.0) stable; urgency=medium
+wb-nm-helper (1.15.0) stable; urgency=medium
 
   * Add adjustable minimum interval between SIM slot changes
 
- -- Aleksandr Kazadaev <aleksandr.kazadaev@wirenboard.com>  Tue, 29 Dec 2022 13:43:42 +0300
+ -- Aleksandr Kazadaev <aleksandr.kazadaev@wirenboard.com>  Wed, 11 Jan 2023 18:33:42 +0600
+
+wb-nm-helper (1.14.0) stable; urgency=medium
+
+  * notify about interfaces configured by ifupdown in motd
+  * highlight ifupdown interfaces in web editor
+
+ -- Nikita Maslov <nikita.maslov@wirenboard.ru>  Wed, 11 Jan 2023 14:28:53 +0600
+
+wb-nm-helper (1.13.0) stable; urgency=medium
+
+  * Remove MAC address properties
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Mon, 09 Jan 2023 15:20:00 +0400
 
 wb-nm-helper (1.12.2) stable; urgency=medium
 
