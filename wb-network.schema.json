@@ -1260,6 +1260,7 @@
                             "propertyOrder": 2,
                             "_format": "edWb",
                             "default": 900,
+                            "minimum": 0,
                             "options": {
                                 "wb": {
                                     "show_editor": true

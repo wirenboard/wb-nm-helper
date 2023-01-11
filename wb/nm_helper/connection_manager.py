@@ -299,8 +299,7 @@ class ConnectionManager:
                         except dbus.exceptions.DBusException as ex:
                             # Not a problem if less priority connections still be active
                             logging.warning("Error during connections deactivation: %s", ex)
-                        if self.current_connection != cn_id:
-                            self.current_connection_changed(active_cn, cn_id)
+                        self.current_connection_changed(active_cn, cn_id)
                         return
                     else:
                         self.deactivate_connection(active_cn)
@@ -318,10 +317,12 @@ class ConnectionManager:
                 )
                 self.hit_connection_retry_timeout(cn_id)
 
-    def hit_connection_retry_timeout(self, cn_id):
+    def hit_connection_retry_timeout(self, cn_id: str) -> None:
         self.connection_retry_timeouts[cn_id] = datetime.datetime.now() + CONNECTION_ACTIVATION_RETRY_TIMEOUT
 
-    def current_connection_changed(self, active_cn, cn_id):
+    def current_connection_changed(self, active_cn: NMActiveConnection, cn_id: str) -> None:
+        if self.current_connection == cn_id:
+            return
         logging.info('Current connection changed to {}'.format(cn_id))
         if active_cn.get_connection_type() == 'gsm':
             self.deny_sim_switch_until = datetime.datetime.now() + self.sticky_sim_period
