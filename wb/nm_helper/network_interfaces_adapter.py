@@ -26,8 +26,10 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-from collections import namedtuple
+from dataclasses import dataclass, field
 from os.path import exists
+import os
+import json
 
 from pyparsing import (
     CharsNotIn,
@@ -46,7 +48,12 @@ from pyparsing import (
 
 NETWORK_INTERFACES_CONFIG = "/etc/network/interfaces"
 
-ApplyResult = namedtuple("ApplyResult", ["unmanaged_connections", "managed_interfaces"], defaults=[[], []])
+@dataclass
+class ApplyResult:
+    unmanaged_connections: list = field(default_factory=list)
+    managed_interfaces: list = field(default_factory=list)
+    released_interfaces: list = field(default_factory=list)
+    is_changed: bool = False
 
 
 def is_default_configured_loopback(iface):
@@ -229,6 +236,11 @@ class NetworkInterfacesAdapter:
     def apply(self, interfaces, dry_run: bool) -> ApplyResult:
         supported_types = ["loopback", "dhcp", "static", "can", "manual", "ppp"]
         res = ApplyResult()
+
+        old_interfaces = sorted(self.interfaces, key=lambda x: x["name"])
+        for iface in old_interfaces:
+            iface.pop("type", None)
+
         self.interfaces = []
         for iface in interfaces:
             if iface.get("type") in supported_types:
@@ -237,6 +249,19 @@ class NetworkInterfacesAdapter:
                 res.managed_interfaces.append(iface["name"])
             else:
                 res.unmanaged_connections.append(iface)
+
+        self.interfaces = sorted(self.interfaces, key=lambda x: x["name"])
+
+        new_iface_names = [c["name"] for c in self.interfaces]
+        for i, iface in enumerate(old_interfaces):
+            if iface["name"] not in new_iface_names:
+                if not dry_run:
+                    os.system("ifdown %s" % iface["name"])
+                res.released_interfaces.append(iface["name"])
+                del old_interfaces[i]
+
+        res.is_changed = json.dumps(old_interfaces, sort_keys=True) != json.dumps(self.interfaces, sort_keys=True)
+
         if not dry_run:
             with open(self.filename, "w", encoding="utf-8") as file:
                 file.write(self.format())
