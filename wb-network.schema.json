@@ -1034,6 +1034,26 @@
                             "placeholder":  " "
                         }
                     }
+                },
+                "dns": {
+                    "type": "string",
+                    "title": "DNS servers",
+                    "propertyOrder": 16,
+                    "options": {
+                        "wb": {
+                            "show_editor": true
+                        }
+                    }
+                },
+                "dns-search": {
+                    "type": "string",
+                    "title": "DNS search domains",
+                    "propertyOrder": 17,
+                    "options": {
+                        "wb": {
+                            "show_editor": true
+                        }
+                    }
                 }
             },
             "required": ["method", "address"],
@@ -1083,6 +1103,26 @@
                         "show_opt_in": true,
                         "inputAttributes": {
                             "placeholder":  " "
+                        }
+                    }
+                },
+                "dns": {
+                    "type": "string",
+                    "title": "DNS servers",
+                    "propertyOrder": 16,
+                    "options": {
+                        "wb": {
+                            "show_editor": true
+                        }
+                    }
+                },
+                "dns-search": {
+                    "type": "string",
+                    "title": "DNS search domains",
+                    "propertyOrder": 17,
+                    "options": {
+                        "wb": {
+                            "show_editor": true
                         }
                     }
                 }
@@ -1357,7 +1397,9 @@
             "Network name (SSID)": "Название сети (SSID)",
             "None": "Нет",
             "Shared to other computers": "Общий с другими компьютерами",
-            "Type": "Тип"
+            "Type": "Тип",
+            "DNS servers": "DNS-серверы",
+            "DNS search domains": "DNS-домены поиска"
         }
     }
 }
