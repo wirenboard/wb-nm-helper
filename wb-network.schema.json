@@ -668,10 +668,6 @@
                             },
                             "enum": ["01_nm_ethernet"]
                         },
-                        "802-3-ethernet_cloned-mac-address": {
-                            "$ref": "#/definitions/mac-addr",
-                            "propertyOrder": 16
-                        },
                         "802-3-ethernet_mtu": {
                             "$ref": "#/definitions/mtu",
                             "propertyOrder": 18
@@ -783,10 +779,6 @@
                             ],
                             "_format": "edWb"
                         },
-                        "802-11-wireless_cloned-mac-address": {
-                            "$ref": "#/definitions/mac-addr",
-                            "propertyOrder": 9
-                        },
                         "802-11-wireless_mtu": {
                             "$ref": "#/definitions/mtu",
                             "propertyOrder": 10
@@ -867,10 +859,6 @@
                                 }
                             ],
                             "_format": "edWb"
-                        },
-                        "802-11-wireless_cloned-mac-address": {
-                            "$ref": "#/definitions/mac-addr",
-                            "propertyOrder": 9
                         },
                         "802-11-wireless_mtu": {
                             "$ref": "#/definitions/mtu",
