@@ -1,3 +1,9 @@
+wb-nm-helper (1.13.0) stable; urgency=medium
+
+  * Add disabling NAT for Wi-Fi access points
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Tue, 10 Jan 2023 15:38:50 +0500
+
 wb-nm-helper (1.12.2) stable; urgency=medium
 
   * ifdown removed interfaces

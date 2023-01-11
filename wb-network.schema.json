@@ -818,6 +818,13 @@
                             "$ref": "#/definitions/802-11-wireless-security",
                             "propertyOrder": 5
                         },
+                        "nat": {
+                            "title": "Enable NAT",
+                            "type": "boolean",
+                            "default": true,
+                            "_format": "checkbox",
+                            "propertyOrder": 6
+                        },
                         "ipv4": {
                             "title": "IPv4",
                             "$ref": "#/definitions/nm_ipv4_shared",
@@ -857,7 +864,7 @@
                             "propertyOrder": 10
                         }
                     },
-                    "required": ["type", "802-11-wireless_ssid", "802-11-wireless-security", "ipv4"]
+                    "required": ["type", "nat", "802-11-wireless_ssid", "802-11-wireless-security", "ipv4"]
                 },
                 {
                     "$ref": "#/definitions/nm_connection"
@@ -1369,7 +1376,8 @@
             "Network name (SSID)": "Название сети (SSID)",
             "None": "Нет",
             "Shared to other computers": "Общий с другими компьютерами",
-            "Type": "Тип"
+            "Type": "Тип",
+            "Enable NAT": "Включить NAT"
         }
     }
 }

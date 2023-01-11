@@ -139,5 +139,5 @@ successfully requested primary SIM switch in mode
 Чтобы сделать соединение недоступным для редактирования из homeUI, необходимо добавить в `.nmconnection`:
 ```
 [user]
-data.read-only=true
+wb.read-only=true
 ```

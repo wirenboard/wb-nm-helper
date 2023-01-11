@@ -209,7 +209,7 @@ class Connection:
     def can_manage(self, cfg: DBUSSettings):
         user_data = cfg.get_opt("user.data")
         if user_data is not None:
-            if to_bool_default_false(user_data.get("data.read-only")):
+            if to_bool_default_false(user_data.get("wb.read-only")):
                 return False
 
         return cfg.get_opt("connection.type") == self.dbus_type
@@ -310,6 +310,18 @@ class WiFiAp(WiFiConnection):
         if "802-11-wireless-security" in con.params:
             # Disable WPS as it can lead to connection problems with MacOS and Linux
             con.set_value("802-11-wireless-security.wps-method", 1)
+        user_data = con.get_opt("user.data", dbus.Dictionary(signature="ss"))
+        user_data["wb.disable-nat"] = "false" if iface.get_opt("nat", True) else "true"
+        con.set_value("user.data", user_data)
+
+    def get_connection(self, con: NMConnection):
+        res = super().get_connection(con)
+        user_data = self.get_dbus_settings(con).get_opt("user.data")
+        if user_data is None:
+            res["nat"] = True
+        else:
+            res["nat"] = user_data.get("wb.disable-nat", "false") == "false"
+        return res
 
 
 class ModemConnection(Connection):

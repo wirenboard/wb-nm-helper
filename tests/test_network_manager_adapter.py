@@ -91,6 +91,14 @@ from wb.nm_helper.network_manager_adapter import (
                         },
                         signature=dbus.Signature("sv"),
                     ),
+                    dbus.String("user"): dbus.Dictionary(
+                        {
+                            dbus.String("data"): dbus.Dictionary(
+                                {"wb.disable-nat": "false"}, signature=dbus.Signature("ss")
+                            )
+                        },
+                        signature=dbus.Signature("sv"),
+                    ),
                 },
                 signature=dbus.Signature("sa{sv}"),
             ),
@@ -174,6 +182,14 @@ from wb.nm_helper.network_manager_adapter import (
                                 ],
                                 signature=dbus.Signature("a{sv}"),
                             ),
+                        },
+                        signature=dbus.Signature("sv"),
+                    ),
+                    dbus.String("user"): dbus.Dictionary(
+                        {
+                            dbus.String("data"): dbus.Dictionary(
+                                {"wb.disable-nat": "false"}, signature=dbus.Signature("ss")
+                            )
                         },
                         signature=dbus.Signature("sv"),
                     ),
