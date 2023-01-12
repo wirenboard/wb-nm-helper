@@ -102,7 +102,7 @@
         "method": "static",
         "type": "can",
         "options": {
-          "bitrate": "125000"
+          "bitrate": 125000
         },
         "auto": false
       },

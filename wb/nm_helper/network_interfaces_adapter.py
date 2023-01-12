@@ -26,10 +26,10 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
+import json
+import os
 from dataclasses import dataclass, field
 from os.path import exists
-import os
-import json
 
 from pyparsing import (
     CharsNotIn,
@@ -47,6 +47,7 @@ from pyparsing import (
 )
 
 NETWORK_INTERFACES_CONFIG = "/etc/network/interfaces"
+
 
 @dataclass
 class ApplyResult:
@@ -216,6 +217,8 @@ class NetworkInterfacesAdapter:
             iface["type"] = method
             if method == "static" and iface.get("mode") == "can":
                 iface["type"] = "can"
+                if "options" in iface and "bitrate" in iface["options"]:
+                    iface["options"]["bitrate"] = int(iface["options"]["bitrate"])
 
         # do not show default configured loopback
         # it is managed by systemd and doesn't need to be mentioned in config
@@ -260,7 +263,9 @@ class NetworkInterfacesAdapter:
                 res.released_interfaces.append(iface["name"])
                 del old_interfaces[i]
 
-        res.is_changed = json.dumps(old_interfaces, sort_keys=True) != json.dumps(self.interfaces, sort_keys=True)
+        res.is_changed = json.dumps(old_interfaces, sort_keys=True) != json.dumps(
+            self.interfaces, sort_keys=True
+        )
 
         if not dry_run:
             with open(self.filename, "w", encoding="utf-8") as file:

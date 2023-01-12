@@ -1,5 +1,6 @@
-import dbus
 import json
+
+import dbus
 import pytest
 
 from wb.nm_helper.network_interfaces_adapter import NetworkInterfacesAdapter
@@ -18,7 +19,7 @@ from wb.nm_helper.network_interfaces_adapter import NetworkInterfacesAdapter
                     "method": "static",
                     "mode": "can",
                     "name": "can0",
-                    "options": {"bitrate": "125000"},
+                    "options": {"bitrate": 125000},
                     "type": "can",
                 }
             ],
@@ -42,6 +43,7 @@ def test_apply_no_changes():
     assert res.released_interfaces == []
     assert res.is_changed == False
 
+
 def test_apply_changes():
     with open("tests/data/ui.json", "r") as f:
         cfg = json.load(f)
@@ -55,6 +57,7 @@ def test_apply_changes():
     assert res.released_interfaces == []
     assert res.is_changed == True
 
+
 def test_apply_remove_iface():
     with open("tests/data/ui.json", "r") as f:
         cfg = json.load(f)
@@ -65,5 +68,5 @@ def test_apply_remove_iface():
     res = adapter.apply(cfg["ui"]["connections"], True)
     assert len(res.unmanaged_connections) == 5
     assert res.managed_interfaces == ["can0", "eth0", "eth1"]
-    assert res.released_interfaces == ["wlan0",]
+    assert res.released_interfaces == ["wlan0"]
     assert res.is_changed == False
