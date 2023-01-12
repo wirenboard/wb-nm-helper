@@ -341,11 +341,12 @@ class WiFiAp(WiFiConnection):
 
     def get_connection(self, con: NMConnection):
         res = super().get_connection(con)
-        user_data = self.get_dbus_settings(con).get_opt("user.data")
-        if user_data is None:
-            res["nat"] = True
-        else:
-            res["nat"] = user_data.get("wb.disable-nat", "false") == "false"
+        if res is not None:
+            user_data = self.get_dbus_settings(con).get_opt("user.data")
+            if user_data is None:
+                res["nat"] = True
+            else:
+                res["nat"] = user_data.get("wb.disable-nat", "false") == "false"
         return res
 
 
