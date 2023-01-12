@@ -1,8 +1,28 @@
-wb-nm-helper (1.13.1) stable; urgency=medium
+wb-nm-helper (1.17.0) stable; urgency=medium
 
   * Add 'DNS servers'/'DNS search domains' options
 
- -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Tue, 10 Jan 2023 18:11:00 +0400
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Thu, 12 Jan 2023 10:11:00 +0400
+
+wb-nm-helper (1.16.0) stable; urgency=medium
+
+  * Add disabling NAT for Wi-Fi access points
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Wed, 11 Jan 2023 19:01:27 +0500
+
+wb-nm-helper (1.15.0) stable; urgency=medium
+
+  * Add adjustable minimum interval between SIM slot changes
+
+ -- Aleksandr Kazadaev <aleksandr.kazadaev@wirenboard.com>  Wed, 11 Jan 2023 18:33:42 +0600
+
+wb-nm-helper (1.14.0) stable; urgency=medium
+
+  * notify about interfaces configured by ifupdown in motd
+  * highlight ifupdown interfaces in web editor
+
+ -- Nikita Maslov <nikita.maslov@wirenboard.ru>  Wed, 11 Jan 2023 14:28:53 +0600
+>>>>>>> main
 
 wb-nm-helper (1.13.0) stable; urgency=medium
 

@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+
+from wb.nm_helper.network_manager import NetworkManager
+
+action = sys.argv[2]
+iface = sys.argv[1]
+if action == "up":
+    cn_id = os.getenv("CONNECTION_ID")
+    network_manager = NetworkManager()
+    con = network_manager.find_connection(cn_id)
+    if con:
+        if con.get_settings().get("user", {}).get("data", {}).get("wb.disable-nat", "false") == "true":
+            print("Remove NAT for {} according to {} settings".format(iface, cn_id))
+            os.system("nft delete table ip nm-shared-{}".format(iface))

@@ -18,11 +18,12 @@ Architecture: all
 Depends: ${misc:Depends},
          python3 (>= 3.5),
          python3-wb-nm-helper (= ${binary:Version}),
-         wb-mqtt-homeui (>= 2.47.1~~),
+         wb-mqtt-homeui (>= 2.51.0~~),
          network-manager,
          modemmanager,
          mobile-broadband-provider-info,
          wb-configs (>= 3.4.0),
-         wireless-tools
+         wireless-tools,
+         nftables
 Description:  Wirenboard network configuration backend for wb-mqtt-confed.
  The package includes wb-mqtt-confed backend software for network interfaces management.
