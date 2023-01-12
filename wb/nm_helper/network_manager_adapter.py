@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import datetime
+import time
 from collections import namedtuple
 from enum import Enum
 from ipaddress import IPv4Interface
@@ -19,6 +21,8 @@ from .network_manager import (
     NM_WIFI_MODE_DEFAULT,
     NetworkManager,
     NMConnection,
+    NMDevice,
+    NMWirelessDevice,
 )
 
 METHOD_ETHERNET = "01_nm_ethernet"
@@ -46,8 +50,8 @@ def to_mac_string(mac_array):
     return None if mac_array is None else ":".join(map(lambda item: "%0.2X" % item, mac_array))
 
 
-def to_ascii_string(data):
-    return None if data is None else "".join(map(lambda item: "%c" % item, data))
+def to_utf8_string(data):
+    return None if data is None else bytes(data).decode("utf8", errors="ignore")
 
 
 def to_mac_list(mac_string):
@@ -105,6 +109,35 @@ def set_opt_by_tree_path(data, path: str, value, default_dict):
         for i in range(len(dst_path_items) - 1):
             obj = obj.setdefault(dst_path_items[i], default_dict)
         obj[last_dst_item] = value
+
+
+def has_active_connection_with_type(dev: NMDevice, desired_type: str) -> bool:
+    active_cn = dev.get_active_connection()
+    return active_cn and active_cn.get_connection_type() == desired_type
+
+
+def scan(dev: NMWirelessDevice, scan_timeout: datetime.timedelta) -> None:
+    last_scan_ms = dev.get_property("LastScan")
+    # nmcli requests scan if last one was more than 30 seconds ago
+    if (last_scan_ms == -1) or (time.clock_gettime_ns(time.CLOCK_BOOTTIME) / 1000000 - last_scan_ms >= 30000):
+        dev.request_wifi_scan()
+        # Documentation says:
+        #   To know when the scan is finished, use the "PropertiesChanged" signal
+        #   from "org.freedesktop.DBus.Properties" to listen to changes to the "LastScan" property.
+        #
+        # Simply poll "LastScan"
+        start = datetime.datetime.now()
+        while start + scan_timeout >= datetime.datetime.now():
+            if last_scan_ms != dev.get_property("LastScan"):
+                break
+            time.sleep(1)
+    res = []
+    for access_point in dev.get_access_points():
+        ssid = to_utf8_string(access_point.get_property("Ssid"))
+        if len(ssid) > 0:
+            res.append(ssid)
+    res.sort()
+    return res
 
 
 class JSONSettings:
@@ -257,7 +290,7 @@ class WiFiConnection(Connection):
     def __init__(self) -> None:
         params = [
             Param("802-11-wireless.mtu"),
-            Param("802-11-wireless.ssid", to_dbus_byte_array, to_ascii_string),
+            Param("802-11-wireless.ssid", to_dbus_byte_array, to_utf8_string),
             Param("802-11-wireless.mode", from_dbus=lambda v: NM_WIFI_MODE_DEFAULT if v is None else v),
             Param("802-11-wireless-security.key-mgmt", json_path_type=ParamPathType.TREE),
             Param("802-11-wireless-security.psk", json_path_type=ParamPathType.TREE),
@@ -345,10 +378,9 @@ def apply(iface, c_handler, network_manager: NetworkManager, dry_run: bool) -> b
                     c_handler.set_dbus_options(dbus_settings, json_settings)
                     con.update_settings(dbus_settings.params)
                     return True
-                else:
-                    con.delete()
-                    network_manager.add_connection(c_handler.create(json_settings))
-                    return False
+                con.delete()
+                network_manager.add_connection(c_handler.create(json_settings))
+                return False
     network_manager.add_connection(c_handler.create(json_settings))
     return False
 
@@ -418,3 +450,17 @@ class NetworkManagerAdapter:
             if mapping:
                 devices.append({"type": mapping, "iface": dev.get_property("Interface")})
         return devices
+
+    def get_wifi_ssids(self, scan_timeout: datetime.timedelta) -> List[str]:
+        devices = []
+        for dev in self.network_manager.get_devices():
+            if dev.get_property("DeviceType") == NM_DEVICE_TYPE_WIFI:
+                if has_active_connection_with_type(dev, "infrastructure"):
+                    return scan(NMWirelessDevice(dev), scan_timeout)
+                devices.append(dev)
+        for dev in devices:
+            if has_active_connection_with_type(dev, "ap"):
+                return scan(NMWirelessDevice(dev), scan_timeout)
+        if devices:
+            return scan(NMWirelessDevice(devices[0]), scan_timeout)
+        return []
