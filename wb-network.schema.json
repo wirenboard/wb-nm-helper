@@ -456,9 +456,12 @@
                             "title": "Options",
                             "properties": {
                                 "bitrate": {
-                                    "type": "string",
+                                    "type": "integer",
                                     "title": "Bitrate",
-                                    "propertyOrder": 11
+                                    "propertyOrder": 11,
+                                    "minimum": 1,
+                                    "maximum": 1000000,
+                                    "default": 125000
                                 }
                             },
                             "required": ["bitrate"]
