@@ -830,6 +830,13 @@
                             "$ref": "#/definitions/802-11-wireless-security",
                             "propertyOrder": 5
                         },
+                        "nat": {
+                            "title": "Share Internet connection",
+                            "type": "boolean",
+                            "default": true,
+                            "_format": "checkbox",
+                            "propertyOrder": 6
+                        },
                         "ipv4": {
                             "title": "IPv4",
                             "$ref": "#/definitions/nm_ipv4_shared",
@@ -865,7 +872,7 @@
                             "propertyOrder": 10
                         }
                     },
-                    "required": ["type", "802-11-wireless_ssid", "802-11-wireless-security", "ipv4"]
+                    "required": ["type", "nat", "802-11-wireless_ssid", "802-11-wireless-security", "ipv4"]
                 },
                 {
                     "$ref": "#/definitions/nm_connection"
@@ -1393,6 +1400,7 @@
             "None": "Нет",
             "Shared to other computers": "Общий с другими компьютерами",
             "Type": "Тип",
+            "Share Internet connection": "Разрешить доступ в Интернет",
             "Deny SIM switching period (seconds)": "Не переключать SIM-слот в течение этого периода (секунды)",
             "After successfully establishing a modem connection, do not try changing SIM slot for this amount of seconds": "После успешного подключения через модем, не пытаться менять SIM-слот даже на более приоритетный в течение этого количества секунд"
         }

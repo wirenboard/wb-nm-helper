@@ -6,3 +6,4 @@ bin/disable-if-not-configured.sh /usr/lib/wb-nm-helper
 bin/update-motd.d/50-wb-old-connections /etc/update-motd.d
 share/99-disable-if-not-configured.conf /usr/lib/systemd/system/hostapd.service.d
 share/99-disable-if-not-configured.conf /usr/lib/systemd/system/dnsmasq.service.d
+bin/wb-disable-nat /usr/lib/NetworkManager/dispatcher.d

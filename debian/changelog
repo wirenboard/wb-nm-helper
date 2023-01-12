@@ -1,3 +1,9 @@
+wb-nm-helper (1.16.0) stable; urgency=medium
+
+  * Add disabling NAT for Wi-Fi access points
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Wed, 11 Jan 2023 19:01:27 +0500
+
 wb-nm-helper (1.15.0) stable; urgency=medium
 
   * Add adjustable minimum interval between SIM slot changes
