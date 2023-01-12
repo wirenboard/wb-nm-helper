@@ -1,3 +1,9 @@
+wb-nm-helper (1.16.2) stable; urgency=medium
+
+  * Fix Internet connection sharing settings
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Thu, 12 Jan 2023 17:51:08 +0500
+
 wb-nm-helper (1.16.1) stable; urgency=medium
 
   * Add validation for CAN bitrate in homeui
