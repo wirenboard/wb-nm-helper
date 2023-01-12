@@ -1068,6 +1068,7 @@
                 "dns": {
                     "type": "string",
                     "title": "DNS servers",
+                    "description": "Comma-separated list of IP addresses",
                     "propertyOrder": 16,
                     "options": {
                         "wb": {
@@ -1078,6 +1079,7 @@
                 "dns-search": {
                     "type": "string",
                     "title": "DNS search domains",
+                    "description": "Comma-separated list of domains",
                     "propertyOrder": 17,
                     "options": {
                         "wb": {
@@ -1139,6 +1141,7 @@
                 "dns": {
                     "type": "string",
                     "title": "DNS servers",
+                    "description": "Comma-separated list of IP addresses",
                     "propertyOrder": 16,
                     "options": {
                         "wb": {
@@ -1149,6 +1152,7 @@
                 "dns-search": {
                     "type": "string",
                     "title": "DNS search domains",
+                    "description": "Comma-separated list of domains",
                     "propertyOrder": 17,
                     "options": {
                         "wb": {
@@ -1447,7 +1451,9 @@
             "Deny SIM switching period (seconds)": "Не переключать SIM-слот в течение этого периода (секунды)",
             "After successfully establishing a modem connection, do not try changing SIM slot for this amount of seconds": "После успешного подключения через модем, не пытаться менять SIM-слот даже на более приоритетный в течение этого количества секунд",
             "DNS servers": "DNS-серверы",
-            "DNS search domains": "DNS-домены поиска"
+            "DNS search domains": "DNS-домены поиска",
+            "Comma-separated list of IP addresses": "Список IP-адресов, разделённых запятыми",
+            "Comma-separated list of domains": "Список доменов, разделённых запятыми"
         }
     }
 }
