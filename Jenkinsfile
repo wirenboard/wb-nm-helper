@@ -1,1 +1,1 @@
-buildDebArchAll()
+buildDebArchAl defaultRunPythonChecks: true, defaultAngryPylint: true
