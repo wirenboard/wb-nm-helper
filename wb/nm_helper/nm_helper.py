@@ -7,7 +7,7 @@ import logging
 import re
 import subprocess
 import sys
-from typing import List
+from typing import Dict, List
 
 import dbus
 
@@ -113,10 +113,9 @@ def get_systemd_manager(dry_run: bool):
             (object,),
             {"StopUnit": lambda self, name, mode: None, "RestartUnit": lambda self, name, mode: None},
         )()
-    else:
-        system_bus = dbus.SystemBus()
-        systemd1 = system_bus.get_object("org.freedesktop.systemd1", "/org/freedesktop/systemd1")
-        return dbus.Interface(systemd1, "org.freedesktop.systemd1.Manager")
+    system_bus = dbus.SystemBus()
+    systemd1 = system_bus.get_object("org.freedesktop.systemd1", "/org/freedesktop/systemd1")
+    return dbus.Interface(systemd1, "org.freedesktop.systemd1.Manager")
 
 
 def from_json(cfg, args) -> Dict:

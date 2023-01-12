@@ -38,10 +38,10 @@ LOG_RATE_LIMIT_DEFAULT = datetime.timedelta(seconds=600)
 
 
 class ConnectionStateFilter(logging.Filter):
+    # pylint: disable=too-few-public-methods
 
     rate_limit_timeouts = {}
 
-    # pylint: disable=too-few-public-methods
     def __init__(self):
         logging.Filter.__init__(self)
         self.last_event = {}
@@ -127,16 +127,16 @@ def curl_get(iface: str, url: str) -> str:
 # Use NM's implementation after fixing the bug
 def check_connectivity(active_cn: NMActiveConnection) -> bool:
     ifaces = active_cn.get_ifaces()
-    logging.debug("interfaces for {}: {}".format(active_cn.get_connection_id(), ifaces))
+    logging.debug("interfaces for %s: %s", active_cn.get_connection_id(), ifaces)
     if ifaces and ifaces[0]:
         try:
-            ok = curl_get(ifaces[0], CONNECTIVITY_CHECK_URL).startswith("NetworkManager is online")
-            logging.debug("Connectivity via {} is {}".format(ifaces[0], ok))
-            return ok
+            answer_is_ok = curl_get(ifaces[0], CONNECTIVITY_CHECK_URL).startswith("NetworkManager is online")
+            logging.debug("Connectivity via %s is %s", ifaces[0], answer_is_ok)
+            return answer_is_ok
         except pycurl.error as ex:
-            logging.debug("Error during {} connectivity check: {}".format(ifaces[0], ex))
+            logging.debug("Error during %s connectivity check: %s", ifaces[0], ex)
     else:
-        logging.debug("Connection {} seems to have no interfaces".format(active_cn.get_connection_id()))
+        logging.debug("Connection %s seems to have no interfaces", active_cn.get_connection_id())
     return False
 
 
@@ -162,24 +162,22 @@ class ConnectionManager:
             self.sticky_sim_period = datetime.timedelta(seconds=int(cfg.get("sticky_sim_period_s")))
         else:
             self.sticky_sim_period = DEFAULT_STICKY_SIM_PERIOD
-        logging.debug(
-            "Initialized sticky_sim_period as {} seconds".format(self.sticky_sim_period.total_seconds())
-        )
+        logging.debug("Initialized sticky_sim_period as %s seconds", self.sticky_sim_period.total_seconds())
 
     def wait_gsm_device_for_connection(
         self, con: NMConnection, dev_path: str, sim_slot: str, timeout: datetime.timedelta
     ) -> Optional[NMDevice]:
-        logging.debug("Waiting for GSM device path {} to change".format(dev_path))
+        logging.debug("Waiting for GSM device path %s to change", dev_path)
         start = datetime.datetime.now()
         while start + timeout >= datetime.datetime.now():
             try:
                 dev = self.network_manager.find_device_for_connection(con)
                 if dev:
                     new_dev_path = dev.get_property("Udi")
-                    logging.debug("Current device path: {}".format(new_dev_path))
+                    logging.debug("Current device path: %s", new_dev_path)
                     if dev_path != new_dev_path:
-                        logging.debug("Device path changed from {} to {}".format(dev_path, new_dev_path))
-                        logging.info("Changed SIM slot to {} to check connectivity".format(sim_slot))
+                        logging.debug("Device path changed from %s to %s", dev_path, new_dev_path)
+                        logging.info("Changed SIM slot to %s to check connectivity", sim_slot)
                         return dev
             except dbus.exceptions.DBusException as ex:
                 # Some exceptions can be raised during waiting, because MM and NM remove and create devices
@@ -195,7 +193,7 @@ class ConnectionManager:
         # So deactivate active connection if it exists
         active_connection = dev.get_active_connection()
         if active_connection:
-            logging.debug("Active gsm connection is {}".format(active_connection))
+            logging.debug("Active gsm connection is %s", active_connection)
             old_active_connection_id = active_connection.get_connection_id()
             logging.debug('Deactivate active connection "%s"', old_active_connection_id)
             self.connection_retry_timeouts[old_active_connection_id] = datetime.datetime.now()
@@ -211,7 +209,7 @@ class ConnectionManager:
         modem_manager = ModemManager()
         sim_slot = get_sim_slot(con)
         current_sim_slot = modem_manager.get_primary_sim_slot(dev_path)
-        if sim_slot != NM_SETTINGS_GSM_SIM_SLOT_DEFAULT and sim_slot != current_sim_slot:
+        if sim_slot not in (NM_SETTINGS_GSM_SIM_SLOT_DEFAULT, current_sim_slot):
             if not modem_manager.set_primary_sim_slot(dev_path, sim_slot):
                 return None
             # After switching SIM card MM recreates device with new path
@@ -235,7 +233,7 @@ class ConnectionManager:
     def is_time_to_activate(self, cn_id: str) -> bool:
         if cn_id in self.connection_retry_timeouts:
             if self.connection_retry_timeouts[cn_id] > datetime.datetime.now():
-                logging.debug("Retry timeout is still effective for {}".format(cn_id))
+                logging.debug("Retry timeout is still effective for %s", cn_id)
                 return False
         con = self.network_manager.find_connection(cn_id)
         if con:
@@ -246,16 +244,14 @@ class ConnectionManager:
                 and self.deny_sim_switch_until > datetime.datetime.now()
             ):
                 logging.debug(
-                    "SIM switch disabled until {}, not changing SIM".format(
-                        self.deny_sim_switch_until.isoformat()
-                    )
+                    "SIM switch disabled until %s, not changing SIM", self.deny_sim_switch_until.isoformat()
                 )
                 return False
-        logging.debug("OK to activate {}".format(cn_id))
+        logging.debug("OK to activate %s", cn_id)
         return True
 
     def activate_connection(self, cn_id: str) -> NMActiveConnection:
-        logging.debug("Trying to activate connection {}".format(cn_id))
+        logging.debug("Trying to activate connection %s", cn_id)
         activation_fns = {
             "gsm": self.activate_gsm_connection,
             "802-3-ethernet": self.activate_generic_connection,
@@ -264,7 +260,8 @@ class ConnectionManager:
         con = self.network_manager.find_connection(cn_id)
         if not con:
             logging.warning(
-                'Connection "{}" not found'.format(cn_id),
+                'Connection "%s" not found',
+                cn_id,
                 extra={
                     "rate_limit_tag": "CON_NOT_FOUND_" + cn_id,
                     "rate_limit_timeout": LOG_RATE_LIMIT_DEFAULT,
@@ -274,7 +271,8 @@ class ConnectionManager:
         dev = self.network_manager.find_device_for_connection(con)
         if not dev:
             logging.warning(
-                'Device for connection "{}" not found'.format(cn_id),
+                'Device for connection %s" not found',
+                cn_id,
                 extra={
                     "rate_limit_tag": "DEV_NOT_FOUND_" + cn_id,
                     "rate_limit_timeout": LOG_RATE_LIMIT_DEFAULT,
@@ -286,7 +284,7 @@ class ConnectionManager:
         if activate_fn:
             con = activate_fn(dev, con)
             if con:
-                logging.debug("Activated connection {}".format(cn_id))
+                logging.debug("Activated connection %s", cn_id)
         return con
 
     def deactivate_connection(self, active_cn: NMActiveConnection) -> None:
@@ -301,13 +299,13 @@ class ConnectionManager:
 
     def check(self) -> None:
         logging.debug("check(): starting iteration")
-        logging.debug("GSM Sticky Timeout: {}".format(self.deny_sim_switch_until))
-        for k in self.connection_retry_timeouts:
-            logging.debug("Connection Retry Timeout for {}: {}".format(k, self.connection_retry_timeouts[k]))
+        logging.debug("GSM Sticky Timeout: %s", self.deny_sim_switch_until)
+        for connection, timeout in self.connection_retry_timeouts.items():
+            logging.debug("Connection Retry Timeout for %s: %s", connection, timeout)
         for index, cn_id in enumerate(self.connection_priority):
             data = {"cn_id": cn_id}
             try:
-                logging.debug("Checking connection {}".format(cn_id))
+                logging.debug("Checking connection %s", cn_id)
                 active_connections = self.network_manager.get_active_connections()
                 log_active_connections(active_connections)
                 active_cn = None
@@ -317,10 +315,10 @@ class ConnectionManager:
                     == NM_ACTIVE_CONNECTION_STATE_ACTIVATED
                 ):
                     active_cn = active_connections[cn_id]
-                    logging.debug("Found {} as already active".format(cn_id))
+                    logging.debug("Found %s as already active", cn_id)
                 else:
                     if self.is_time_to_activate(cn_id):
-                        logging.debug("Will try to activate {} for check".format(cn_id))
+                        logging.debug("Will try to activate %s for check", cn_id)
                         active_cn = self.activate_connection(cn_id)
                         self.hit_connection_retry_timeout(cn_id)
                 if active_cn:
@@ -336,9 +334,8 @@ class ConnectionManager:
                             logging.warning("Error during connections deactivation: %s", ex)
                         self.current_connection_changed(active_cn, cn_id)
                         return
-                    else:
-                        self.deactivate_connection(active_cn)
-                        logging.info('"%s" has limited connectivity', cn_id, extra=data)
+                    self.deactivate_connection(active_cn)
+                    logging.info('"%s" has limited connectivity', cn_id, extra=data)
 
             # Something went wrong during connection checking.
             # Proceed to next connection to be always on-line
@@ -357,13 +354,12 @@ class ConnectionManager:
     def current_connection_changed(self, active_cn: NMActiveConnection, cn_id: str) -> None:
         if self.current_connection == cn_id:
             return
-        logging.info("Current connection changed to {}".format(cn_id))
+        logging.info("Current connection changed to %s", cn_id)
         if active_cn.get_connection_type() == "gsm":
             self.deny_sim_switch_until = datetime.datetime.now() + self.sticky_sim_period
             logging.info(
-                "New active connection is GSM, not changing SIM slots until {}".format(
-                    self.deny_sim_switch_until.isoformat()
-                )
+                "New active connection is GSM, not changing SIM slots until %s",
+                self.deny_sim_switch_until.isoformat(),
             )
         else:
             self.deny_sim_switch_until = None

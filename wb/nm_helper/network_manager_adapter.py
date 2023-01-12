@@ -345,10 +345,9 @@ def apply(iface, c_handler, network_manager: NetworkManager, dry_run: bool) -> b
                     c_handler.set_dbus_options(dbus_settings, json_settings)
                     con.update_settings(dbus_settings.params)
                     return True
-                else:
-                    con.delete()
-                    network_manager.add_connection(c_handler.create(json_settings))
-                    return False
+                con.delete()
+                network_manager.add_connection(c_handler.create(json_settings))
+                return False
     network_manager.add_connection(c_handler.create(json_settings))
     return False
 
