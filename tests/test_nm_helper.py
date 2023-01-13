@@ -178,6 +178,8 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
         )
 
     def test_to_json(self):
+        # pylint: disable=R0915
+
         self.networkmanager_mock.AddEthernetDevice("mock_eth0", "eth0", DeviceState.ACTIVATED)
         self.networkmanager_mock.AddEthernetDevice("mock_eth1", "eth1", DeviceState.ACTIVATED)
         self.networkmanager_mock.AddWiFiDevice("mock_wlan0", "wlan0", DeviceState.ACTIVATED)
