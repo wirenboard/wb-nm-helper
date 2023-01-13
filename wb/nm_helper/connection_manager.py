@@ -399,7 +399,13 @@ def main():
         with open(CONFIG_FILE, encoding="utf-8") as file:
             cfg_data = json.load(file)
         cfg_obj = CMConfigFile(cfg_data)
-    except (FileNotFoundError, PermissionError, OSError, json.decoder.JSONDecodeError, ImproperlyConfigured) as ex:
+    except (
+        FileNotFoundError,
+        PermissionError,
+        OSError,
+        json.decoder.JSONDecodeError,
+        ImproperlyConfigured
+    ) as ex:
         logging.error("Loading %s failed: %s", CONFIG_FILE, ex)
         sys.exit(EXIT_NOTCONFIGURED)
 
