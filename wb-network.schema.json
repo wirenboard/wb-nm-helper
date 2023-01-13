@@ -1315,11 +1315,31 @@
                                 }
                             }
                         },
+                        "connectivity_check_url": {
+                            "title": "Connectivity Check URL",
+                            "type": "string",
+                            "propertyOrder": 3,
+                            "options": {
+                                "wb": {
+                                    "show_editor": true
+                                }
+                            }
+                        },
+                        "connectivity_check_payload": {
+                            "title": "Connectivity Check Payload",
+                            "type": "string",
+                            "propertyOrder": 4,
+                            "options": {
+                                "wb": {
+                                    "show_editor": true
+                                }
+                            }
+                        },
                         "sticky_sim_period_s": {
                             "title": "Deny SIM switching period (seconds)",
                             "description": "After successfully establishing a modem connection, do not try changing SIM slot for this amount of seconds",
                             "type": "integer",
-                            "propertyOrder": 3,
+                            "propertyOrder": 5,
                             "default": 900,
                             "minimum": 0,
                             "options": {
