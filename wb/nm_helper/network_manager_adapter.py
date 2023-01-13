@@ -453,7 +453,8 @@ class NetworkManagerAdapter:
                 if active_cn:
                     # Can scan using devices with active client connection
                     # Scanning on devices with access point can give only one network, so pass them
-                    if active_cn.get_connection_type() == "infrastructure":
+                    wireless_mode = active_cn.get_connection().get_settings()["802-11-wireless"]["mode"]
+                    if wireless_mode == "infrastructure":
                         return scan(NMWirelessDevice(dev), scan_timeout)
                 else:
                     if not free_device:
