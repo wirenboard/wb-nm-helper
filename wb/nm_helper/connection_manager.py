@@ -32,7 +32,8 @@ CONNECTION_ACTIVATION_RETRY_TIMEOUT = datetime.timedelta(seconds=60)
 DEVICE_WAITING_TIMEOUT = datetime.timedelta(seconds=30)
 CONNECTION_ACTIVATION_TIMEOUT = datetime.timedelta(seconds=30)
 CONNECTION_DEACTIVATION_TIMEOUT = datetime.timedelta(seconds=30)
-CONNECTIVITY_CHECK_URL = "http://network-test.debian.org/nm"
+DEFAULT_CONNECTIVITY_CHECK_URL = "http://network-test.debian.org/nm"
+DEFAULT_CONNECTIVITY_CHECK_PAYLOAD = "NetworkManager is online"
 CONFIG_FILE = "/etc/wb-connection-manager.conf"
 LOG_RATE_LIMIT_DEFAULT = datetime.timedelta(seconds=600)
 
@@ -50,11 +51,11 @@ class ConnectionStateFilter(logging.Filter):
         if "rate_limit_tag" in record.__dict__ and "rate_limit_timeout" in record.__dict__:
             tag = record.__dict__["rate_limit_tag"]
             if (
-                tag not in self.rate_limit_timeouts
-                or self.rate_limit_timeouts.get(tag) < datetime.datetime.now()
+                    tag not in self.rate_limit_timeouts
+                    or self.rate_limit_timeouts.get(tag) < datetime.datetime.now()
             ):
                 self.rate_limit_timeouts[tag] = (
-                    datetime.datetime.now() + record.__dict__["rate_limit_timeout"]
+                        datetime.datetime.now() + record.__dict__["rate_limit_timeout"]
                 )
             else:
                 return False
@@ -101,7 +102,7 @@ def wait_connection_deactivation(con: NMActiveConnection, timeout) -> None:
 
 
 def get_active_connections(
-    connection_ids: List[str], active_connections: Dict[str, NMActiveConnection]
+        connection_ids: List[str], active_connections: Dict[str, NMActiveConnection]
 ) -> Dict[str, NMActiveConnection]:
     res = {}
     for cn_id, connection in active_connections.items():
@@ -121,25 +122,6 @@ def curl_get(iface: str, url: str) -> str:
     return buffer.getvalue().decode("UTF-8")
 
 
-# Simple implementation that mimics NM behavior
-# NM reports limited connectivity for all gsm ppp connections
-# https://wirenboard.bitrix24.ru/workgroups/group/218/tasks/task/view/53068/
-# Use NM's implementation after fixing the bug
-def check_connectivity(active_cn: NMActiveConnection) -> bool:
-    ifaces = active_cn.get_ifaces()
-    logging.debug("interfaces for %s: %s", active_cn.get_connection_id(), ifaces)
-    if ifaces and ifaces[0]:
-        try:
-            answer_is_ok = curl_get(ifaces[0], CONNECTIVITY_CHECK_URL).startswith("NetworkManager is online")
-            logging.debug("Connectivity via %s is %s", ifaces[0], answer_is_ok)
-            return answer_is_ok
-        except pycurl.error as ex:
-            logging.debug("Error during %s connectivity check: %s", ifaces[0], ex)
-    else:
-        logging.debug("Connection %s seems to have no interfaces", active_cn.get_connection_id())
-    return False
-
-
 def log_active_connections(active_connections: Dict[str, NMActiveConnection]):
     if logging.getLogger().isEnabledFor(logging.DEBUG):
         logging.debug("Active connections")
@@ -155,17 +137,47 @@ class ConnectionManager:
         self.sticky_sim_period = None
         self.deny_sim_switch_until = None
         self.current_connection = None
+        self.connectivity_check_url = None
+        self.connectivity_check_payload = None
+        self.initialize_connectivity_check_params(cfg)
         self.initialize_sticky_sim_period(cfg)
 
-    def initialize_sticky_sim_period(self, cfg):
+    def initialize_connectivity_check_params(self, cfg: Dict):
+        self.connectivity_check_url = cfg.get('connectivity_check_url', DEFAULT_CONNECTIVITY_CHECK_URL)
+        if not self.connectivity_check_url.startswith("http://") \
+                and not self.connectivity_check_url.startswith("https://"):
+            raise ValueError("Bad connectivity URL %s" % self.connectivity_check_url)
+        self.connectivity_check_payload = cfg.get('connectivity_check_payload', DEFAULT_CONNECTIVITY_CHECK_PAYLOAD)
+        if not self.connectivity_check_payload:
+            raise ValueError("Empty connectivity payload")
+
+    def initialize_sticky_sim_period(self, cfg: Dict):
         if cfg.get("sticky_sim_period_s"):
             self.sticky_sim_period = datetime.timedelta(seconds=int(cfg.get("sticky_sim_period_s")))
         else:
             self.sticky_sim_period = DEFAULT_STICKY_SIM_PERIOD
         logging.debug("Initialized sticky_sim_period as %s seconds", self.sticky_sim_period.total_seconds())
 
+    # Simple implementation that mimics NM behavior
+    # NM reports limited connectivity for all gsm ppp connections
+    # https://wirenboard.bitrix24.ru/workgroups/group/218/tasks/task/view/53068/
+    # Use NM's implementation after fixing the bug
+    def check_connectivity(self, active_cn: NMActiveConnection) -> bool:
+        ifaces = active_cn.get_ifaces()
+        logging.debug("interfaces for %s: %s", active_cn.get_connection_id(), ifaces)
+        if ifaces and ifaces[0]:
+            try:
+                answer_is_ok = self.connectivity_check_payload in curl_get(ifaces[0], self.connectivity_check_url)
+                logging.debug("Connectivity via %s is %s", ifaces[0], answer_is_ok)
+                return answer_is_ok
+            except pycurl.error as ex:
+                logging.debug("Error during %s connectivity check: %s", ifaces[0], ex)
+        else:
+            logging.debug("Connection %s seems to have no interfaces", active_cn.get_connection_id())
+        return False
+
     def wait_gsm_device_for_connection(
-        self, con: NMConnection, dev_path: str, sim_slot: str, timeout: datetime.timedelta
+            self, con: NMConnection, dev_path: str, sim_slot: str, timeout: datetime.timedelta
     ) -> Optional[NMDevice]:
         logging.debug("Waiting for GSM device path %s to change", dev_path)
         start = datetime.datetime.now()
@@ -239,9 +251,9 @@ class ConnectionManager:
         if con:
             con_type = con.get_settings().get("connection").get("type")
             if (
-                con_type == "gsm"
-                and self.deny_sim_switch_until
-                and self.deny_sim_switch_until > datetime.datetime.now()
+                    con_type == "gsm"
+                    and self.deny_sim_switch_until
+                    and self.deny_sim_switch_until > datetime.datetime.now()
             ):
                 logging.debug(
                     "SIM switch disabled until %s, not changing SIM", self.deny_sim_switch_until.isoformat()
@@ -310,9 +322,9 @@ class ConnectionManager:
                 log_active_connections(active_connections)
                 active_cn = None
                 if (
-                    cn_id in active_connections
-                    and active_connections.get(cn_id).get_property("State")
-                    == NM_ACTIVE_CONNECTION_STATE_ACTIVATED
+                        cn_id in active_connections
+                        and active_connections.get(cn_id).get_property("State")
+                        == NM_ACTIVE_CONNECTION_STATE_ACTIVATED
                 ):
                     active_cn = active_connections[cn_id]
                     logging.debug("Found %s as already active", cn_id)
@@ -322,11 +334,11 @@ class ConnectionManager:
                         active_cn = self.activate_connection(cn_id)
                         self.hit_connection_retry_timeout(cn_id)
                 if active_cn:
-                    if check_connectivity(active_cn):
+                    if self.check_connectivity(active_cn):
                         logging.debug('Connection "%s" has connectivity', cn_id, extra=data)
                         try:
                             less_priority_connections = get_active_connections(
-                                self.connection_priority[index + 1 :], active_connections
+                                self.connection_priority[index + 1:], active_connections
                             )
                             self.deactivate_connections(less_priority_connections)
                         except dbus.exceptions.DBusException as ex:
