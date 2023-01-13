@@ -59,7 +59,9 @@ def to_mac_list(mac_string):
 def to_dns_list(string):
     if not string:
         return None
-    return dbus.Array([dbus.UInt32(int(IPv4Interface(s.strip()).network.network_address)) for s in string.split(",")])
+    return dbus.Array(
+        [dbus.UInt32(int(IPv4Interface(s.strip()).network.network_address)) for s in string.split(",")]
+    )
 
 
 def to_dns_string(array):
@@ -178,7 +180,12 @@ ipv4_params = [
     Param("ipv4.route-metric", json_path_type=ParamPathType.TREE),
     Param("ipv4.method", json_path_type=ParamPathType.TREE),
     Param("ipv4.dns", to_dbus=to_dns_list, from_dbus=to_dns_string, json_path_type=ParamPathType.TREE),
-    Param("ipv4.dns-search", to_dbus=to_dns_search_list, from_dbus=to_dns_search_string, json_path_type=ParamPathType.TREE),
+    Param(
+        "ipv4.dns-search",
+        to_dbus=to_dns_search_list,
+        from_dbus=to_dns_search_string,
+        json_path_type=ParamPathType.TREE,
+    ),
 ]
 
 
@@ -372,10 +379,9 @@ def apply(iface, c_handler, network_manager: NetworkManager, dry_run: bool) -> b
                     c_handler.set_dbus_options(dbus_settings, json_settings)
                     con.update_settings(dbus_settings.params)
                     return True
-                else:
-                    con.delete()
-                    network_manager.add_connection(c_handler.create(json_settings))
-                    return False
+                con.delete()
+                network_manager.add_connection(c_handler.create(json_settings))
+                return False
     network_manager.add_connection(c_handler.create(json_settings))
     return False
 

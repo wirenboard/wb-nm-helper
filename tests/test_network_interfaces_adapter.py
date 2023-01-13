@@ -1,6 +1,5 @@
 import json
 
-import dbus
 import pytest
 
 from wb.nm_helper.network_interfaces_adapter import NetworkInterfacesAdapter
@@ -32,7 +31,7 @@ def test_parsing(file_name, connections):
 
 
 def test_apply_no_changes():
-    with open("tests/data/ui.json", "r") as f:
+    with open("tests/data/ui.json", "r", encoding="utf-8") as f:
         cfg = json.load(f)
 
     adapter = NetworkInterfacesAdapter("tests/data/interfaces")
@@ -40,12 +39,12 @@ def test_apply_no_changes():
     res = adapter.apply(cfg["ui"]["connections"], True)
     assert len(res.unmanaged_connections) == 5
     assert res.managed_interfaces == ["can0", "eth0", "eth1", "wlan0"]
-    assert res.released_interfaces == []
-    assert res.is_changed == False
+    assert not res.released_interfaces
+    assert res.is_changed is False
 
 
 def test_apply_changes():
-    with open("tests/data/ui.json", "r") as f:
+    with open("tests/data/ui.json", "r", encoding="utf-8") as f:
         cfg = json.load(f)
 
     adapter = NetworkInterfacesAdapter("tests/data/interfaces")
@@ -54,12 +53,12 @@ def test_apply_changes():
     res = adapter.apply(cfg["ui"]["connections"], True)
     assert len(res.unmanaged_connections) == 5
     assert res.managed_interfaces == ["can0", "eth0", "eth1", "wlan0"]
-    assert res.released_interfaces == []
-    assert res.is_changed == True
+    assert not res.released_interfaces
+    assert res.is_changed is True
 
 
 def test_apply_remove_iface():
-    with open("tests/data/ui.json", "r") as f:
+    with open("tests/data/ui.json", "r", encoding="utf-8") as f:
         cfg = json.load(f)
 
     adapter = NetworkInterfacesAdapter("tests/data/interfaces")
@@ -69,4 +68,4 @@ def test_apply_remove_iface():
     assert len(res.unmanaged_connections) == 5
     assert res.managed_interfaces == ["can0", "eth0", "eth1"]
     assert res.released_interfaces == ["wlan0"]
-    assert res.is_changed == False
+    assert res.is_changed is False

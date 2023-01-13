@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import argparse
 import datetime
-import dbus
 import json
 import logging
 import re
 import subprocess
 import sys
-from typing import List
+from typing import Dict, List
+
+import dbus
 
 from .network_interfaces_adapter import NetworkInterfacesAdapter
 from .network_manager_adapter import NetworkManagerAdapter
@@ -35,21 +36,24 @@ def not_fully_contains(dst: List[str], src: List[str]) -> bool:
     return False
 
 
-"""Scans for Wi-Fi networks
-
-:param iface - interface to scan
-:type iface: str
-:param timeout_s - timeout in seconds (if the timeout expires, the iwlist process will be killed)
-:type timeout_s: int
-:returns: a list of ESSID names or an empty list if scan failed
-:rtype: list
-"""
 def scan_wifi(iface: str, timeout_s: int) -> List[str]:
+    """Scans for Wi-Fi networks
+
+    :param iface - interface to scan
+    :type iface: str
+    :param timeout_s - timeout in seconds (if the timeout expires, the iwlist process will be killed)
+    :type timeout_s: int
+    :returns: a list of ESSID names or an empty list if scan failed
+    :rtype: list
+    """
+
     res = []
     try:
         pattern = re.compile(r"ESSID:\s*\"(.*)\"")
         scan_result = subprocess.check_output(
-            ["iwlist", iface, "scan"], timeout=datetime.timedelta(seconds=timeout_s).total_seconds(), text=True
+            ["iwlist", iface, "scan"],
+            timeout=datetime.timedelta(seconds=timeout_s).total_seconds(),
+            text=True,
         )
         for line in scan_result.splitlines():
             match = pattern.search(line)
@@ -87,27 +91,31 @@ def to_json(args) -> Dict:
 
     return {
         "ui": {"connections": connections, "con_switch": switch_cfg},
-        "data": {"ssids": [] if args.no_scan else scan_wifi(args.scan_iface, args.scan_timeout), "devices": devices},
+        "data": {
+            "ssids": [] if args.no_scan else scan_wifi(args.scan_iface, args.scan_timeout),
+            "devices": devices,
+        },
     }
 
 
-"""Returns a Systemd manager object
-
-:param dry_run: if True, a dummy object will be returned
-:type dry_run: bool
-:returns: a Systemd manager object
-:rtype: dbus.Interface
-"""
 def get_systemd_manager(dry_run: bool):
+    """Returns a Systemd manager object
+
+    :param dry_run: if True, a dummy object will be returned
+    :type dry_run: bool
+    :returns: a Systemd manager object
+    :rtype: dbus.Interface
+    """
+
     if dry_run:
-        return type("Systemd", (object,), {
-            "StopUnit": lambda self, name, mode: None,
-            "RestartUnit": lambda self, name, mode: None
-        })()
-    else:
-        system_bus = dbus.SystemBus()
-        systemd1 = system_bus.get_object('org.freedesktop.systemd1', '/org/freedesktop/systemd1')
-        return dbus.Interface(systemd1, 'org.freedesktop.systemd1.Manager')
+        return type(
+            "Systemd",
+            (object,),
+            {"StopUnit": lambda self, name, mode: None, "RestartUnit": lambda self, name, mode: None},
+        )()
+    system_bus = dbus.SystemBus()
+    systemd1 = system_bus.get_object("org.freedesktop.systemd1", "/org/freedesktop/systemd1")
+    return dbus.Interface(systemd1, "org.freedesktop.systemd1.Manager")
 
 
 def from_json(cfg, args) -> Dict:
@@ -149,14 +157,22 @@ def from_json(cfg, args) -> Dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="NM helper", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description="NM helper", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument("-s", "--save", action="store_true", help="Save configuration")
-    parser.add_argument("-c", "--config", type=str, default="/etc/wb-connection-manager.conf", help="Config file")
+    parser.add_argument(
+        "-c", "--config", type=str, default="/etc/wb-connection-manager.conf", help="Config file"
+    )
     parser.add_argument("--dnsmasq-conf", type=str, default="/etc/dnsmasq.conf", help="dnsmasq config file")
     parser.add_argument("--hostapd-conf", type=str, default="/etc/hostapd.conf", help="hostapd config file")
-    parser.add_argument("--interfaces-conf", type=str, default="/etc/network/interfaces", help="interfaces config file")
+    parser.add_argument(
+        "--interfaces-conf", type=str, default="/etc/network/interfaces", help="interfaces config file"
+    )
     parser.add_argument("--no-scan", action="store_true", help="Don't scan for Wi-Fi networks")
-    parser.add_argument("--scan-iface", type=str, default="wlan0", help="Interface to scan for Wi-Fi networks")
+    parser.add_argument(
+        "--scan-iface", type=str, default="wlan0", help="Interface to scan for Wi-Fi networks"
+    )
     parser.add_argument("--scan-timeout", type=int, default=10, help="Scan timeout in seconds")
     parser.add_argument("--indent", type=int, default=2, help="Indentation level for JSON output")
     parser.add_argument("--dry-run", action="store_true", help="Don't apply changes")
