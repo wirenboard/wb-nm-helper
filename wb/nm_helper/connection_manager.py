@@ -291,11 +291,14 @@ class ConnectionManager:
         self.network_manager.deactivate_connection(active_cn)
         wait_connection_deactivation(active_cn, CONNECTION_DEACTIVATION_TIMEOUT)
 
-    def deactivate_connections(self, connections: Dict[str, NMActiveConnection]) -> None:
+    def deactivate_idle_connections(self, connections: Dict[str, NMActiveConnection]) -> None:
         for cn_id, con in connections.items():
-            self.deactivate_connection(con)
-            data = {"cn_id": cn_id}
-            logging.info('"%s" is deactivated', cn_id, extra=data)
+            if con.get_connection_type() == "gsm":
+                self.deactivate_connection(con)
+                data = {"cn_id": cn_id}
+                logging.info('Idle GSM connection "%s" deactivated', cn_id, extra=data)
+            else:
+                logging.debug('Idle connection "%s" is not GSM, not deactivated', cn_id, extra=data)
 
     def check(self) -> None:
         logging.debug("check(): starting iteration")
@@ -328,7 +331,7 @@ class ConnectionManager:
                             less_priority_connections = get_active_connections(
                                 self.connection_priority[index + 1 :], active_connections
                             )
-                            self.deactivate_connections(less_priority_connections)
+                            self.deactivate_idle_connections(less_priority_connections)
                         except dbus.exceptions.DBusException as ex:
                             # Not a problem if less priority connections still be active
                             logging.warning("Error during connections deactivation: %s", ex)
