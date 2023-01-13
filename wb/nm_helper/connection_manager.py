@@ -51,11 +51,11 @@ class ConnectionStateFilter(logging.Filter):
         if "rate_limit_tag" in record.__dict__ and "rate_limit_timeout" in record.__dict__:
             tag = record.__dict__["rate_limit_tag"]
             if (
-                    tag not in self.rate_limit_timeouts
-                    or self.rate_limit_timeouts.get(tag) < datetime.datetime.now()
+                tag not in self.rate_limit_timeouts
+                or self.rate_limit_timeouts.get(tag) < datetime.datetime.now()
             ):
                 self.rate_limit_timeouts[tag] = (
-                        datetime.datetime.now() + record.__dict__["rate_limit_timeout"]
+                    datetime.datetime.now() + record.__dict__["rate_limit_timeout"]
                 )
             else:
                 return False
@@ -177,7 +177,7 @@ class ConnectionManager:
         return False
 
     def wait_gsm_device_for_connection(
-            self, con: NMConnection, dev_path: str, sim_slot: str, timeout: datetime.timedelta
+        self, con: NMConnection, dev_path: str, sim_slot: str, timeout: datetime.timedelta
     ) -> Optional[NMDevice]:
         logging.debug("Waiting for GSM device path %s to change", dev_path)
         start = datetime.datetime.now()
@@ -251,9 +251,9 @@ class ConnectionManager:
         if con:
             con_type = con.get_settings().get("connection").get("type")
             if (
-                    con_type == "gsm"
-                    and self.deny_sim_switch_until
-                    and self.deny_sim_switch_until > datetime.datetime.now()
+                con_type == "gsm"
+                and self.deny_sim_switch_until
+                and self.deny_sim_switch_until > datetime.datetime.now()
             ):
                 logging.debug(
                     "SIM switch disabled until %s, not changing SIM", self.deny_sim_switch_until.isoformat()
@@ -322,9 +322,9 @@ class ConnectionManager:
                 log_active_connections(active_connections)
                 active_cn = None
                 if (
-                        cn_id in active_connections
-                        and active_connections.get(cn_id).get_property("State")
-                        == NM_ACTIVE_CONNECTION_STATE_ACTIVATED
+                    cn_id in active_connections
+                    and active_connections.get(cn_id).get_property("State")
+                    == NM_ACTIVE_CONNECTION_STATE_ACTIVATED
                 ):
                     active_cn = active_connections[cn_id]
                     logging.debug("Found %s as already active", cn_id)
@@ -338,7 +338,7 @@ class ConnectionManager:
                         logging.debug('Connection "%s" has connectivity', cn_id, extra=data)
                         try:
                             less_priority_connections = get_active_connections(
-                                self.connection_priority[index + 1:], active_connections
+                                self.connection_priority[index + 1 :], active_connections
                             )
                             self.deactivate_connections(less_priority_connections)
                         except dbus.exceptions.DBusException as ex:
