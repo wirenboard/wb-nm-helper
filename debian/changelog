@@ -1,3 +1,9 @@
+wb-nm-helper (1.17.0) stable; urgency=medium
+
+  * Add 'DNS servers'/'DNS search domains' options
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Thu, 12 Jan 2023 17:35:00 +0400
+
 wb-nm-helper (1.16.2) stable; urgency=medium
 
   * Fix Internet connection sharing settings

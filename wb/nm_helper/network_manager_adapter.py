@@ -56,6 +56,30 @@ def to_mac_list(mac_string):
     return dbus.Array(map(lambda item: dbus.Byte(int(item, 16)), mac_string.split(":")))
 
 
+def to_dns_list(string):
+    if not string:
+        return None
+    return dbus.Array([dbus.UInt32(int(IPv4Interface(s.strip()).network.network_address)) for s in string.split(",")])
+
+
+def to_dns_string(array):
+    if not array:
+        return None
+    return ",".join([str(IPv4Interface((s, "32")).network.network_address) for s in array])
+
+
+def to_dns_search_list(string):
+    if not string:
+        return None
+    return dbus.Array([s.strip() for s in string.split(",")])
+
+
+def to_dns_search_string(array):
+    if not array:
+        return None
+    return ",".join(array)
+
+
 def not_empty_string(val):
     return None if val is None or len(val) == 0 else val
 
@@ -153,6 +177,8 @@ ipv4_params = [
     Param("ipv4.gateway", json_path_type=ParamPathType.TREE),
     Param("ipv4.route-metric", json_path_type=ParamPathType.TREE),
     Param("ipv4.method", json_path_type=ParamPathType.TREE),
+    Param("ipv4.dns", to_dbus=to_dns_list, from_dbus=to_dns_string, json_path_type=ParamPathType.TREE),
+    Param("ipv4.dns-search", to_dbus=to_dns_search_list, from_dbus=to_dns_search_string, json_path_type=ParamPathType.TREE),
 ]
 
 
