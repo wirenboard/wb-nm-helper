@@ -404,7 +404,7 @@ def main():
         PermissionError,
         OSError,
         json.decoder.JSONDecodeError,
-        ImproperlyConfigured
+        ImproperlyConfigured,
     ) as ex:
         logging.error("Loading %s failed: %s", CONFIG_FILE, ex)
         sys.exit(EXIT_NOTCONFIGURED)
