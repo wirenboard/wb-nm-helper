@@ -21,7 +21,6 @@ from .network_manager import (
     NM_WIFI_MODE_DEFAULT,
     NetworkManager,
     NMConnection,
-    NMDevice,
     NMWirelessDevice,
 )
 
@@ -109,11 +108,6 @@ def set_opt_by_tree_path(data, path: str, value, default_dict):
         for i in range(len(dst_path_items) - 1):
             obj = obj.setdefault(dst_path_items[i], default_dict)
         obj[last_dst_item] = value
-
-
-def has_active_connection_with_type(dev: NMDevice, desired_type: str) -> bool:
-    active_cn = dev.get_active_connection()
-    return active_cn and active_cn.get_connection_type() == desired_type
 
 
 def scan(dev: NMWirelessDevice, scan_timeout: datetime.timedelta) -> None:
@@ -452,15 +446,18 @@ class NetworkManagerAdapter:
         return devices
 
     def get_wifi_ssids(self, scan_timeout: datetime.timedelta) -> List[str]:
-        devices = []
+        free_device = None
         for dev in self.network_manager.get_devices():
             if dev.get_property("DeviceType") == NM_DEVICE_TYPE_WIFI:
-                if has_active_connection_with_type(dev, "infrastructure"):
-                    return scan(NMWirelessDevice(dev), scan_timeout)
-                devices.append(dev)
-        for dev in devices:
-            if has_active_connection_with_type(dev, "ap"):
-                return scan(NMWirelessDevice(dev), scan_timeout)
-        if devices:
-            return scan(NMWirelessDevice(devices[0]), scan_timeout)
+                active_cn = dev.get_active_connection()
+                if active_cn:
+                    # Can scan using devices with active client connection
+                    # Scanning on devices with access point can give only one network, so pass them
+                    if active_cn.get_connection_type() == "infrastructure":
+                        return scan(NMWirelessDevice(dev), scan_timeout)
+                else:
+                    if not free_device:
+                        free_device = dev
+        if free_device:
+            return scan(NMWirelessDevice(free_device), scan_timeout)
         return []
