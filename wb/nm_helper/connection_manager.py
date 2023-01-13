@@ -102,7 +102,7 @@ def wait_connection_deactivation(con: NMActiveConnection, timeout) -> None:
 
 
 def get_active_connections(
-        connection_ids: List[str], active_connections: Dict[str, NMActiveConnection]
+    connection_ids: List[str], active_connections: Dict[str, NMActiveConnection]
 ) -> Dict[str, NMActiveConnection]:
     res = {}
     for cn_id, connection in active_connections.items():
@@ -143,11 +143,14 @@ class ConnectionManager:
         self.initialize_sticky_sim_period(cfg)
 
     def initialize_connectivity_check_params(self, cfg: Dict):
-        self.connectivity_check_url = cfg.get('connectivity_check_url', DEFAULT_CONNECTIVITY_CHECK_URL)
-        if not self.connectivity_check_url.startswith("http://") \
-                and not self.connectivity_check_url.startswith("https://"):
+        self.connectivity_check_url = cfg.get("connectivity_check_url", DEFAULT_CONNECTIVITY_CHECK_URL)
+        if not self.connectivity_check_url.startswith(
+            "http://"
+        ) and not self.connectivity_check_url.startswith("https://"):
             raise ValueError("Bad connectivity URL %s" % self.connectivity_check_url)
-        self.connectivity_check_payload = cfg.get('connectivity_check_payload', DEFAULT_CONNECTIVITY_CHECK_PAYLOAD)
+        self.connectivity_check_payload = cfg.get(
+            "connectivity_check_payload", DEFAULT_CONNECTIVITY_CHECK_PAYLOAD
+        )
         if not self.connectivity_check_payload:
             raise ValueError("Empty connectivity payload")
 
@@ -167,7 +170,9 @@ class ConnectionManager:
         logging.debug("interfaces for %s: %s", active_cn.get_connection_id(), ifaces)
         if ifaces and ifaces[0]:
             try:
-                answer_is_ok = self.connectivity_check_payload in curl_get(ifaces[0], self.connectivity_check_url)
+                answer_is_ok = self.connectivity_check_payload in curl_get(
+                    ifaces[0], self.connectivity_check_url
+                )
                 logging.debug("Connectivity via %s is %s", ifaces[0], answer_is_ok)
                 return answer_is_ok
             except pycurl.error as ex:
