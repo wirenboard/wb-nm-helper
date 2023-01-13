@@ -38,6 +38,10 @@ CONFIG_FILE = "/etc/wb-connection-manager.conf"
 LOG_RATE_LIMIT_DEFAULT = datetime.timedelta(seconds=600)
 
 
+class ImproperlyConfigured(ValueError):
+    pass
+
+
 class ConnectionStateFilter(logging.Filter):
     # pylint: disable=too-few-public-methods
 
@@ -129,14 +133,11 @@ def log_active_connections(active_connections: Dict[str, NMActiveConnection]):
             logging.debug("%s %s", cn_id, con.get_path())
 
 
-class ConnectionManager:
-    def __init__(self, network_manager: NetworkManager, cfg: Dict) -> None:
-        self.network_manager = network_manager
-        self.connection_retry_timeouts = {}
+class CMConfigFile:
+    def __init__(self, cfg):
+        self.debug = cfg.get("debug", False)
         self.connection_priority = cfg.get("connections", [])
         self.sticky_sim_period = None
-        self.deny_sim_switch_until = None
-        self.current_connection = None
         self.connectivity_check_url = None
         self.connectivity_check_payload = None
         self.initialize_connectivity_check_params(cfg)
@@ -161,6 +162,15 @@ class ConnectionManager:
             self.sticky_sim_period = DEFAULT_STICKY_SIM_PERIOD
         logging.debug("Initialized sticky_sim_period as %s seconds", self.sticky_sim_period.total_seconds())
 
+
+class ConnectionManager:
+    def __init__(self, network_manager: NetworkManager, config: CMConfigFile) -> None:
+        self.network_manager = network_manager
+        self.connection_retry_timeouts = {}
+        self.deny_sim_switch_until = None
+        self.current_connection = None
+        self.config = config
+
     # Simple implementation that mimics NM behavior
     # NM reports limited connectivity for all gsm ppp connections
     # https://wirenboard.bitrix24.ru/workgroups/group/218/tasks/task/view/53068/
@@ -170,8 +180,8 @@ class ConnectionManager:
         logging.debug("interfaces for %s: %s", active_cn.get_connection_id(), ifaces)
         if ifaces and ifaces[0]:
             try:
-                answer_is_ok = self.connectivity_check_payload in curl_get(
-                    ifaces[0], self.connectivity_check_url
+                answer_is_ok = self.config.connectivity_check_payload in curl_get(
+                    ifaces[0], self.config.connectivity_check_url
                 )
                 logging.debug("Connectivity via %s is %s", ifaces[0], answer_is_ok)
                 return answer_is_ok
@@ -319,7 +329,7 @@ class ConnectionManager:
         logging.debug("GSM Sticky Timeout: %s", self.deny_sim_switch_until)
         for connection, timeout in self.connection_retry_timeouts.items():
             logging.debug("Connection Retry Timeout for %s: %s", connection, timeout)
-        for index, cn_id in enumerate(self.connection_priority):
+        for index, cn_id in enumerate(self.config.connection_priority):
             data = {"cn_id": cn_id}
             try:
                 logging.debug("Checking connection %s", cn_id)
@@ -343,7 +353,7 @@ class ConnectionManager:
                         logging.debug('Connection "%s" has connectivity', cn_id, extra=data)
                         try:
                             less_priority_connections = get_active_connections(
-                                self.connection_priority[index + 1 :], active_connections
+                                self.config.connection_priority[index + 1 :], active_connections
                             )
                             self.deactivate_connections(less_priority_connections)
                         except dbus.exceptions.DBusException as ex:
@@ -373,7 +383,7 @@ class ConnectionManager:
             return
         logging.info("Current connection changed to %s", cn_id)
         if active_cn.get_connection_type() == "gsm":
-            self.deny_sim_switch_until = datetime.datetime.now() + self.sticky_sim_period
+            self.deny_sim_switch_until = datetime.datetime.now() + self.config.sticky_sim_period
             logging.info(
                 "New active connection is GSM, not changing SIM slots until %s",
                 self.deny_sim_switch_until.isoformat(),
@@ -385,15 +395,15 @@ class ConnectionManager:
 
 
 def main():
-    cfg = {}
     try:
         with open(CONFIG_FILE, encoding="utf-8") as file:
-            cfg = json.load(file)
-    except (FileNotFoundError, PermissionError, OSError, json.decoder.JSONDecodeError) as ex:
+            cfg_data = json.load(file)
+        cfg_obj = CMConfigFile(cfg_data)
+    except (FileNotFoundError, PermissionError, OSError, json.decoder.JSONDecodeError, ImproperlyConfigured) as ex:
         logging.error("Loading %s failed: %s", CONFIG_FILE, ex)
         sys.exit(EXIT_NOTCONFIGURED)
 
-    log_level = logging.DEBUG if cfg.get("debug", False) else logging.INFO
+    log_level = logging.DEBUG if cfg_obj.debug else logging.INFO
     if log_level > logging.DEBUG:
         logger = logging.getLogger()
         logger.addFilter(ConnectionStateFilter())
@@ -401,8 +411,8 @@ def main():
 
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-    if len(cfg.get("connections", [])) > 0:
-        manager = ConnectionManager(NetworkManager(), cfg)
+    if len(cfg_obj.connection_priority) > 0:
+        manager = ConnectionManager(NetworkManager(), cfg_obj)
         while True:
             manager.check()
             time.sleep(CHECK_PERIOD.total_seconds())
