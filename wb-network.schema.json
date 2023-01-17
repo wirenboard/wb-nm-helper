@@ -1317,6 +1317,7 @@
                         },
                         "connectivity_check_url": {
                             "title": "Connectivity Check URL",
+                            "description": "URL address used to check connection's network connectivity and absense of captive portals",
                             "type": "string",
                             "propertyOrder": 3,
                             "minLength": 8,
@@ -1329,6 +1330,7 @@
                         },
                         "connectivity_check_payload": {
                             "title": "Connectivity Check Payload",
+                            "description": "Connectivity check response content should contain specified string",
                             "type": "string",
                             "propertyOrder": 4,
                             "minLength": 1,
@@ -1477,7 +1479,9 @@
             "DNS servers": "DNS-серверы",
             "DNS search domains": "DNS-домены поиска",
             "Comma-separated list of IP addresses": "Список IP-адресов, разделённых запятыми",
-            "Comma-separated list of domains": "Список доменов, разделённых запятыми"
+            "Comma-separated list of domains": "Список доменов, разделённых запятыми",
+            "URL address used to check connection's network connectivity and absense of captive portals": "URL, используемый для проверки работы соединения и отсутствия captive portal",
+            "Connectivity check response content should contain specified string": "Строка, которая должна входить в данные отклика на запрос по проверочному адресу"
         }
     }
 }
