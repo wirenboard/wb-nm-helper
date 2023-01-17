@@ -148,12 +148,12 @@ class CMConfigFile:
         if not self.connectivity_check_url.startswith(
             "http://"
         ) and not self.connectivity_check_url.startswith("https://"):
-            raise ValueError("Bad connectivity URL %s" % self.connectivity_check_url)
+            raise ImproperlyConfigured("Bad connectivity URL %s" % self.connectivity_check_url)
         self.connectivity_check_payload = cfg.get(
             "connectivity_check_payload", DEFAULT_CONNECTIVITY_CHECK_PAYLOAD
         )
         if not self.connectivity_check_payload:
-            raise ValueError("Empty connectivity payload")
+            raise ImproperlyConfigured("Empty connectivity payload")
 
     def initialize_sticky_sim_period(self, cfg: Dict):
         if cfg.get("sticky_sim_period_s"):
