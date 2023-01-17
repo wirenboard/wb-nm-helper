@@ -1319,7 +1319,9 @@
                             "title": "Connectivity Check URL",
                             "type": "string",
                             "propertyOrder": 3,
+                            "minLength": 8,
                             "options": {
+                                "show_opt_in": true,
                                 "wb": {
                                     "show_editor": true
                                 }
@@ -1329,7 +1331,9 @@
                             "title": "Connectivity Check Payload",
                             "type": "string",
                             "propertyOrder": 4,
+                            "minLength": 1,
                             "options": {
+                                "show_opt_in": true,
                                 "wb": {
                                     "show_editor": true
                                 }
