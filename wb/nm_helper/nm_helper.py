@@ -5,7 +5,6 @@ import datetime
 import json
 import logging
 import re
-import subprocess
 import sys
 from typing import Dict, List
 
@@ -36,37 +35,6 @@ def not_fully_contains(dst: List[str], src: List[str]) -> bool:
     return False
 
 
-def scan_wifi(iface: str, timeout_s: int) -> List[str]:
-    """Scans for Wi-Fi networks
-
-    :param iface - interface to scan
-    :type iface: str
-    :param timeout_s - timeout in seconds (if the timeout expires, the iwlist process will be killed)
-    :type timeout_s: int
-    :returns: a list of ESSID names or an empty list if scan failed
-    :rtype: list
-    """
-
-    res = []
-    try:
-        pattern = re.compile(r"ESSID:\s*\"(.*)\"")
-        scan_result = subprocess.check_output(
-            ["iwlist", iface, "scan"],
-            timeout=datetime.timedelta(seconds=timeout_s).total_seconds(),
-            text=True,
-        )
-        for line in scan_result.splitlines():
-            match = pattern.search(line)
-            if match and match.group(1):
-                res.append(match.group(1))
-        res = sorted(set(res))
-    except subprocess.TimeoutExpired:
-        logging.info("Can't get Wi-Fi scanning results within %d", timeout_s)
-    except subprocess.CalledProcessError as ex:
-        logging.info("Error during Wi-Fi scan: %s", ex)
-    return res
-
-
 def to_json(args) -> Dict:
     connections = []
     devices = []
@@ -89,10 +57,17 @@ def to_json(args) -> Dict:
     except (FileNotFoundError, PermissionError, OSError, json.decoder.JSONDecodeError) as ex:
         logging.error("Loading %s failed: %s", args.config, ex)
 
+    ssids = []
+    if not args.no_scan:
+        try:
+            ssids = network_manager.get_wifi_ssids(datetime.timedelta(seconds=args.scan_timeout))
+        except dbus.exceptions.DBusException as ex:
+            logging.info("Error during Wi-Fi scan: %s", ex)
+
     return {
         "ui": {"connections": connections, "con_switch": switch_cfg},
         "data": {
-            "ssids": [] if args.no_scan else scan_wifi(args.scan_iface, args.scan_timeout),
+            "ssids": ssids,
             "devices": devices,
         },
     }
@@ -170,9 +145,6 @@ def main() -> None:
         "--interfaces-conf", type=str, default="/etc/network/interfaces", help="interfaces config file"
     )
     parser.add_argument("--no-scan", action="store_true", help="Don't scan for Wi-Fi networks")
-    parser.add_argument(
-        "--scan-iface", type=str, default="wlan0", help="Interface to scan for Wi-Fi networks"
-    )
     parser.add_argument("--scan-timeout", type=int, default=10, help="Scan timeout in seconds")
     parser.add_argument("--indent", type=int, default=2, help="Indentation level for JSON output")
     parser.add_argument("--dry-run", action="store_true", help="Don't apply changes")
