@@ -200,11 +200,11 @@ from wb.nm_helper.network_manager_adapter import (
     ],
 )
 def test_wifiap_set_dbus_options(json, dbus_old, dbus_new):
-    ap = WiFiAp()
+    access_point = WiFiAp()
     json_settings = JSONSettings(json)
     dbus_old_settings = DBUSSettings(dbus_old)
     dbus_new_settings = DBUSSettings(dbus_new)
-    ap.set_dbus_options(dbus_old_settings, json_settings)
+    access_point.set_dbus_options(dbus_old_settings, json_settings)
     assert dbus_old_settings.params == dbus_new_settings.params
 
 
@@ -282,9 +282,9 @@ def test_wifiap_set_dbus_options(json, dbus_old, dbus_new):
     ],
 )
 def test_modem_set_dbus_options(json, dbus_old, dbus_new):
-    ap = ModemConnection()
+    access_point = ModemConnection()
     json_settings = JSONSettings(json)
     dbus_old_settings = DBUSSettings(dbus_old)
     dbus_new_settings = DBUSSettings(dbus_new)
-    ap.set_dbus_options(dbus_old_settings, json_settings)
+    access_point.set_dbus_options(dbus_old_settings, json_settings)
     assert dbus_old_settings.params == dbus_new_settings.params
