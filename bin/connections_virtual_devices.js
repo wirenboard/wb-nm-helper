@@ -3,105 +3,136 @@ function getVirtualDeviceName(connectionUuid) {
 }
 
 function defineNewDevice(connectionName, connectionUuid, connectionType) {
-  defineVirtualDevice(getVirtualDeviceName(connectionUuid), {
+  return defineVirtualDevice(getVirtualDeviceName(connectionUuid), {
     title: 'Network Connection ' + connectionName,
     cells: {
-      UUID: { order: 1, title: 'UUID', type: 'text', value: connectionUuid },
-      Type: { order: 2, title: 'Type', type: 'text', value: connectionType },
-      Active: { order: 3, title: 'Active', type: 'switch', value: false, readonly: true },
-      Device: { order: 4, title: 'Device', type: 'text', value: '' },
-      State: { order: 5, title: 'State', type: 'text', value: '' },
-      Address: { order: 6, title: 'IP', type: 'text', value: '' },
+      Name: { order: 1, title: 'Name', type: 'text', value: connectionName },
+      UUID: { order: 2, title: 'UUID', type: 'text', value: connectionUuid },
+      Type: { order: 3, title: 'Type', type: 'text', value: connectionType },
+      Active: { order: 4, title: 'Active', type: 'switch', value: false, readonly: true },
+      Device: { order: 5, title: 'Device', type: 'text', value: '' },
+      State: { order: 6, title: 'State', type: 'text', value: '' },
+      Address: { order: 7, title: 'IP', type: 'text', value: '' },
       Connectivity: {
-        order: 7,
+        order: 8,
         title: 'Connectivity',
         type: 'switch',
         value: false,
         readonly: true,
       },
-      Enable: {
-        order: 8,
+      UpDown: {
+        order: 9,
         title: 'Up',
         type: 'pushbutton',
         value: 1,
-      },
-      Disable: {
-        order: 9,
-        title: 'Down',
-        type: 'pushbutton',
-        value: 1,
+        readonly: false,
       },
     },
   });
 }
 
-function updateIp(connectionName, connectionUuid) {
+function updateIp(mqttConnectionDevice) {
+  var connectionName = mqttConnectionDevice.getControl('Name').getValue();
+
   runShellCommand('nmcli -g ip4.address c s ' + connectionName, {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
-      getDevice(getVirtualDeviceName(connectionUuid))
-        .getControl('Address')
-        .setValue(capturedOutput);
+      var ipList = capturedOutput.split('|');
+      var title = '';
+      for (var i = 0; i < ipList.length; i++) {
+        title = title.concat(ipList[i].replace(new RegExp('/[0-9]+'), ' '));
+      }
+      mqttConnectionDevice.getControl('Address').setValue(title);
     },
   });
 }
 
-function updateConnectivity(connectionUuid, connectionDevice) {
+function updateConnectivity(mqttConnectionDevice) {
+  var connectionDevice = mqttConnectionDevice.getControl('Device').getValue();
+
   runShellCommand('ping -q -W1 -c3 -I ' + connectionDevice + ' 1.1.1.1 2>/dev/null', {
     captureOutput: false,
     exitCallback: function (exitCode) {
-      getDevice(getVirtualDeviceName(connectionUuid))
-        .getControl('Connectivity')
-        .setValue(exitCode === 0);
+      mqttConnectionDevice.getControl('Connectivity').setValue(exitCode === 0);
     },
   });
 }
 
-function updateNetworking(connectionName, connectionUuid, connectionDevice) {
-  updateConnectivity(connectionUuid, connectionDevice);
-  updateIp(connectionName, connectionUuid);
+function updateNetworking(mqttConnectionDevice) {
+  updateConnectivity(mqttConnectionDevice);
+  updateIp(mqttConnectionDevice);
 }
 
-function defineNewRules(connectionName, connectionUuid, connectionDevice) {
-  defineRule('whenEnable' + connectionUuid, {
-    whenChanged: getVirtualDeviceName(connectionUuid) + '/Enable',
+function updateUpDownButton(mqttConnectionDevice, activeFlag) {
+  var title = activeFlag ? 'Down' : 'Up';
+  mqttConnectionDevice.getControl('UpDown').setTitle(title);
+}
+
+function disableUpDownButton(mqttConnectionDevice) {
+  mqttConnectionDevice.getControl('UpDown').setReadonly(true);
+}
+
+function getUpDownCommand(mqttConnectionDevice) {
+  var buttonTitle = mqttConnectionDevice.getControl('UpDown').getTitle();
+  var connectionName = mqttConnectionDevice.getControl('Name').getValue();
+
+  if (buttonTitle == 'Up') {
+    return 'nmcli connection up ' + connectionName;
+  } else {
+    return 'nmcli connection down ' + connectionName;
+  }
+}
+
+function enableUpDownButton(mqttConnectionDevice) {
+  mqttConnectionDevice.getControl('UpDown').setReadonly(false);
+}
+
+function defineNewRules(mqttConnectionDevice) {
+  defineRule('whenUpDown' + mqttConnectionDevice.getId(), {
+    whenChanged: mqttConnectionDevice.getId() + '/UpDown',
     then: function (newValue, devName, cellName) {
-      runShellCommand('nmcli connection up ' + connectionName, { captureOutput: false });
+      disableUpDownButton(mqttConnectionDevice);
+      runShellCommand(getUpDownCommand(mqttConnectionDevice), {
+        captureOutput: false,
+        exitCallback: function (exitCode) {
+          enableUpDownButton(mqttConnectionDevice);
+        },
+      });
     },
   });
 
-  defineRule('whenDisable' + connectionUuid, {
-    whenChanged: getVirtualDeviceName(connectionUuid) + '/Disable',
+  defineRule('whenStateCnanged' + mqttConnectionDevice.getId(), {
+    whenChanged: mqttConnectionDevice.getId() + '/State',
     then: function (newValue, devName, cellName) {
-      runShellCommand('nmcli connection down ' + connectionName, { captureOutput: false });
-    },
-  });
-
-  defineRule('whenStateCnanged' + connectionUuid, {
-    whenChanged: getVirtualDeviceName(connectionUuid) + '/State',
-    then: function (newValue, devName, cellName) {
-      var timerName = 'updateNetwork' + connectionUuid;
+      var timerName = 'updateNetwork' + mqttConnectionDevice.getId();
       if (newValue == 'activated') {
         startTicker(timerName, 60000);
       } else {
         timers[timerName].stop();
       }
-      updateNetworking(connectionName, connectionUuid, connectionDevice);
+      updateNetworking(mqttConnectionDevice);
     },
   });
 
-  defineRule('whenUpdateMoment' + connectionUuid, {
+  defineRule('whenActiveCnanged' + mqttConnectionDevice.getId(), {
+    whenChanged: mqttConnectionDevice.getId() + '/Active',
+    then: function (newValue, devName, cellName) {
+      updateUpDownButton(mqttConnectionDevice, newValue);
+    },
+  });
+
+  defineRule('whenUpdateMoment' + mqttConnectionDevice.getId(), {
     when: function () {
-      return timers['updateNetwork' + connectionUuid].firing;
+      return timers['updateNetwork' + mqttConnectionDevice.getId()].firing;
     },
     then: function () {
-      updateNetworking(connectionName, connectionUuid, connectionDevice);
+      updateNetworking(mqttConnectionDevice);
     },
   });
 }
 
 function devicesInitialize() {
-  runShellCommand('nmcli -f name,uuid,type,device  c s', {
+  runShellCommand('nmcli -f name,uuid,type,active  c s', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
       var connectionsList = capturedOutput.split(/\r?\n/);
@@ -110,10 +141,11 @@ function devicesInitialize() {
         var name = dataList[0];
         var uuid = dataList[1];
         var type = dataList[2];
-        var device = dataList[3];
+        var active = dataList[3] == 'yes' ? true : false;
 
-        defineNewDevice(name, uuid, type);
-        defineNewRules(name, uuid, device);
+        var newMqttConnectionDevice = defineNewDevice(name, uuid, type);
+        defineNewRules(newMqttConnectionDevice);
+        updateUpDownButton(newMqttConnectionDevice, active);
       }
     },
   });
@@ -130,19 +162,19 @@ function devicesUpdate() {
         var name = dataList[0];
         var uuid = dataList[1];
         var type = dataList[2];
-        var device = dataList[3];
-        var active = dataList[4];
-        var state = dataList[5];
+        var device = dataList[3].replace('--', ' ');
+        var active = dataList[4] == 'yes' ? true : false;
+        var state = dataList[5].replace('--', ' ');
 
         if (getDevice(getVirtualDeviceName(uuid)) == undefined) {
-          defineNewDevice(name, uuid, type);
-          defineNewRules(name, uuid, device);
+          var newMqttConnectionDevice = defineNewDevice(name, uuid, type);
+          defineNewRules(newMqttConnectionDevice);
         }
 
         var mqttDevice = getDevice(getVirtualDeviceName(uuid));
 
         mqttDevice.getControl('Device').setValue(device);
-        mqttDevice.getControl('Active').setValue(active == 'yes');
+        mqttDevice.getControl('Active').setValue(active);
         mqttDevice.getControl('State').setValue(state);
       }
     },
