@@ -31,6 +31,12 @@ function defineNewDevice(connectionName, connectionUuid, connectionType) {
   });
 }
 
+function updateDeviceData(mqttConnectionDevice, device, active, state) {
+  mqttConnectionDevice.getControl('Device').setValue(device);
+  mqttConnectionDevice.getControl('Active').setValue(active);
+  mqttConnectionDevice.getControl('State').setValue(state);
+}
+
 function updateIp(mqttConnectionDevice) {
   var connectionName = mqttConnectionDevice.getControl('Name').getValue();
 
@@ -76,6 +82,9 @@ function getUpDownCommand(mqttConnectionDevice) {
   var buttonTitle = mqttConnectionDevice.getControl('UpDown').getTitle();
   var connectionName = mqttConnectionDevice.getControl('Name').getValue();
 
+  log('nmcli connection up ' + connectionName);
+  log('nmcli connection down ' + connectionName);
+
   if (buttonTitle == 'Up') {
     return 'nmcli connection up ' + connectionName;
   } else {
@@ -84,7 +93,19 @@ function getUpDownCommand(mqttConnectionDevice) {
 }
 
 function enableUpDownButton(mqttConnectionDevice) {
-  mqttConnectionDevice.getControl('UpDown').setReadonly(false);
+  var name = mqttConnectionDevice.getControl('Name').getValue();
+  runShellCommand('nmcli -f name,device,active,state c s | grep ' + name + ' ', {
+    captureOutput: true,
+    exitCallback: function (exitCode, capturedOutput) {
+      var dataList = capturedOutput.split(/ +/);
+      var device = dataList[0].replace('--', ' ');
+      var active = dataList[1] == 'yes' ? true : false;
+      var state = dataList[2].replace('--', ' ');
+
+      updateDeviceData(mqttConnectionDevice, device, active, state);
+      mqttConnectionDevice.getControl('UpDown').setReadonly(false);
+    },
+  });
 }
 
 function defineNewRules(mqttConnectionDevice) {
@@ -131,7 +152,7 @@ function defineNewRules(mqttConnectionDevice) {
   });
 }
 
-function devicesInitialize() {
+function initializeDevices() {
   runShellCommand('nmcli -f name,uuid,type,active  c s', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
@@ -151,7 +172,7 @@ function devicesInitialize() {
   });
 }
 
-function devicesUpdate() {
+function updateDevices() {
   runShellCommand('nmcli -f name,uuid,type,device,active,state c s', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
@@ -166,20 +187,16 @@ function devicesUpdate() {
         var active = dataList[4] == 'yes' ? true : false;
         var state = dataList[5].replace('--', ' ');
 
-        if (getDevice(getVirtualDeviceName(uuid)) == undefined) {
-          var newMqttConnectionDevice = defineNewDevice(name, uuid, type);
-          defineNewRules(newMqttConnectionDevice);
+        var mqttConnectionDevice = getDevice(getVirtualDeviceName(uuid));
+        if (mqttConnectionDevice == undefined) {
+          mqttConnectionDevice = defineNewDevice(name, uuid, type);
+          defineNewRules(mqttConnectionDevice);
         }
-
-        var mqttDevice = getDevice(getVirtualDeviceName(uuid));
-
-        mqttDevice.getControl('Device').setValue(device);
-        mqttDevice.getControl('Active').setValue(active);
-        mqttDevice.getControl('State').setValue(state);
+        updateDeviceData(mqttConnectionDevice, device, active, state);
       }
     },
   });
 }
 
-devicesInitialize();
-setInterval(devicesUpdate, 2000);
+initializeDevices();
+setInterval(updateDevices, 2000);
