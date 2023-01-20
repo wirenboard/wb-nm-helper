@@ -38,9 +38,9 @@ function updateDeviceData(mqttConnectionDevice, device, active, state) {
 }
 
 function updateIp(mqttConnectionDevice) {
-  var connectionName = mqttConnectionDevice.getControl('Name').getValue();
+  var uuid = mqttConnectionDevice.getControl('UUID').getValue();
 
-  runShellCommand('nmcli -g ip4.address c s ' + connectionName, {
+  runShellCommand('nmcli -g ip4.address c s ' + uuid, {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
       var ipList = capturedOutput.split('|');
@@ -80,27 +80,24 @@ function disableUpDownButton(mqttConnectionDevice) {
 
 function getUpDownCommand(mqttConnectionDevice) {
   var buttonTitle = mqttConnectionDevice.getControl('UpDown').getTitle();
-  var connectionName = mqttConnectionDevice.getControl('Name').getValue();
-
-  log('nmcli connection up ' + connectionName);
-  log('nmcli connection down ' + connectionName);
+  var uuid = mqttConnectionDevice.getControl('UUID').getValue();
 
   if (buttonTitle == 'Up') {
-    return 'nmcli connection up ' + connectionName;
+    return 'nmcli connection up ' + uuid;
   } else {
-    return 'nmcli connection down ' + connectionName;
+    return 'nmcli connection down ' + uuid;
   }
 }
 
 function enableUpDownButton(mqttConnectionDevice) {
-  var name = mqttConnectionDevice.getControl('Name').getValue();
-  runShellCommand('nmcli -f name,device,active,state c s | grep ' + name + ' ', {
+  var uuid = mqttConnectionDevice.getControl('UUID').getValue();
+  runShellCommand('nmcli -f uuid,device,active,state c s | grep ' + uuid + ' ', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
       var dataList = capturedOutput.split(/ +/);
-      var device = dataList[0].replace('--', ' ');
-      var active = dataList[1] == 'yes' ? true : false;
-      var state = dataList[2].replace('--', ' ');
+      var device = dataList[1].replace('--', ' ');
+      var active = dataList[2] == 'yes' ? true : false;
+      var state = dataList[3].replace('--', ' ');
 
       updateDeviceData(mqttConnectionDevice, device, active, state);
       mqttConnectionDevice.getControl('UpDown').setReadonly(false);
