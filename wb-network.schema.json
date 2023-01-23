@@ -1272,102 +1272,105 @@
                     "description": "con_switch_desc",
                     "properties": {
                         "tiers": {
-                            "high": {
-                            "title": "High-priority connections",
-                            "type": "array",
-                            "uniqueItems": true,
-                            "propertyOrder": 2,
-                            "items": {
-                                "title": "connection_title",
-                                "type": "string",
-                                "minLength": 1,
-                                "watch": {
-                                    "connections": "ui.connections"
-                                },
-                                "enumSource": [
-                                    {
-                                        "source": "connections",
-                                        "filter": "{{if item.type in [\"01_nm_ethernet\",\"02_nm_modem\",\"03_nm_wifi\"]}}1{{endif}}{{endif}}",
-                                        "title": "{{item.connection_id}}",
-                                        "value": "{{item.connection_id}}"
-                                    }
-                                ],
-                                "_format": "edWb"
+                            "type": "object",
+                            "properties": {
+                                "high": {
+                        "title": "High-priority connections",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "propertyOrder": 2,
+                        "items": {
+                            "title": "connection_title",
+                            "type": "string",
+                            "minLength": 1,
+                            "watch": {
+                                "connections": "ui.connections"
                             },
-                            "options": {
-                                "disable_collapse": true,
-                                "disable_array_delete_last_row": true,
-                                "array_controls_top": true,
-                                "wb": {
-                                    "show_editor": true
+                            "enumSource": [
+                                {
+                                    "source": "connections",
+                                    "filter": "{{if item.type in [\"01_nm_ethernet\",\"02_nm_modem\",\"03_nm_wifi\"]}}1{{endif}}{{endif}}",
+                                    "title": "{{item.connection_id}}",
+                                    "value": "{{item.connection_id}}"
                                 }
-                            },
-                            "_format": "table"
+                            ],
+                            "_format": "edWb"
                         },
-                            "medium": {
-                            "title": "Medium-priority connections",
-                            "type": "array",
-                            "uniqueItems": true,
-                            "propertyOrder": 2,
-                            "items": {
-                                "title": "connection_title",
-                                "type": "string",
-                                "minLength": 1,
-                                "watch": {
-                                    "connections": "ui.connections"
-                                },
-                                "enumSource": [
-                                    {
-                                        "source": "connections",
-                                        "filter": "{{if item.type in [\"01_nm_ethernet\",\"02_nm_modem\",\"03_nm_wifi\"]}}1{{endif}}{{endif}}",
-                                        "title": "{{item.connection_id}}",
-                                        "value": "{{item.connection_id}}"
-                                    }
-                                ],
-                                "_format": "edWb"
-                            },
-                            "options": {
-                                "disable_collapse": true,
-                                "disable_array_delete_last_row": true,
-                                "array_controls_top": true,
-                                "wb": {
-                                    "show_editor": true
-                                }
-                            },
-                            "_format": "table"
+                        "options": {
+                            "disable_collapse": true,
+                            "disable_array_delete_last_row": true,
+                            "array_controls_top": true,
+                            "wb": {
+                                "show_editor": true
+                            }
                         },
-                            "low": {
-                            "title": "Low-priority connections",
-                            "type": "array",
-                            "uniqueItems": true,
-                            "propertyOrder": 2,
-                            "items": {
-                                "title": "connection_title",
-                                "type": "string",
-                                "minLength": 1,
-                                "watch": {
-                                    "connections": "ui.connections"
-                                },
-                                "enumSource": [
-                                    {
-                                        "source": "connections",
-                                        "filter": "{{if item.type in [\"01_nm_ethernet\",\"02_nm_modem\",\"03_nm_wifi\"]}}1{{endif}}{{endif}}",
-                                        "title": "{{item.connection_id}}",
-                                        "value": "{{item.connection_id}}"
-                                    }
-                                ],
-                                "_format": "edWb"
+                        "_format": "table"
+                    },
+                                "medium": {
+                        "title": "Medium-priority connections",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "propertyOrder": 2,
+                        "items": {
+                            "title": "connection_title",
+                            "type": "string",
+                            "minLength": 1,
+                            "watch": {
+                                "connections": "ui.connections"
                             },
-                            "options": {
-                                "disable_collapse": true,
-                                "disable_array_delete_last_row": true,
-                                "array_controls_top": true,
-                                "wb": {
-                                    "show_editor": true
+                            "enumSource": [
+                                {
+                                    "source": "connections",
+                                    "filter": "{{if item.type in [\"01_nm_ethernet\",\"02_nm_modem\",\"03_nm_wifi\"]}}1{{endif}}{{endif}}",
+                                    "title": "{{item.connection_id}}",
+                                    "value": "{{item.connection_id}}"
                                 }
+                            ],
+                            "_format": "edWb"
+                        },
+                        "options": {
+                            "disable_collapse": true,
+                            "disable_array_delete_last_row": true,
+                            "array_controls_top": true,
+                            "wb": {
+                                "show_editor": true
+                            }
+                        },
+                        "_format": "table"
+                    },
+                                "low": {
+                        "title": "Low-priority connections",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "propertyOrder": 2,
+                        "items": {
+                            "title": "connection_title",
+                            "type": "string",
+                            "minLength": 1,
+                            "watch": {
+                                "connections": "ui.connections"
                             },
-                            "_format": "table"
-                        }
+                            "enumSource": [
+                                {
+                                    "source": "connections",
+                                    "filter": "{{if item.type in [\"01_nm_ethernet\",\"02_nm_modem\",\"03_nm_wifi\"]}}1{{endif}}{{endif}}",
+                                    "title": "{{item.connection_id}}",
+                                    "value": "{{item.connection_id}}"
+                                }
+                            ],
+                            "_format": "edWb"
+                        },
+                        "options": {
+                            "disable_collapse": true,
+                            "disable_array_delete_last_row": true,
+                            "array_controls_top": true,
+                            "wb": {
+                                "show_editor": true
+                            }
+                        },
+                        "_format": "table"
+                    }
+                            }
                         },
                         "debug": {
                             "title": "Enable debug logging",
