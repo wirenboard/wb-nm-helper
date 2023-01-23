@@ -1271,8 +1271,9 @@
                     "propertyOrder": 2,
                     "description": "con_switch_desc",
                     "properties": {
-                        "connections": {
-                            "title": "Connections in descending order of priority",
+                        "tiers": {
+                            "high": {
+                            "title": "High-priority connections",
                             "type": "array",
                             "uniqueItems": true,
                             "propertyOrder": 2,
@@ -1302,6 +1303,71 @@
                                 }
                             },
                             "_format": "table"
+                        },
+                            "medium": {
+                            "title": "Medium-priority connections",
+                            "type": "array",
+                            "uniqueItems": true,
+                            "propertyOrder": 2,
+                            "items": {
+                                "title": "connection_title",
+                                "type": "string",
+                                "minLength": 1,
+                                "watch": {
+                                    "connections": "ui.connections"
+                                },
+                                "enumSource": [
+                                    {
+                                        "source": "connections",
+                                        "filter": "{{if item.type in [\"01_nm_ethernet\",\"02_nm_modem\",\"03_nm_wifi\"]}}1{{endif}}{{endif}}",
+                                        "title": "{{item.connection_id}}",
+                                        "value": "{{item.connection_id}}"
+                                    }
+                                ],
+                                "_format": "edWb"
+                            },
+                            "options": {
+                                "disable_collapse": true,
+                                "disable_array_delete_last_row": true,
+                                "array_controls_top": true,
+                                "wb": {
+                                    "show_editor": true
+                                }
+                            },
+                            "_format": "table"
+                        },
+                            "low": {
+                            "title": "Low-priority connections",
+                            "type": "array",
+                            "uniqueItems": true,
+                            "propertyOrder": 2,
+                            "items": {
+                                "title": "connection_title",
+                                "type": "string",
+                                "minLength": 1,
+                                "watch": {
+                                    "connections": "ui.connections"
+                                },
+                                "enumSource": [
+                                    {
+                                        "source": "connections",
+                                        "filter": "{{if item.type in [\"01_nm_ethernet\",\"02_nm_modem\",\"03_nm_wifi\"]}}1{{endif}}{{endif}}",
+                                        "title": "{{item.connection_id}}",
+                                        "value": "{{item.connection_id}}"
+                                    }
+                                ],
+                                "_format": "edWb"
+                            },
+                            "options": {
+                                "disable_collapse": true,
+                                "disable_array_delete_last_row": true,
+                                "array_controls_top": true,
+                                "wb": {
+                                    "show_editor": true
+                                }
+                            },
+                            "_format": "table"
+                        }
                         },
                         "debug": {
                             "title": "Enable debug logging",
@@ -1438,7 +1504,6 @@
             "Automatic connections switching": "Автоматическое переключение соединений",
             "con_switch_desc": "Контроллер каждые 5 секунд проверяет связь с интернетом, если связи нет — текущее соединение завершится, и будет активировано следующее по списку. Далее контроллер каждые 60 секунд попытается поднять одно из соединений с более высоким приоритетом и, если это удастся, переключится на него.",
             "Enable debug logging": "Включить отладочные сообщения",
-            "Connections in descending order of priority": "Соединения в порядке убывания приоритета",
             "Wi-Fi access point": "Wi-Fi точка доступа",
             "mac-pattern-message": "Необходимо задать шесть байт в шестнадцатеричном виде, разделённых двоеточием (например f2:c8:14:48:d3:97)",
             "Password": "Пароль",
