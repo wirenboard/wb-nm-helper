@@ -1,3 +1,9 @@
+wb-nm-helper (1.18.0) stable; urgency=medium
+
+  * Add connections virtual devices
+
+ -- Ekaterina Volkova <ekaterina.volkova@wirenboard.ru>  Tue, 17 Jan 2023 20:55:59 +0300
+
 wb-nm-helper (1.17.2) stable; urgency=medium
 
   * Implement Wi-Fi networks scan using NetworkManager
