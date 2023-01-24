@@ -150,7 +150,7 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
                     "802-11-wireless": dbus.Dictionary(
                         {
                             "mode": dbus.String("ap", variant_level=1),
-                            "ssid": dbus.String("WirenBoard-XXXXXXXX", variant_level=1),
+                            "ssid": dbus.ByteArray(bytes("WirenBoard-Тест", encoding="utf8")),
                         },
                         signature=dbus.Signature("sv"),
                     ),
@@ -212,7 +212,7 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
         assert len(res["ui"]["connections"]) == 9
         assert res["ui"]["connections"][0]["802-11-wireless-security"]["security"] == "none"
         assert res["ui"]["connections"][0]["802-11-wireless_mode"] == "ap"
-        assert res["ui"]["connections"][0]["802-11-wireless_ssid"] == "WirenBoard-XXXXXXXX"
+        assert res["ui"]["connections"][0]["802-11-wireless_ssid"] == "WirenBoard-Тест"
         assert res["ui"]["connections"][0]["connection_autoconnect"] is True
         assert res["ui"]["connections"][0]["connection_id"] == "wb-ap"
         assert res["ui"]["connections"][0]["connection_interface-name"] == "wlan0"
