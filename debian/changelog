@@ -1,3 +1,9 @@
+wb-nm-helper (1.18.1) stable; urgency=medium
+
+  * Fix update device data when changed
+
+ -- Ekaterina Volkova <ekaterina.volkova@wirenboard.ru>  Wed, 25 Jan 2023 13:08:25 +0300
+
 wb-nm-helper (1.18.0) stable; urgency=medium
 
   * Add connections virtual devices
