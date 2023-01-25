@@ -178,16 +178,13 @@ class NMActiveConnection(NMObject):
         return res
 
     def get_connection_id(self) -> str:
-        cn_path = self.get_property("Connection")
-        con = NMConnection(cn_path, self.bus)
-        settings = con.get_settings()
-        return str(settings["connection"]["id"])
+        return str(self.get_connection().get_settings()["connection"]["id"])
 
     def get_connection_type(self) -> str:
-        cn_path = self.get_property("Connection")
-        con = NMConnection(cn_path, self.bus)
-        settings = con.get_settings()
-        return str(settings["connection"]["type"])
+        return str(self.get_connection().get_settings()["connection"]["type"])
+
+    def get_connection(self) -> NMConnection:
+        return NMConnection(self.get_property("Connection"), self.bus)
 
     def get_ip4_connectivity(self):
         dev_paths = self.get_property("Devices")
