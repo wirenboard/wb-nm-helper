@@ -5,7 +5,7 @@ import signal
 import sys
 import time
 from io import BytesIO
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Iterator
 
 import dbus
 import pycurl
@@ -62,7 +62,7 @@ class ConnectionManagerConfigFile:
         self.connectivity_check_payload: str = self.get_connectivity_check_payload(cfg)
 
     @staticmethod
-    def get_tiers(cfg: Dict) -> List[ConnectionTier]:
+    def get_tiers(cfg: Dict) -> Iterator[ConnectionTier]:
         for name, level in (("high", 3), ("medium", 2), ("low", 1)):
             yield ConnectionTier(name, level, cfg.get("tiers", {}).get(name, []))
 
@@ -416,7 +416,7 @@ class ConnectionManager:
 
     def find_lesser_gsm_connections(
         self, current_con_id: str, current_tier: ConnectionTier
-    ) -> List[NMActiveConnection]:
+    ) -> Iterator[NMActiveConnection]:
         for tier in [item for item in self.config.tiers if item.priority <= current_tier.priority]:
             for cn_id in [
                 item for item in tier.connections if item != current_con_id and self.connection_is_gsm(item)
