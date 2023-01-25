@@ -11,6 +11,23 @@
         "needReload": true
     },
     "definitions": {
+        "switch_connections": {
+            "title": "connection_title",
+            "type": "string",
+            "minLength": 1,
+            "watch": {
+                "connections": "ui.connections"
+            },
+            "enumSource": [
+                {
+                    "source": "connections",
+                    "filter": "{{if item.type in [\"01_nm_ethernet\",\"02_nm_modem\",\"03_nm_wifi\"]}}1{{endif}}{{endif}}",
+                    "title": "{{item.connection_id}}",
+                    "value": "{{item.connection_id}}"
+                }
+            ],
+            "_format": "edWb"
+        },
         "mac-addr": {
             "type": "string",
             "title": "MAC address",
@@ -1284,23 +1301,9 @@
                                     "title": "High-priority connections",
                                     "type": "array",
                                     "uniqueItems": true,
-                                    "propertyOrder": 2,
+                                    "propertyOrder": 1,
                                     "items": {
-                                        "title": "connection_title",
-                                        "type": "string",
-                                        "minLength": 1,
-                                        "watch": {
-                                            "connections": "ui.connections"
-                                        },
-                                        "enumSource": [
-                                            {
-                                                "source": "connections",
-                                                "filter": "{{if item.type in [\"01_nm_ethernet\",\"02_nm_modem\",\"03_nm_wifi\"]}}1{{endif}}{{endif}}",
-                                                "title": "{{item.connection_id}}",
-                                                "value": "{{item.connection_id}}"
-                                            }
-                                        ],
-                                        "_format": "edWb"
+                                        "$ref": "#/definitions/switch_connections"
                                     },
                                     "options": {
                                         "disable_collapse": true,
@@ -1318,21 +1321,7 @@
                                     "uniqueItems": true,
                                     "propertyOrder": 2,
                                     "items": {
-                                        "title": "connection_title",
-                                        "type": "string",
-                                        "minLength": 1,
-                                        "watch": {
-                                            "connections": "ui.connections"
-                                        },
-                                        "enumSource": [
-                                            {
-                                                "source": "connections",
-                                                "filter": "{{if item.type in [\"01_nm_ethernet\",\"02_nm_modem\",\"03_nm_wifi\"]}}1{{endif}}{{endif}}",
-                                                "title": "{{item.connection_id}}",
-                                                "value": "{{item.connection_id}}"
-                                            }
-                                        ],
-                                        "_format": "edWb"
+                                        "$ref": "#/definitions/switch_connections"
                                     },
                                     "options": {
                                         "disable_collapse": true,
@@ -1348,23 +1337,9 @@
                                     "title": "Low-priority connections",
                                     "type": "array",
                                     "uniqueItems": true,
-                                    "propertyOrder": 2,
+                                    "propertyOrder": 3,
                                     "items": {
-                                        "title": "connection_title",
-                                        "type": "string",
-                                        "minLength": 1,
-                                        "watch": {
-                                            "connections": "ui.connections"
-                                        },
-                                        "enumSource": [
-                                            {
-                                                "source": "connections",
-                                                "filter": "{{if item.type in [\"01_nm_ethernet\",\"02_nm_modem\",\"03_nm_wifi\"]}}1{{endif}}{{endif}}",
-                                                "title": "{{item.connection_id}}",
-                                                "value": "{{item.connection_id}}"
-                                            }
-                                        ],
-                                        "_format": "edWb"
+                                        "$ref": "#/definitions/switch_connections"
                                     },
                                     "options": {
                                         "disable_collapse": true,
