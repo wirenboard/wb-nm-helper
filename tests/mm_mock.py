@@ -6,7 +6,7 @@ from wb.nm_helper.network_manager import NM_ACTIVE_CONNECTION_STATE_DEACTIVATED,
     NM_ACTIVE_CONNECTION_STATE_ACTIVATED, NM_ACTIVE_CONNECTION_STATE_UNKNOWN, NM_ACTIVE_CONNECTION_STATE_ACTIVATING
 
 
-class AbsFakeNMConnection(abc.ABC):
+class AbsFakeNMConnection:
 
     def __init__(self, name, net_man):
         self.name = name
