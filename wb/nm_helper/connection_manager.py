@@ -107,20 +107,24 @@ class TimeoutManager:
         self.deny_sim_switch_until: Optional[datetime.datetime] = None
         self.connection_activation_timeout = CONNECTION_ACTIVATION_TIMEOUT
 
+    @staticmethod
+    def now():
+        return datetime.datetime.now()
+
     def debug_log_timeouts(self):
         logging.debug("GSM Sticky Timeout: %s", self.deny_sim_switch_until)
         for connection, timeout in self.connection_retry_timeouts.items():
             logging.debug("Connection Retry Timeout for %s: %s", connection, timeout)
 
     def touch_connection_retry_timeout(self, cn_id):
-        self.connection_retry_timeouts[cn_id] = datetime.datetime.now() + CONNECTION_ACTIVATION_RETRY_TIMEOUT
+        self.connection_retry_timeouts[cn_id] = self.now() + CONNECTION_ACTIVATION_RETRY_TIMEOUT
 
     def reset_connection_retry_timeout(self, cn_id):
-        self.connection_retry_timeouts[cn_id] = datetime.datetime.now()
+        self.connection_retry_timeouts[cn_id] = self.now()
 
     def touch_gsm_timeout(self, active_cn: NMActiveConnection) -> None:
         if active_cn.get_connection_type() == "gsm":
-            self.deny_sim_switch_until = datetime.datetime.now() + self.config.sticky_sim_period
+            self.deny_sim_switch_until = self.now() + self.config.sticky_sim_period
             logging.info(
                 "New active connection is GSM, not changing SIM slots until %s",
                 self.deny_sim_switch_until.isoformat(),
@@ -132,7 +136,7 @@ class TimeoutManager:
     def connection_retry_timeout_is_active(self, cn_id):
         if (
             cn_id not in self.connection_retry_timeouts
-            or self.connection_retry_timeouts.get(cn_id) < datetime.datetime.now()
+            or self.connection_retry_timeouts.get(cn_id) < self.now()
         ):
             # TODO: log
             return False
@@ -140,7 +144,7 @@ class TimeoutManager:
         return True
 
     def gsm_sticky_timeout_is_active(self) -> bool:
-        if self.deny_sim_switch_until and self.deny_sim_switch_until > datetime.datetime.now():
+        if self.deny_sim_switch_until and self.deny_sim_switch_until > self.now():
             # TODO: log
             return True
         return False

@@ -1,6 +1,6 @@
 import datetime
-
 import pytest
+
 
 from wb.nm_helper.connection_manager import (
     DEFAULT_CONNECTIVITY_CHECK_PAYLOAD,
@@ -82,7 +82,7 @@ def test_config_file_bad_cc_url():
         },
     }
     with pytest.raises(ImproperlyConfigured):
-        cf = ConnectionManagerConfigFile(cfg)
+        ConnectionManagerConfigFile(cfg)
 
 
 def test_config_file_bad_cc_payload():
@@ -98,4 +98,4 @@ def test_config_file_bad_cc_payload():
         },
     }
     with pytest.raises(ImproperlyConfigured):
-        cf = ConnectionManagerConfigFile(cfg)
+        ConnectionManagerConfigFile(cfg)
