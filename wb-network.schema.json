@@ -8,7 +8,8 @@
         "fromJSON": ["wb-nm-helper", "-s"],
         "restartDelayMS": 4000,
         "service": "wb-connection-manager",
-        "needReload": true
+        "needReload": true,
+        "editor": "network-connections"
     },
     "definitions": {
         "mac-addr": {
@@ -36,49 +37,52 @@
         },
         "802-11-wireless-security": {
             "title": "Security",
-            "type": "object",
-            "properties": {
-                "security": {
-                    "type": "string",
-                    "title": "Security",
-                    "enum": ["none", "wpa-psk"],
-                    "options": {
-                        "enum_titles": ["None", "WPA/WPA2 Personal"]
-                    },
-                    "default": "wpa-psk",
-                    "propertyOrder": 1
-                },
-                "key-mgmt": {
-                    "type": "string",
-                    "enum": ["wpa-psk"],
-                    "options": {
-                        "hidden": true,
-                        "dependencies": {
-                            "security": "wpa-psk"
-                        },
-                        "wb": {
-                            "show_editor": true
-                        }
-                    }
-                },
-                "psk": {
-                    "type": "string",
-                    "title": "Password",
-                    "minLength": 8,
-                    "maxLength": 63,
-                    "options": {
-                        "dependencies": {
-                            "key-mgmt": "wpa-psk"
-                        },
-                        "wb": {
-                            "show_editor": true
+            "oneOf": [
+                {
+                    "type": "object",
+                    "title": "None",
+                    "properties": {
+                        "security": {
+                            "type": "string",
+                            "enum": ["none"],
+                            "options": {
+                                "hidden" : true
+                            }
                         }
                     },
-                    "propertyOrder": 2
+                    "required": ["security"]
+                },
+                {
+                    "type": "object",
+                    "title": "WPA/WPA2 Personal",
+                    "properties": {
+                        "security": {
+                            "type": "string",
+                            "enum": ["wpa-psk"],
+                            "options": {
+                                "hidden": true
+                            }
+                        },
+                        "key-mgmt": {
+                            "type": "string",
+                            "enum": ["wpa-psk"],
+                            "options": {
+                                "hidden": true
+                            }
+                        },
+                        "psk": {
+                            "type": "string",
+                            "title": "Password",
+                            "minLength": 8,
+                            "maxLength": 63,
+                            "propertyOrder": 2
+                        }
+                    },
+                    "required": ["security", "key-mgmt", "psk"]
                 }
-            },
-            "required": ["security"],
+            ],
             "options": {
+                "keep_oneof_values": false,
                 "wb": {
                     "disable_title": true
                 }
@@ -975,7 +979,7 @@
                             "_format": "edWb"
                         }
                     },
-                    "required": ["type", "gsm_auto-config"]
+                    "required": ["type", "gsm_auto-config", "ipv4"]
                 },
                 {
                     "$ref": "#/definitions/nm_connection"
@@ -1013,7 +1017,7 @@
                     "default": ""
                 }
             },
-            "required": ["connection_id", "connection_uuid"]
+            "required": ["connection_autoconnect", "connection_id", "connection_uuid"]
         },
         "nm_ipv4_manual": {
             "type": "object",
@@ -1071,9 +1075,7 @@
                     "description": "Comma-separated list of IP addresses",
                     "propertyOrder": 16,
                     "options": {
-                        "wb": {
-                            "show_editor": true
-                        }
+                        "show_opt_in": true
                     }
                 },
                 "dns-search": {
@@ -1082,9 +1084,7 @@
                     "description": "Comma-separated list of domains",
                     "propertyOrder": 17,
                     "options": {
-                        "wb": {
-                            "show_editor": true
-                        }
+                        "show_opt_in": true
                     }
                 }
             },
@@ -1112,9 +1112,7 @@
                     "title": "Hostname to be requested",
                     "propertyOrder": 12,
                     "options": {
-                        "wb": {
-                            "show_editor": true
-                        }
+                        "show_opt_in": true
                     }
                 },
                 "dhcp-client-id": {
@@ -1122,9 +1120,7 @@
                     "title": "Client identifier",
                     "propertyOrder": 13,
                     "options": {
-                        "wb": {
-                            "show_editor": true
-                        }
+                        "show_opt_in": true
                     }
                 },
                 "route-metric": {
@@ -1144,9 +1140,7 @@
                     "description": "Comma-separated list of IP addresses",
                     "propertyOrder": 16,
                     "options": {
-                        "wb": {
-                            "show_editor": true
-                        }
+                        "show_opt_in": true
                     }
                 },
                 "dns-search": {
@@ -1155,9 +1149,7 @@
                     "description": "Comma-separated list of domains",
                     "propertyOrder": 17,
                     "options": {
-                        "wb": {
-                            "show_editor": true
-                        }
+                        "show_opt_in": true
                     }
                 }
             },

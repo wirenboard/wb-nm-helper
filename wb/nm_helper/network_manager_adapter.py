@@ -89,6 +89,10 @@ def not_empty_string(val):
     return None if val is None or len(val) == 0 else val
 
 
+def to_string_default_empty(val):
+    return "" if val is None else val
+
+
 def to_dbus_byte_array(val):
     return None if val is None else dbus.ByteArray(val.encode("utf-8"))
 
@@ -219,7 +223,7 @@ ipv4_params = [
 connection_params = [
     Param("connection.uuid", to_dbus=not_empty_string),
     Param("connection.id"),
-    Param("connection.interface-name", to_dbus=not_empty_string),
+    Param("connection.interface-name", to_dbus=not_empty_string, from_dbus=to_string_default_empty),
     Param("connection.autoconnect", from_dbus=to_bool_default_true),
 ]
 
