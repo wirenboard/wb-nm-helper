@@ -61,14 +61,19 @@ function updateIp(mqttConnectionDevice) {
 }
 
 function updateConnectivity(mqttConnectionDevice) {
-  var connectionDevice = mqttConnectionDevice.getControl('Device').getValue();
+  var uuid = mqttConnectionDevice.getControl('UUID').getValue();
 
-  runShellCommand('ping -q -W1 -c3 -I ' + connectionDevice + ' 1.1.1.1 2>/dev/null', {
-    captureOutput: false,
-    exitCallback: function (exitCode) {
-      mqttConnectionDevice.getControl('Connectivity').setValue(exitCode === 0);
-    },
-  });
+  runShellCommand(
+    'ping -q -W1 -c3 -I $(nmcli -g GENERAL.IP-IFACE  connection show ' +
+      uuid +
+      ') 1.1.1.1 2>/dev/null',
+    {
+      captureOutput: false,
+      exitCallback: function (exitCode) {
+        mqttConnectionDevice.getControl('Connectivity').setValue(exitCode === 0);
+      },
+    }
+  );
 }
 
 function updateNetworking(mqttConnectionDevice) {
