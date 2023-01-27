@@ -31,10 +31,17 @@ function defineNewDevice(connectionName, connectionUuid, connectionType) {
   });
 }
 
+function updateDeviceControl(mqttConnectionDevice, controlName, value) {
+  var oldValue = mqttConnectionDevice.getControl(controlName).getValue() || '';
+  if (oldValue != value) {
+    mqttConnectionDevice.getControl(controlName).setValue(value);
+  }
+}
+
 function updateDeviceData(mqttConnectionDevice, device, active, state) {
-  mqttConnectionDevice.getControl('Device').setValue(device);
-  mqttConnectionDevice.getControl('Active').setValue(active);
-  mqttConnectionDevice.getControl('State').setValue(state);
+  updateDeviceControl(mqttConnectionDevice, 'Device', device);
+  updateDeviceControl(mqttConnectionDevice, 'Active', active);
+  updateDeviceControl(mqttConnectionDevice, 'State', state);
 }
 
 function updateIp(mqttConnectionDevice) {
@@ -54,14 +61,19 @@ function updateIp(mqttConnectionDevice) {
 }
 
 function updateConnectivity(mqttConnectionDevice) {
-  var connectionDevice = mqttConnectionDevice.getControl('Device').getValue();
+  var uuid = mqttConnectionDevice.getControl('UUID').getValue();
 
-  runShellCommand('ping -q -W1 -c3 -I ' + connectionDevice + ' 1.1.1.1 2>/dev/null', {
-    captureOutput: false,
-    exitCallback: function (exitCode) {
-      mqttConnectionDevice.getControl('Connectivity').setValue(exitCode === 0);
-    },
-  });
+  runShellCommand(
+    'ping -q -W1 -c3 -I $(nmcli -g GENERAL.IP-IFACE  connection show ' +
+      uuid +
+      ') 1.1.1.1 2>/dev/null',
+    {
+      captureOutput: false,
+      exitCallback: function (exitCode) {
+        mqttConnectionDevice.getControl('Connectivity').setValue(exitCode === 0);
+      },
+    }
+  );
 }
 
 function updateNetworking(mqttConnectionDevice) {
@@ -95,9 +107,9 @@ function enableUpDownButton(mqttConnectionDevice) {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
       var dataList = capturedOutput.split(/ +/);
-      var device = dataList[1].replace('--', ' ');
+      var device = dataList[1].replace('--', '');
       var active = dataList[2] == 'yes' ? true : false;
-      var state = dataList[3].replace('--', ' ');
+      var state = dataList[3].replace('--', '');
 
       updateDeviceData(mqttConnectionDevice, device, active, state);
       mqttConnectionDevice.getControl('UpDown').setReadonly(false);
@@ -180,9 +192,9 @@ function updateDevices() {
         var name = dataList[0];
         var uuid = dataList[1];
         var type = dataList[2];
-        var device = dataList[3].replace('--', ' ');
+        var device = dataList[3].replace('--', '');
         var active = dataList[4] == 'yes' ? true : false;
-        var state = dataList[5].replace('--', ' ');
+        var state = dataList[5].replace('--', '');
 
         var mqttConnectionDevice = getDevice(getVirtualDeviceName(uuid));
         if (mqttConnectionDevice == undefined) {
