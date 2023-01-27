@@ -1,6 +1,6 @@
 import datetime
-import pytest
 
+import pytest
 
 from wb.nm_helper.connection_manager import (
     DEFAULT_CONNECTIVITY_CHECK_PAYLOAD,
