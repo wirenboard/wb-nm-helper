@@ -5,7 +5,7 @@ import signal
 import sys
 import time
 from io import BytesIO
-from typing import Dict, List, Optional, Iterator
+from typing import Dict, Iterator, List, Optional
 
 import dbus
 import pycurl
@@ -151,7 +151,9 @@ class TimeoutManager:
 
 
 class ConnectionManager:
-    def __init__(self, network_manager: NetworkManager, config: ConnectionManagerConfigFile, modem_manager=None) -> None:
+    def __init__(
+        self, network_manager: NetworkManager, config: ConnectionManagerConfigFile, modem_manager=None
+    ) -> None:
         self.network_manager: NetworkManager = network_manager
         self.config: ConnectionManagerConfigFile = config
         self.current_tier: Optional[ConnectionTier] = None
@@ -239,7 +241,9 @@ class ConnectionManager:
                 "rate_limit_tag": "ACT_FN_NOT_FOUND_" + cn_id,
                 "rate_limit_timeout": LOG_RATE_LIMIT_DEFAULT,
             }
-            logging.warning('Activation function for connection "%s" (%s) not found', cn_id, connection_type, extra=extra)
+            logging.warning(
+                'Activation function for connection "%s" (%s) not found', cn_id, connection_type, extra=extra
+            )
             return None
         con = activate_fn(dev, con)
         if con:
@@ -262,7 +266,9 @@ class ConnectionManager:
 
     def activate_generic_connection(self, dev: NMDevice, con: NMConnection) -> Optional[NMActiveConnection]:
         active_connection = self.network_manager.activate_connection(con, dev)
-        if self.wait_generic_connection_activation(active_connection, self.timeouts.connection_activation_timeout):
+        if self.wait_generic_connection_activation(
+            active_connection, self.timeouts.connection_activation_timeout
+        ):
             return active_connection
         return None
 
@@ -274,7 +280,7 @@ class ConnectionManager:
             current_state = con.get_property("State")
             if current_state == NM_ACTIVE_CONNECTION_STATE_ACTIVATED:
                 return True
-            logging.debug('state: {}'.format(current_state))
+            logging.debug("state: {}".format(current_state))
             time.sleep(1)
         return False
 
@@ -290,7 +296,7 @@ class ConnectionManager:
             logging.debug("No active gsm connection detected")
         sim_slot = self.get_sim_slot(con)
         current_sim_slot = self.modem_manager.get_primary_sim_slot(dev_path)
-        logging.debug('Current SIM slot: %s, new SIM slot: %s', str(current_sim_slot), str(sim_slot))
+        logging.debug("Current SIM slot: %s, new SIM slot: %s", str(current_sim_slot), str(sim_slot))
         if sim_slot not in (NM_SETTINGS_GSM_SIM_SLOT_DEFAULT, current_sim_slot):
             logging.debug("Will change SIM slot to %s", sim_slot)
             dev = self.change_modem_sim_slot(dev, con, sim_slot)

@@ -22,7 +22,6 @@ TEST_NOW = datetime.datetime(year=2000, month=1, day=1)
 
 
 class TimeoutManagerTests(unittest.TestCase):
-
     def setUp(self) -> None:
 
         config = ConnectionManagerConfigFile(normal_config)
@@ -54,9 +53,15 @@ class TimeoutManagerTests(unittest.TestCase):
         with patch.object(self.tm, "now") as now_mock:
             now_mock.return_value = TEST_NOW
 
-            self.nm.add_ethernet("wb-eth0", device_connected=True, connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED)
-            self.nm.add_gsm("wb-gsm-sim1", device_connected=True, connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED,
-                            sim_slot=1)
+            self.nm.add_ethernet(
+                "wb-eth0", device_connected=True, connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED
+            )
+            self.nm.add_gsm(
+                "wb-gsm-sim1",
+                device_connected=True,
+                connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED,
+                sim_slot=1,
+            )
 
             active_cn = self.nm.get_active_connections().get("wb-eth0")
             self.tm.touch_gsm_timeout(active_cn)
@@ -82,18 +87,14 @@ class TimeoutManagerTests(unittest.TestCase):
     def test_05_connection_retry_timeout_is_active__expired(self):
         with patch.object(self.tm, "now") as now_mock:
             now_mock.return_value = TEST_NOW
-            self.tm.connection_retry_timeouts = {
-                "wb-eth0": TEST_NOW - CONNECTION_ACTIVATION_RETRY_TIMEOUT
-            }
+            self.tm.connection_retry_timeouts = {"wb-eth0": TEST_NOW - CONNECTION_ACTIVATION_RETRY_TIMEOUT}
             assert self.tm.connection_retry_timeout_is_active("wb-eth0") is False
             assert self.tm.connection_retry_timeout_is_active("wb-gsm-sim1") is False
 
     def test_06_connection_retry_timeout_is_active__armed(self):
         with patch.object(self.tm, "now") as now_mock:
             now_mock.return_value = TEST_NOW
-            self.tm.connection_retry_timeouts = {
-                "wb-eth0": TEST_NOW + CONNECTION_ACTIVATION_RETRY_TIMEOUT
-            }
+            self.tm.connection_retry_timeouts = {"wb-eth0": TEST_NOW + CONNECTION_ACTIVATION_RETRY_TIMEOUT}
             assert self.tm.connection_retry_timeout_is_active("wb-eth0") is True
             assert self.tm.connection_retry_timeout_is_active("wb-gsm-sim1") is False
 
