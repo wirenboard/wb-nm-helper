@@ -1,4 +1,4 @@
-wb-nm-helper (1.18.2ubuntu1) stable; urgency=medium
+wb-nm-helper (1.18.3) stable; urgency=medium
 
   * Add C locale for nmcli calls 
 
