@@ -1291,6 +1291,7 @@
                         "tiers": {
                             "type": "object",
                             "title": "Connection Tiers",
+                            "propertyOrder": 1,
                             "options": {
                                 "wb": {
                                     "show_editor": true
@@ -1373,6 +1374,32 @@
                             "default": 900,
                             "minimum": 0,
                             "options": {
+                                "wb": {
+                                    "show_editor": true
+                                }
+                            }
+                        },
+                        "connectivity_check_url": {
+                            "title": "Connectivity Check URL",
+                            "description": "URL address used to check connection's network connectivity and absense of captive portals",
+                            "type": "string",
+                            "propertyOrder": 4,
+                            "minLength": 8,
+                            "options": {
+                                "show_opt_in": true,
+                                "wb": {
+                                    "show_editor": true
+                                }
+                            }
+                        },
+                        "connectivity_check_payload": {
+                            "title": "Connectivity Check Payload",
+                            "description": "Connectivity check response content should contain specified string",
+                            "type": "string",
+                            "propertyOrder": 5,
+                            "minLength": 1,
+                            "options": {
+                                "show_opt_in": true,
                                 "wb": {
                                     "show_editor": true
                                 }
