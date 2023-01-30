@@ -103,7 +103,7 @@ function getUpDownCommand(mqttConnectionDevice) {
 
 function enableUpDownButton(mqttConnectionDevice) {
   var uuid = mqttConnectionDevice.getControl('UUID').getValue();
-  runShellCommand('nmcli -f uuid,device,active,state c s | grep ' + uuid + ' ', {
+  runShellCommand('LC_ALL=C nmcli -f uuid,device,active,state c s | grep ' + uuid + ' ', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
       var dataList = capturedOutput.split(/ +/);
@@ -162,7 +162,7 @@ function defineNewRules(mqttConnectionDevice) {
 }
 
 function initializeDevices() {
-  runShellCommand('nmcli -f name,uuid,type,active  c s', {
+  runShellCommand('LC_ALL=C nmcli -f name,uuid,type,active  c s', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
       var connectionsList = capturedOutput.split(/\r?\n/);
@@ -182,7 +182,7 @@ function initializeDevices() {
 }
 
 function updateDevices() {
-  runShellCommand('nmcli -f name,uuid,type,device,active,state c s', {
+  runShellCommand('LC_ALL=C nmcli -f name,uuid,type,device,active,state c s', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
       var connectionsList = capturedOutput.split(/\r?\n/);
