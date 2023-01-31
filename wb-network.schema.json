@@ -908,24 +908,13 @@
                             },
                             "enum": ["02_nm_modem"]
                         },
-                        "gsm_auto-config": {
-                            "type": "boolean",
-                            "default": true,
-                            "title": "gsm_auto-config_title",
-                            "_format": "checkbox",
-                            "propertyOrder": 3
-                        },
                         "gsm_apn": {
                             "type": "string",
                             "title": "APN",
                             "propertyOrder": 4,
-                            "minLength": 1,
                             "options": {
-                                "dependencies": {
-                                    "gsm_auto-config": [false]
-                                },
-                                "wb": {
-                                    "show_editor": true
+                                "inputAttributes": {
+                                    "placeholder":  "gsm_auto-config_title"
                                 }
                             }
                         },
@@ -979,7 +968,7 @@
                             "_format": "edWb"
                         }
                     },
-                    "required": ["type", "gsm_auto-config", "ipv4"]
+                    "required": ["type", "gsm_apn", "ipv4"]
                 },
                 {
                     "$ref": "#/definitions/nm_connection"
@@ -1362,7 +1351,7 @@
     "translations": {
         "en": {
             "connection_title": "Connection",
-            "gsm_auto-config_title": "Define APN according to information from SIM-card",
+            "gsm_auto-config_title": "define APN according to information from SIM-card",
             "con_switch_desc": "The controller checks the connection with the Internet every 5 seconds, if there is no connection, the current connection will down and the next one in the list will be activated. Further, every 60 seconds the controller will try to up one of the connections with a higher priority and, if it succeeds, will switch to it.",
             "mac-pattern-message": "Must be six hexadecimal byte values divided by colon (example f2:c8:14:48:d3:97)",
             "interfaces_description": "Configured in /etc/network/interfaces",
@@ -1417,7 +1406,7 @@
             "Configured in NetworkManager": "Настроено в NetworkManager",
             "Interface": "Имя интерфейса",
             "connection_title": "Соединение",
-            "gsm_auto-config_title": "Определить APN автоматически на основании информации об операторе SIM-карты",
+            "gsm_auto-config_title": "определить APN автоматически на основании информации об операторе SIM-карты",
             "Connection name": "Название соединения",
             "Only for SIM slot": "Только для SIM-слота",
             "Only for device": "Только для устройства",

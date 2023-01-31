@@ -392,10 +392,16 @@ class ModemConnection(Connection):
     def __init__(self) -> None:
         params = [
             Param("gsm.sim-slot", from_dbus=minus_one_is_none),
-            Param("gsm.auto-config", from_dbus=to_bool_default_false),
-            Param("gsm.apn"),
+            Param("gsm.apn", to_dbus=not_empty_string, from_dbus=to_string_default_empty),
         ]
         Connection.__init__(self, "gsm", METHOD_MODEM, params)
+
+    def set_dbus_options(self, con: DBUSSettings, iface: JSONSettings):
+        super().set_dbus_options(con, iface)
+        if "apn" in con.params["gsm"]:
+            con.set_value("gsm.auto-config", False)
+        else:
+            con.set_value("gsm.auto-config", True)
 
 
 def apply(iface, c_handler, network_manager: NetworkManager, dry_run: bool) -> bool:

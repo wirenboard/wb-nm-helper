@@ -236,14 +236,14 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
         assert res["ui"]["connections"][3]["connection_autoconnect"] is False
         assert res["ui"]["connections"][3]["connection_id"] == "wb-gsm-sim1"
         assert res["ui"]["connections"][3]["connection_uuid"] == "5d4297ba-c319-4c05-a153-17cb42e6e196"
-        assert res["ui"]["connections"][3]["gsm_auto-config"] is True
+        assert res["ui"]["connections"][3]["gsm_apn"] == ""
         assert res["ui"]["connections"][3]["gsm_sim-slot"] == 1
         assert res["ui"]["connections"][3]["ipv4"]["method"] == "auto"
         assert res["ui"]["connections"][3]["type"] == "02_nm_modem"
         assert res["ui"]["connections"][4]["connection_autoconnect"] is False
         assert res["ui"]["connections"][4]["connection_id"] == "wb-gsm-sim2"
         assert res["ui"]["connections"][4]["connection_uuid"] == "8b9964d4-b8dd-34d3-a3ed-481840bcf8c9"
-        assert res["ui"]["connections"][4]["gsm_auto-config"] is True
+        assert res["ui"]["connections"][4]["gsm_apn"] == ""
         assert res["ui"]["connections"][4]["gsm_sim-slot"] == 2
         assert res["ui"]["connections"][4]["ipv4"]["method"] == "auto"
         assert res["ui"]["connections"][4]["type"] == "02_nm_modem"
