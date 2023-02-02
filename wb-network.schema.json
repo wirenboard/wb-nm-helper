@@ -638,7 +638,6 @@
         },
         "nm_ethernet": {
             "title": "Ethernet",
-            "description": "Configured in NetworkManager",
             "allOf": [
                 {
                     "type": "object",
@@ -712,7 +711,6 @@
         },
         "nm_wifi": {
             "title": "Wi-Fi",
-            "description": "Configured in NetworkManager",
             "allOf": [
                 {
                     "type": "object",
@@ -808,7 +806,6 @@
         },
         "nm_wifi_ap": {
             "title": "Wi-Fi access point",
-            "description": "Configured in NetworkManager",
             "allOf": [
                 {
                     "type": "object",
@@ -896,7 +893,6 @@
         },
         "nm_modem": {
             "title": "Modem",
-            "description": "Configured in NetworkManager",
             "allOf":[
                 {
                     "type": "object",
@@ -987,14 +983,16 @@
             "properties": {
                 "connection_id": {
                     "type": "string",
-                    "title": "Connection name",
                     "minLength": 1,
-                    "propertyOrder": 1
+                    "propertyOrder": 1,
+                    "options": {
+                        "hidden": true
+                    }
                 },
                 "connection_autoconnect": {
                     "type": "boolean",
                     "default": true,
-                    "title": "Auto",
+                    "title": "Autoconnect",
                     "_format": "checkbox",
                     "propertyOrder": 2
                 },
@@ -1360,6 +1358,7 @@
         },
         "ru": {
             "Network connections": "Сетевые соединения",
+            "Autoconnect": "Подключаться автоматически",
             "Auto": "Включать автоматически",
             "Name": "Имя интерфейса",
             "Allow hotplug": "Разрешить горячее подключение",
@@ -1403,7 +1402,6 @@
             "interfaces_description": "Настроено в /etc/network/interfaces",
             "old_interface_deprecated_description": "Доступно управление через NetworkManager - это современный сервис настройки, поддержка которого сейчас развивается в Wiren Board. Для перехода на NetworkManager <b>удалите это соединение</b> и используйте существующее из списка выше (или создайте новое, если нужно)",
             "loopback_deprecated_description": "Ручные определения loopback-интерфейсов <b>можно удалить</b>, systemd создаёт loopback автоматически",
-            "Configured in NetworkManager": "Настроено в NetworkManager",
             "Interface": "Имя интерфейса",
             "connection_title": "Соединение",
             "gsm_auto-config_title": "определить APN автоматически на основании информации об операторе SIM-карты",

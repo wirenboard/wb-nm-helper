@@ -398,7 +398,7 @@ class ModemConnection(Connection):
 
     def set_dbus_options(self, con: DBUSSettings, iface: JSONSettings):
         super().set_dbus_options(con, iface)
-        if "apn" in con.params["gsm"]:
+        if con.get_opt("gsm.apn"):
             con.set_value("gsm.auto-config", False)
         else:
             con.set_value("gsm.auto-config", True)
