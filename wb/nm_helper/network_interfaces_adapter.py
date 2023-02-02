@@ -71,7 +71,6 @@ def is_default_configured_loopback(iface):
 
 
 class NetworkInterfacesAdapter:
-
     interface = Word(alphanums + ":")
     key = Word(alphanums + "-_")
     space = White().suppress()

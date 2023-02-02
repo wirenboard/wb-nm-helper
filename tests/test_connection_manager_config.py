@@ -13,12 +13,21 @@ from wb.nm_helper.connection_manager import (
 
 
 def test_connection_tier():
-    t = ConnectionTier("high", 3, ["wb-eth0", "wb-eth1"])
-    assert t.name == "high"
-    assert t.priority == 3
-    assert len(t.connections) == 2
-    assert "wb-eth0" in t.connections
-    assert "wb-eth1" in t.connections
+    tier = ConnectionTier("high", 3, ["wb-eth0", "wb-eth1"])
+    assert tier.name == "high"
+    assert tier.priority == 3
+    assert len(tier.connections) == 2
+    assert "wb-eth0" in tier.connections
+    assert "wb-eth1" in tier.connections
+
+
+def test_connection_tier_route_metrics():
+    tier = ConnectionTier("high", 3, ["wb-eth0", "wb-eth1"])
+    assert tier.get_route_metric() == 105
+    tier = ConnectionTier("medium", 2, ["wb-eth0", "wb-eth1"])
+    assert tier.get_route_metric() == 205
+    tier = ConnectionTier("low", 1, ["wb-eth0", "wb-eth1"])
+    assert tier.get_route_metric() == 305
 
 
 def test_config_file_empty():

@@ -66,7 +66,7 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
             assert tier == self.config.tiers[0]
             assert con == "wb-eth0"
             assert changed is True
-            curl_get_mock.assert_has_calls([call("wb-eth0", self.con_man.config.connectivity_check_url)])
+            curl_get_mock.assert_has_calls([call("if_wb-eth0", self.con_man.config.connectivity_check_url)])
 
     def test_02_check_one_skip_disconnected(self):
         local_config = {
@@ -90,7 +90,7 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
             assert changed is True
             curl_get_mock.assert_has_calls(
                 [
-                    call("wb-eth1", self.con_man.config.connectivity_check_url),
+                    call("if_wb-eth1", self.con_man.config.connectivity_check_url),
                 ]
             )
 
@@ -116,8 +116,8 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
             assert changed is True
             curl_get_mock.assert_has_calls(
                 [
-                    call("wb-eth0", self.con_man.config.connectivity_check_url),
-                    call("wb-eth1", self.con_man.config.connectivity_check_url),
+                    call("if_wb-eth0", self.con_man.config.connectivity_check_url),
+                    call("if_wb-eth1", self.con_man.config.connectivity_check_url),
                 ]
             )
 
@@ -143,8 +143,8 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
             assert changed is True
             curl_get_mock.assert_has_calls(
                 [
-                    call("wb-eth0", self.con_man.config.connectivity_check_url),
-                    call("wb-wifi-client", self.con_man.config.connectivity_check_url),
+                    call("if_wb-eth0", self.con_man.config.connectivity_check_url),
+                    call("if_wb-wifi-client", self.con_man.config.connectivity_check_url),
                 ]
             )
 
@@ -171,8 +171,8 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
             assert changed is True
             curl_get_mock.assert_has_calls(
                 [
-                    call("wb-eth0", self.con_man.config.connectivity_check_url),
-                    call("wb-eth1", self.con_man.config.connectivity_check_url),
+                    call("if_wb-eth0", self.con_man.config.connectivity_check_url),
+                    call("if_wb-eth1", self.con_man.config.connectivity_check_url),
                 ]
             )
 
@@ -190,21 +190,28 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
         self.net_man.add_wifi_client("wb-wifi-client", device_connected=False)
         self.net_man.add_gsm("wb-gsm-sim1", device_connected=True, sim_slot=1)
         with patch.object(self.con_man, "curl_get") as curl_get_mock:
-            curl_get_mock.side_effect = ["", "", self.con_man.config.connectivity_check_payload]
-            assert self.con_man.current_connection is None
-            assert self.con_man.current_tier is None
-            assert len(self.con_man.network_manager.get_active_connections()) == 0
-            tier, con, changed = self.con_man.check()
-            assert tier == self.config.tiers[2]
-            assert con == "wb-gsm-sim1"
-            assert changed is True
-            curl_get_mock.assert_has_calls(
-                [
-                    call("wb-eth0", self.con_man.config.connectivity_check_url),
-                    call("wb-eth1", self.con_man.config.connectivity_check_url),
-                    call("wb-gsm-sim1", self.con_man.config.connectivity_check_url),
-                ]
-            )
+            with patch.object(self.con_man, "call_ifmetric") as call_ifmetric_mock:
+                curl_get_mock.side_effect = ["", "", self.con_man.config.connectivity_check_payload]
+                assert self.con_man.current_connection is None
+                assert self.con_man.current_tier is None
+                assert len(self.con_man.network_manager.get_active_connections()) == 0
+                tier, con, changed = self.con_man.check()
+                curl_get_mock.assert_has_calls(
+                    [
+                        call("if_wb-eth0", self.con_man.config.connectivity_check_url),
+                        call("if_wb-eth1", self.con_man.config.connectivity_check_url),
+                        call("ppp0", self.con_man.config.connectivity_check_url),
+                    ]
+                )
+                call_ifmetric_mock.assert_has_calls(
+                    [
+                        call("ppp0", 55),
+                    ]
+                )
+                assert tier == self.config.tiers[2]
+                assert con == "wb-gsm-sim1"
+                assert changed is True
+
 
     def test_07_check_gsm_change_slot_inactive(self):
         local_config = {
@@ -221,21 +228,28 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
         self.net_man.add_gsm("wb-gsm-sim1", device_connected=False, sim_slot=1)
         self.net_man.add_gsm("wb-gsm-sim2", device_connected=True, sim_slot=2)
         with patch.object(self.con_man, "curl_get") as curl_get_mock:
-            curl_get_mock.side_effect = ["", "", self.con_man.config.connectivity_check_payload]
-            assert self.con_man.current_connection is None
-            assert self.con_man.current_tier is None
-            assert len(self.con_man.network_manager.get_active_connections()) == 0
-            tier, con, changed = self.con_man.check()
-            assert tier == self.config.tiers[2]
-            assert con == "wb-gsm-sim2"
-            assert changed is True
-            curl_get_mock.assert_has_calls(
-                [
-                    call("wb-eth0", self.con_man.config.connectivity_check_url),
-                    call("wb-eth1", self.con_man.config.connectivity_check_url),
-                    call("wb-gsm-sim2", self.con_man.config.connectivity_check_url),
-                ]
-            )
+            with patch.object(self.con_man, "call_ifmetric") as call_ifmetric_mock:
+                curl_get_mock.side_effect = ["", "", self.con_man.config.connectivity_check_payload]
+                assert self.con_man.current_connection is None
+                assert self.con_man.current_tier is None
+                assert len(self.con_man.network_manager.get_active_connections()) == 0
+                tier, con, changed = self.con_man.check()
+                curl_get_mock.assert_has_calls(
+                    [
+                        call("if_wb-eth0", self.con_man.config.connectivity_check_url),
+                        call("if_wb-eth1", self.con_man.config.connectivity_check_url),
+                        call("ppp0", self.con_man.config.connectivity_check_url),
+                    ]
+                )
+                call_ifmetric_mock.assert_has_calls(
+                    [
+                        call("ppp0", 55),
+                    ]
+                )
+                assert changed is True
+                assert con == "wb-gsm-sim2"
+                assert tier == self.config.tiers[2]
+
 
     def test_08_check_gsm_change_slot_active(self):
         local_config = {
@@ -257,21 +271,27 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
         )
         self.net_man.add_gsm("wb-gsm-sim2", device_connected=True, sim_slot=2)
         with patch.object(self.con_man, "curl_get") as curl_get_mock:
-            curl_get_mock.side_effect = ["", "", self.con_man.config.connectivity_check_payload]
-            self.con_man.current_connection = "wb-gsm-sim1"
-            self.con_man.current_tier = self.config.tiers[2]
-            assert len(self.con_man.network_manager.get_active_connections()) == 1
-            tier, con, changed = self.con_man.check()
-            assert tier == self.config.tiers[0]
-            assert con == "wb-gsm-sim2"
-            assert changed is True
-            curl_get_mock.assert_has_calls(
-                [
-                    call("wb-eth0", self.con_man.config.connectivity_check_url),
-                    call("wb-eth1", self.con_man.config.connectivity_check_url),
-                    call("wb-gsm-sim2", self.con_man.config.connectivity_check_url),
-                ]
-            )
+            with patch.object(self.con_man, "call_ifmetric") as call_ifmetric_mock:
+                curl_get_mock.side_effect = ["", "", self.con_man.config.connectivity_check_payload]
+                self.con_man.current_connection = "wb-gsm-sim1"
+                self.con_man.current_tier = self.config.tiers[2]
+                assert len(self.con_man.network_manager.get_active_connections()) == 1
+                tier, con, changed = self.con_man.check()
+                assert changed is True
+                assert con == "wb-gsm-sim2"
+                assert tier == self.config.tiers[0]
+                curl_get_mock.assert_has_calls(
+                    [
+                        call("if_wb-eth0", self.con_man.config.connectivity_check_url),
+                        call("if_wb-eth1", self.con_man.config.connectivity_check_url),
+                        call("ppp0", self.con_man.config.connectivity_check_url),
+                    ]
+                )
+                call_ifmetric_mock.assert_has_calls(
+                    [
+                        call("ppp0", 55),
+                    ]
+                )
 
 
 class ConnectionManagerTests(AbsConManCheckTests):
@@ -498,59 +518,66 @@ class ConnectionManagerTests(AbsConManCheckTests):
         )
 
         with patch.object(self.con_man.timeouts, "now") as now_mock:
-            now_mock.return_value = TEST_NOW
+            with patch.object(self.con_man, "call_ifmetric") as call_ifmetric_mock:
+                now_mock.return_value = TEST_NOW
 
-            self.con_man.current_tier = self.config.tiers[0]
-            self.con_man.current_connection = "wb-eth1"
+                self.con_man.current_tier = self.config.tiers[0]
+                self.con_man.current_connection = "wb-eth1"
 
-            active_cn = self.con_man.network_manager.get_active_connections().get("wb-eth0")
-            new_tier, new_cn_id, changed = self.con_man.set_current_connection(
-                active_cn, "wb-eth0", self.config.tiers[0]
-            )
-            assert new_tier == self.config.tiers[0]
-            assert new_cn_id == "wb-eth0"
-            assert changed is True
-            assert self.con_man.timeouts.deny_sim_switch_until is None
+                active_cn = self.con_man.network_manager.get_active_connections().get("wb-eth0")
+                new_tier, new_cn_id, changed = self.con_man.set_current_connection(
+                    active_cn, "wb-eth0", self.config.tiers[0]
+                )
+                assert new_tier == self.config.tiers[0]
+                assert new_cn_id == "wb-eth0"
+                assert changed is True
+                assert self.con_man.timeouts.deny_sim_switch_until is None
 
-            active_cn = self.con_man.network_manager.get_active_connections().get("wb-eth0")
-            new_tier, new_cn_id, changed = self.con_man.set_current_connection(
-                active_cn, "wb-eth0", self.config.tiers[0]
-            )
-            assert new_tier == self.config.tiers[0]
-            assert new_cn_id == "wb-eth0"
-            assert changed is False
-            assert self.con_man.timeouts.deny_sim_switch_until is None
+                active_cn = self.con_man.network_manager.get_active_connections().get("wb-eth0")
+                new_tier, new_cn_id, changed = self.con_man.set_current_connection(
+                    active_cn, "wb-eth0", self.config.tiers[0]
+                )
+                assert new_tier == self.config.tiers[0]
+                assert new_cn_id == "wb-eth0"
+                assert changed is False
+                assert self.con_man.timeouts.deny_sim_switch_until is None
 
-            active_cn = self.con_man.network_manager.get_active_connections().get("wb-gsm-sim1")
-            new_tier, new_cn_id, changed = self.con_man.set_current_connection(
-                active_cn, "wb-gsm-sim1", self.config.tiers[2]
-            )
-            assert new_tier == self.config.tiers[2]
-            assert new_cn_id == "wb-gsm-sim1"
-            assert changed is True
-            assert isinstance(self.con_man.timeouts.deny_sim_switch_until, datetime.datetime)
-            delta = self.con_man.timeouts.deny_sim_switch_until - TEST_NOW
-            assert delta.total_seconds() == self.config.sticky_sim_period.total_seconds()
+                active_cn = self.con_man.network_manager.get_active_connections().get("wb-gsm-sim1")
+                new_tier, new_cn_id, changed = self.con_man.set_current_connection(
+                    active_cn, "wb-gsm-sim1", self.config.tiers[2]
+                )
+                assert new_tier == self.config.tiers[2]
+                assert new_cn_id == "wb-gsm-sim1"
+                assert changed is True
+                assert isinstance(self.con_man.timeouts.deny_sim_switch_until, datetime.datetime)
+                delta = self.con_man.timeouts.deny_sim_switch_until - TEST_NOW
+                assert delta.total_seconds() == self.config.sticky_sim_period.total_seconds()
 
-            active_cn = self.con_man.network_manager.get_active_connections().get("wb-gsm-sim1")
-            new_tier, new_cn_id, changed = self.con_man.set_current_connection(
-                active_cn, "wb-gsm-sim1", self.config.tiers[2]
-            )
-            assert new_tier == self.config.tiers[2]
-            assert new_cn_id == "wb-gsm-sim1"
-            assert changed is False
-            assert isinstance(self.con_man.timeouts.deny_sim_switch_until, datetime.datetime)
-            delta = self.con_man.timeouts.deny_sim_switch_until - TEST_NOW
-            assert delta.total_seconds() == self.config.sticky_sim_period.total_seconds()
+                active_cn = self.con_man.network_manager.get_active_connections().get("wb-gsm-sim1")
+                new_tier, new_cn_id, changed = self.con_man.set_current_connection(
+                    active_cn, "wb-gsm-sim1", self.config.tiers[2]
+                )
+                assert new_tier == self.config.tiers[2]
+                assert new_cn_id == "wb-gsm-sim1"
+                assert changed is False
+                assert isinstance(self.con_man.timeouts.deny_sim_switch_until, datetime.datetime)
+                delta = self.con_man.timeouts.deny_sim_switch_until - TEST_NOW
+                assert delta.total_seconds() == self.config.sticky_sim_period.total_seconds()
 
-            active_cn = self.con_man.network_manager.get_active_connections().get("wb-eth0")
-            new_tier, new_cn_id, changed = self.con_man.set_current_connection(
-                active_cn, "wb-eth0", self.config.tiers[0]
-            )
-            assert new_tier == self.config.tiers[0]
-            assert new_cn_id == "wb-eth0"
-            assert changed is True
-            assert self.con_man.timeouts.deny_sim_switch_until is None
+                active_cn = self.con_man.network_manager.get_active_connections().get("wb-eth0")
+                new_tier, new_cn_id, changed = self.con_man.set_current_connection(
+                    active_cn, "wb-eth0", self.config.tiers[0]
+                )
+                assert new_tier == self.config.tiers[0]
+                assert new_cn_id == "wb-eth0"
+                assert changed is True
+                assert self.con_man.timeouts.deny_sim_switch_until is None
+
+                call_ifmetric_mock.assert_has_calls(
+                    [
+                        call('ppp0', 305), call('ppp0', 55), call('ppp0', 305)
+                    ]
+                )
 
     def test_14_find_lesser_gsm_connections(self):
         config_data = {

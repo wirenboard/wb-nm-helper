@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 
 import dbus
 
+
 # NMActiveConnectionState
 NM_ACTIVE_CONNECTION_STATE_UNKNOWN = 0
 NM_ACTIVE_CONNECTION_STATE_ACTIVATING = 1
@@ -159,6 +160,11 @@ class NMDevice(NMObject):
     def __init__(self, path: str, bus: dbus.SystemBus):
         NMObject.__init__(self, path, bus, "org.freedesktop.NetworkManager.Device")
 
+    def set_metric(self, metric:int):
+        props = self.get_iface().GetAppliedConnection(0)
+        props[0]["ipv4"]["route-metric"] = dbus.Int64(metric, variant_level=1)
+        self.get_iface().Reapply(props[0], 0, 0)
+
     def get_active_connection(self) -> Optional[NMActiveConnection]:
         cn_path = self.get_property("ActiveConnection")
         if cn_path == "/":
@@ -170,10 +176,29 @@ class NMActiveConnection(NMObject):
     def __init__(self, path: str, bus: dbus.SystemBus):
         NMObject.__init__(self, path, bus, "org.freedesktop.NetworkManager.Connection.Active")
 
-    def get_ifaces(self) -> List[str]:
+    def set_metric(self, metric: int) -> bool:
+        logging.debug("Set device metric for connection %s (%s)", active_cn.get_connection_id(), str(metric))
+        devices = active_cn.get_devices()
+        if len(devices) < 1:
+            logging.debug("No devices found for connection %s", active_cn.get_connection_id())
+            return
+        device = devices[0]
+        if active_cn.get_connection_type() == "gsm":
+            iface = device.get_property("IpInterface")
+            subprocess.run(["/usr/sbin/ifmetric", iface, str(metric)], shell=False)
+        else:
+            self.set_device_metric_via_nm(device, metric)
+
+    def get_devices(self) -> List[NMDevice]:
         res = []
         for dev_path in self.get_property("Devices"):
             dev = NMDevice(dev_path, self.bus)
+            res.append(dev)
+        return res
+
+    def get_ifaces(self) -> List[str]:
+        res = []
+        for dev in self.get_devices():
             res.append(dev.get_property("IpInterface"))
         return res
 
