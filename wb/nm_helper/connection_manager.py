@@ -2,6 +2,7 @@ import datetime
 import json
 import logging
 import signal
+import subprocess
 import sys
 import time
 from io import BytesIO
@@ -51,6 +52,9 @@ class ConnectionTier:
         self.connections = []
         for item in connections:
             self.connections.append(item)
+
+    def get_route_metric(self):
+        return (100 * (4 - self.priority)) + 5
 
 
 class ConnectionManagerConfigFile:
@@ -398,9 +402,9 @@ class ConnectionManager:
         con = self.network_manager.find_connection(cn_id)
         if con:
             value = con.get_settings().get("connection").get("type") == "gsm"
-            # TODO: log
+            logging.debug("Connection %s is gsm: %s", cn_id, value)
             return value
-        # TODO: log
+        logging.debug("Connection %s not found", cn_id)
         return False
 
     def set_current_connection(self, active_cn: NMActiveConnection, cn_id: str, tier: ConnectionTier):
@@ -408,9 +412,10 @@ class ConnectionManager:
             self.timeouts.touch_gsm_timeout(active_cn)
             self.current_connection = cn_id
             self.current_tier = tier
-            # TODO: log
+            self.apply_metrics()
+            logging.info("Current connection changed to %s", cn_id)
             return tier, cn_id, True
-        # TODO: log
+        logging.debug("Current connection is the same (%s), not changing", cn_id)
         return tier, cn_id, False
 
     def deactivate_lesser_gsm_connections(self, cn_id: str, tier: ConnectionTier) -> None:
@@ -447,7 +452,6 @@ class ConnectionManager:
     # https://wirenboard.bitrix24.ru/workgroups/group/218/tasks/task/view/53068/
     # Use NM's implementation after fixing the bug
     def check_connectivity(self, active_cn: NMActiveConnection) -> bool:
-
         ifaces = active_cn.get_ifaces()
         logging.debug("interfaces for %s: %s", active_cn.get_connection_id(), ifaces)
         if ifaces and ifaces[0]:
@@ -462,6 +466,35 @@ class ConnectionManager:
         else:
             logging.debug("Connection %s seems to have no interfaces", active_cn.get_connection_id())
         return False
+
+    def apply_metrics(self):
+        active_connections = self.network_manager.get_active_connections()
+        for tier in self.config.tiers:
+            for cn_id in tier.connections:
+                active_cn = active_connections.get(cn_id)
+                if not active_cn:
+                    continue
+                if self.current_connection == cn_id:
+                    metric = 55
+                else:
+                    metric = tier.get_route_metric()
+                self.set_device_metric_for_connection(active_cn, metric)
+
+    def set_device_metric_for_connection(self, active_cn: NMActiveConnection, metric: int) -> None:
+        logging.debug("Set device metric for connection %s (%s)", active_cn.get_connection_id(), str(metric))
+        devices = active_cn.get_devices()
+        if len(devices) < 1:
+            logging.debug("No devices found for connection %s", active_cn.get_connection_id())
+            return
+        device = devices[0]
+        if active_cn.get_connection_type() == "gsm":
+            iface = device.get_property("IpInterface")
+            self.call_ifmetric(iface, metric)
+        else:
+            device.set_metric(metric)
+
+    def call_ifmetric(self, iface, metric):
+        subprocess.run(["/usr/sbin/ifmetric", iface, str(metric)], shell=False)
 
 
 def main():
