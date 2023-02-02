@@ -44,7 +44,9 @@ class FakeNMActiveConnection(AbsFakeNMConnection):
     def get_ifaces(self):
         res = []
         for device in self.get_devices():
+            logging.warning("get ifaces: device is %s", device.name)
             res.append(self.net_man.get_iface_for_device(device))
+        logging.warning("get ifaces: ifaces are %s", res)
         return res
 
 
@@ -98,6 +100,9 @@ class FakeNetworkManager:
         self.gsm_sim_slot = 1
         self.modem_device = None
 
+    def get_device_metric(self, device_name):
+        return self.devices.get(device_name).get("metric")
+
     def add_connection(
         self,
         name,
@@ -124,15 +129,9 @@ class FakeNetworkManager:
             self.set_connection_param(name, kwarg, value)
 
         if device_name not in self.devices:
-            self.devices[device_name] = {
-                "index": 1,
-                "sim_slot": 1,
-                "metric": -1
-            }
+            self.devices[device_name] = {"index": 1, "sim_slot": 1, "metric": -1}
         if iface_name not in self.ifaces:
-            self.ifaces[iface_name] = {
-                "metric": -1
-            }
+            self.ifaces[iface_name] = {"metric": -1}
 
     def set_connection_param(self, name, param, value):
         self.connections[name][param] = value
@@ -165,6 +164,8 @@ class FakeNetworkManager:
         device_connected=False,
         connection_state=NM_ACTIVE_CONNECTION_STATE_UNKNOWN,
         sim_slot=1,
+        device_name="ttyUSB1",
+        iface_name="ppp0",
         **kwargs
     ):
         self.add_connection(
@@ -173,8 +174,8 @@ class FakeNetworkManager:
             device_connected=device_connected,
             connection_state=connection_state,
             sim_slot=sim_slot,
-            device_name="ttyUSB1",
-            iface_name="ppp0",
+            device_name=device_name,
+            iface_name=iface_name,
             **kwargs,
         )
 
@@ -198,12 +199,14 @@ class FakeNetworkManager:
     def find_connection(self, cn_id):
         if cn_id in self.connections:
             return FakeNMConnection(cn_id, self)
+        return None
 
     @staticmethod
     def find_device_for_connection(con):
         if con.data().get("device_connected"):
             dev = FakeNMDevice(con.data().get("device_name"), con.net_man)
             return dev
+        return None
 
     def activate_connection(self, con, dev):
         logging.warning("activate connection %s (%s)", con.name, dev.name)
@@ -211,10 +214,9 @@ class FakeNetworkManager:
             raise Exception("No connection found: {}".format(con.name))
         if not self.connections.get(con.name).get("device_connected"):
             self.connections[con.name]["connection_state"] = NM_ACTIVE_CONNECTION_STATE_DEACTIVATED
-        if (
-            self.connections.get(con.name).get("device_type") == "gsm"
-            and self.connections.get(con.name).get("sim_slot") != dev.data().get('sim_slot')
-        ):
+        if self.connections.get(con.name).get("device_type") == "gsm" and self.connections.get(con.name).get(
+            "sim_slot"
+        ) != dev.data().get("sim_slot"):
             self.connections[con.name]["connection_state"] = NM_ACTIVE_CONNECTION_STATE_UNKNOWN
         elif self.connections.get(con.name).get("should_stuck_activating"):
             self.connections[con.name]["connection_state"] = NM_ACTIVE_CONNECTION_STATE_ACTIVATING
@@ -227,11 +229,13 @@ class FakeNetworkManager:
         for cn_id, data in self.connections.items():
             if data.get("device_name") == device.name:
                 return FakeNMActiveConnection(cn_id, self)
+        return None
 
     def get_iface_for_device(self, device):
-        for cn_id, data in self.connections.items():
+        for data in self.connections.values():
             if data.get("device_name") == device.name:
                 return data.get("iface_name")
+        return None
 
     def get_device_for_connection(self, connection):
         return FakeNMDevice(self.connections.get(connection.name).get("device_name"), self)
@@ -248,9 +252,13 @@ class FakeModemManager:
     def set_primary_sim_slot(self, dev_path, sim_slot):
         dev_name = dev_path.split("/")[3]
         device = FakeNMDevice(dev_name, self.net_man)
-        for cn_id, data in self.net_man.connections.items():
-            if data.get("device_type") == "gsm" and data.get("device_connected") and data.get('sim_slot') == sim_slot:
-                logging.warning('set primary sim slot %s, %s', dev_path, sim_slot)
+        for data in self.net_man.connections.values():
+            if (
+                data.get("device_type") == "gsm"
+                and data.get("device_connected")
+                and data.get("sim_slot") == sim_slot
+            ):
+                logging.warning("set primary sim slot %s, %s", dev_path, sim_slot)
                 logging.warning("Set SIM slot %s", str(sim_slot))
                 device.increase_index()
                 device.data()["sim_slot"] = sim_slot

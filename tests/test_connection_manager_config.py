@@ -32,21 +32,21 @@ def test_connection_tier_route_metrics():
 
 def test_config_file_empty():
     cfg = {}
-    cf = ConnectionManagerConfigFile(cfg)
-    assert cf.debug is False
-    assert cf.connectivity_check_url == DEFAULT_CONNECTIVITY_CHECK_URL
-    assert cf.connectivity_check_payload == DEFAULT_CONNECTIVITY_CHECK_PAYLOAD
-    assert cf.sticky_sim_period == DEFAULT_STICKY_SIM_PERIOD
-    assert len(cf.tiers) == 3
-    assert cf.tiers[0].name == "high"
-    assert cf.tiers[0].priority == 3
-    assert cf.tiers[0].connections == []
-    assert cf.tiers[1].name == "medium"
-    assert cf.tiers[1].priority == 2
-    assert cf.tiers[1].connections == []
-    assert cf.tiers[2].name == "low"
-    assert cf.tiers[2].priority == 1
-    assert cf.tiers[2].connections == []
+    conffile = ConnectionManagerConfigFile(cfg)
+    assert conffile.debug is False
+    assert conffile.connectivity_check_url == DEFAULT_CONNECTIVITY_CHECK_URL
+    assert conffile.connectivity_check_payload == DEFAULT_CONNECTIVITY_CHECK_PAYLOAD
+    assert conffile.sticky_sim_period == DEFAULT_STICKY_SIM_PERIOD
+    assert len(conffile.tiers) == 3
+    assert conffile.tiers[0].name == "high"
+    assert conffile.tiers[0].priority == 3
+    assert conffile.tiers[0].connections == []
+    assert conffile.tiers[1].name == "medium"
+    assert conffile.tiers[1].priority == 2
+    assert conffile.tiers[1].connections == []
+    assert conffile.tiers[2].name == "low"
+    assert conffile.tiers[2].priority == 1
+    assert conffile.tiers[2].connections == []
 
 
 def test_config_file_normal():
@@ -61,21 +61,21 @@ def test_config_file_normal():
             "low": ["wb-gsm-sim1", "wb-gsm-sim2"],
         },
     }
-    cf = ConnectionManagerConfigFile(cfg)
-    assert cf.debug is True
-    assert cf.connectivity_check_url == "http://test-server/test-url"
-    assert cf.connectivity_check_payload == "Dummy CC Payload"
-    assert cf.sticky_sim_period == datetime.timedelta(seconds=451)
-    assert len(cf.tiers) == 3
-    assert cf.tiers[0].name == "high"
-    assert cf.tiers[0].priority == 3
-    assert cf.tiers[0].connections == ["wb-eth0", "wb-eth1"]
-    assert cf.tiers[1].name == "medium"
-    assert cf.tiers[1].priority == 2
-    assert cf.tiers[1].connections == ["wb-wifi-client"]
-    assert cf.tiers[2].name == "low"
-    assert cf.tiers[2].priority == 1
-    assert cf.tiers[2].connections == ["wb-gsm-sim1", "wb-gsm-sim2"]
+    conffile = ConnectionManagerConfigFile(cfg)
+    assert conffile.debug is True
+    assert conffile.connectivity_check_url == "http://test-server/test-url"
+    assert conffile.connectivity_check_payload == "Dummy CC Payload"
+    assert conffile.sticky_sim_period == datetime.timedelta(seconds=451)
+    assert len(conffile.tiers) == 3
+    assert conffile.tiers[0].name == "high"
+    assert conffile.tiers[0].priority == 3
+    assert conffile.tiers[0].connections == ["wb-eth0", "wb-eth1"]
+    assert conffile.tiers[1].name == "medium"
+    assert conffile.tiers[1].priority == 2
+    assert conffile.tiers[1].connections == ["wb-wifi-client"]
+    assert conffile.tiers[2].name == "low"
+    assert conffile.tiers[2].priority == 1
+    assert conffile.tiers[2].connections == ["wb-gsm-sim1", "wb-gsm-sim2"]
 
 
 def test_config_file_bad_cc_url():

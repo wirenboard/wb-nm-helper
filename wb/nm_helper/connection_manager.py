@@ -77,7 +77,7 @@ class ConnectionManagerConfigFile:
             try:
                 value = datetime.timedelta(seconds=int(seconds))
             except Exception as e:
-                raise ImproperlyConfigured("Incorrect sticky_sim_period_s ({}): {}".format(seconds, e))
+                raise ImproperlyConfigured("Incorrect sticky_sim_period_s ({}): {}".format(seconds, e)) from e
         else:
             value = DEFAULT_STICKY_SIM_PERIOD
         logging.debug("Initialized sticky_sim_period as %s seconds", value)
@@ -142,14 +142,14 @@ class TimeoutManager:
             cn_id not in self.connection_retry_timeouts
             or self.connection_retry_timeouts.get(cn_id) < self.now()
         ):
-            # TODO: log
+            logging.debug("Connection retry timeout is not active for connection %s", cn_id)
             return False
-        # TODO: log
+        logging.debug("Connection retry timeout is active for connection %s", cn_id)
         return True
 
     def gsm_sticky_timeout_is_active(self) -> bool:
         if self.deny_sim_switch_until and self.deny_sim_switch_until > self.now():
-            # TODO: log
+            logging.debug("Sticky GSM SIM slot timeout is active")
             return True
         return False
 
@@ -183,6 +183,13 @@ class ConnectionManager:
                     self.log_connection_check_error(self.current_connection, ex)
             # second, iterate all connections in tier
             for cn_id in tier.connections:
+                if (
+                    self.current_tier
+                    and tier.priority == self.current_tier.priority
+                    and cn_id == self.current_connection
+                ):
+                    # current connection was already checked above
+                    continue
                 try:
                     active_cn = self.get_active_connection(cn_id, require_activated=True)
                     if not active_cn and self.ok_to_activate_connection(cn_id):
@@ -284,7 +291,7 @@ class ConnectionManager:
             current_state = con.get_property("State")
             if current_state == NM_ACTIVE_CONNECTION_STATE_ACTIVATED:
                 return True
-            logging.debug("state: {}".format(current_state))
+            logging.debug("state: %s", current_state)
             time.sleep(1)
         return False
 
@@ -493,8 +500,9 @@ class ConnectionManager:
         else:
             device.set_metric(metric)
 
-    def call_ifmetric(self, iface, metric):
-        subprocess.run(["/usr/sbin/ifmetric", iface, str(metric)], shell=False)
+    @staticmethod
+    def call_ifmetric(iface, metric):
+        subprocess.run(["/usr/sbin/ifmetric", iface, str(metric)], shell=False, check=False)
 
 
 def main():

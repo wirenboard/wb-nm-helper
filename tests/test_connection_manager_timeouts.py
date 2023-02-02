@@ -33,8 +33,7 @@ class TimeoutManagerTests(unittest.TestCase):
             self.timeout_manager.touch_connection_retry_timeout("wb-eth0")
             timeout = CONNECTION_ACTIVATION_RETRY_TIMEOUT.total_seconds()
             assert isinstance(
-                self.timeout_manager.connection_retry_timeouts.get("wb-eth0"),
-                datetime.datetime
+                self.timeout_manager.connection_retry_timeouts.get("wb-eth0"), datetime.datetime
             )
             delta = self.timeout_manager.connection_retry_timeouts.get("wb-eth0") - TEST_NOW
             assert delta.total_seconds() == timeout
@@ -45,8 +44,7 @@ class TimeoutManagerTests(unittest.TestCase):
             self.timeout_manager.touch_connection_retry_timeout("wb-eth0")
             self.timeout_manager.reset_connection_retry_timeout("wb-eth0")
             assert isinstance(
-                self.timeout_manager.connection_retry_timeouts.get("wb-eth0"),
-                datetime.datetime
+                self.timeout_manager.connection_retry_timeouts.get("wb-eth0"), datetime.datetime
             )
             delta = self.timeout_manager.connection_retry_timeouts.get("wb-eth0") - TEST_NOW
             assert delta.total_seconds() == 0
@@ -113,13 +111,15 @@ class TimeoutManagerTests(unittest.TestCase):
     def test_08_gsm_sticky_timeout_is_active__expired(self):
         with patch.object(self.timeout_manager, "now") as now_mock:
             now_mock.return_value = TEST_NOW
-            self.timeout_manager.deny_sim_switch_until = \
+            self.timeout_manager.deny_sim_switch_until = (
                 TEST_NOW - self.timeout_manager.config.sticky_sim_period
+            )
             assert self.timeout_manager.gsm_sticky_timeout_is_active() is False
 
     def test_09_gsm_sticky_timeout_is_active__active(self):
         with patch.object(self.timeout_manager, "now") as now_mock:
             now_mock.return_value = TEST_NOW
-            self.timeout_manager.deny_sim_switch_until = \
+            self.timeout_manager.deny_sim_switch_until = (
                 TEST_NOW + self.timeout_manager.config.sticky_sim_period
+            )
             assert self.timeout_manager.gsm_sticky_timeout_is_active() is True
