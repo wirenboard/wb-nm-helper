@@ -103,15 +103,18 @@ function getUpDownCommand(mqttConnectionDevice) {
 
 function enableUpDownButton(mqttConnectionDevice) {
   var uuid = mqttConnectionDevice.getControl('UUID').getValue();
-  runShellCommand('LC_ALL=C nmcli -f uuid,device,active,state c s | grep ' + uuid + ' ', {
+  runShellCommand('LC_ALL=C nmcli -g uuid,device,active,state c s | grep ' + uuid + ' ', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
-      var dataList = capturedOutput.split(/ +/);
+      var dataList = capturedOutput.split(':');
       var device = dataList[1].replace('--', '');
       var active = dataList[2] == 'yes' ? true : false;
       var state = dataList[3].replace('--', '');
 
-      updateDeviceData(mqttConnectionDevice, device, active, state);
+      // we should publicate this at the end of up/down process in any case
+      mqttConnectionDevice.getControl('Device').setValue(device);
+      mqttConnectionDevice.getControl('Active').setValue(active);
+      mqttConnectionDevice.getControl('State').setValue(state);
       mqttConnectionDevice.getControl('UpDown').setReadonly(false);
     },
   });
@@ -162,12 +165,12 @@ function defineNewRules(mqttConnectionDevice) {
 }
 
 function initializeDevices() {
-  runShellCommand('LC_ALL=C nmcli -f name,uuid,type,active  c s', {
+  runShellCommand('LC_ALL=C nmcli -g name,uuid,type,active  c s', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
       var connectionsList = capturedOutput.split(/\r?\n/);
-      for (var i = 1; i < connectionsList.length - 1; i++) {
-        var dataList = connectionsList[i].split(/ +/);
+      for (var i = 0; i < connectionsList.length - 1; i++) {
+        var dataList = connectionsList[i].split(':');
         var name = dataList[0];
         var uuid = dataList[1];
         var type = dataList[2];
@@ -182,13 +185,13 @@ function initializeDevices() {
 }
 
 function updateDevices() {
-  runShellCommand('LC_ALL=C nmcli -f name,uuid,type,device,active,state c s', {
+  runShellCommand('LC_ALL=C nmcli -g name,uuid,type,device,active,state c s', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
       var connectionsList = capturedOutput.split(/\r?\n/);
 
-      for (var i = 1; i < connectionsList.length - 1; i++) {
-        var dataList = connectionsList[i].split(/ +/);
+      for (var i = 0; i < connectionsList.length - 1; i++) {
+        var dataList = connectionsList[i].split(':');
         var name = dataList[0];
         var uuid = dataList[1];
         var type = dataList[2];
