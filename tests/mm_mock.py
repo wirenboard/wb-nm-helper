@@ -166,20 +166,16 @@ class FakeNetworkManager:
         sim_slot=1,
         **kwargs
     ):
-        device_name = kwargs.get("device_name")
-        if not device_name:
-            device_name = "ttyUSB1"
-        iface_name = kwargs.get("iface_name")
-        if not iface_name:
-            iface_name = "ppp0"
+        if not kwargs.get("device_name"):
+            kwargs["device_name"] = "ttyUSB1"
+        if not kwargs.get("iface_name"):
+            kwargs["iface_name"] = "ppp0"
         self.add_connection(
             name,
             device_type="gsm",
             device_connected=device_connected,
             connection_state=connection_state,
             sim_slot=sim_slot,
-            device_name=device_name,
-            iface_name=iface_name,
             **kwargs,
         )
 
