@@ -154,6 +154,7 @@ class TimeoutManager:
         return False
 
 
+# pylint: disable=too-many-instance-attributes
 class ConnectionManager:
     def __init__(
         self, network_manager: NetworkManager, config: ConnectionManagerConfigFile, modem_manager=None
