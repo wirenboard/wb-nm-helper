@@ -180,7 +180,7 @@ class ConnectionManager:
                         )
                         return self.current_tier, self.current_connection, False
                 except dbus.exceptions.DBusException as ex:
-                    self.log_connection_check_error(self.current_connection, ex)
+                    self._log_connection_check_error(self.current_connection, ex)
             # second, iterate all connections in tier
             for cn_id in tier.connections:
                 if (
@@ -199,7 +199,7 @@ class ConnectionManager:
                         self.deactivate_lesser_gsm_connections(cn_id, tier)
                         return self.set_current_connection(active_cn, cn_id, tier)
                 except dbus.exceptions.DBusException as ex:
-                    self.log_connection_check_error(cn_id, ex)
+                    self._log_connection_check_error(cn_id, ex)
                     self.timeouts.touch_connection_retry_timeout(cn_id)
 
         return self.current_tier, self.current_connection, False
@@ -218,7 +218,7 @@ class ConnectionManager:
         return True
 
     @staticmethod
-    def log_connection_check_error(cn_id: str, e: Exception) -> None:
+    def _log_connection_check_error(cn_id: str, e: Exception) -> None:
         data = {"cn_id": cn_id}
         logging.warning('Error during connection "%s" checking: %s', cn_id, e, extra=data)
 
@@ -235,9 +235,9 @@ class ConnectionManager:
     def activate_connection(self, cn_id: str) -> Optional[NMActiveConnection]:
         logging.debug("Trying to activate connection %s", cn_id)
         activation_fns = {
-            "gsm": self.activate_gsm_connection,
-            "802-3-ethernet": self.activate_generic_connection,
-            "802-11-wireless": self.activate_generic_connection,
+            "gsm": self._activate_gsm_connection,
+            "802-3-ethernet": self._activate_generic_connection,
+            "802-11-wireless": self._activate_generic_connection,
         }
         con = self.find_connection(cn_id)
         if not con:
@@ -275,16 +275,16 @@ class ConnectionManager:
             logging.warning('Device for connection %s" not found', cn_id, extra=extra)
         return dev
 
-    def activate_generic_connection(self, dev: NMDevice, con: NMConnection) -> Optional[NMActiveConnection]:
+    def _activate_generic_connection(self, dev: NMDevice, con: NMConnection) -> Optional[NMActiveConnection]:
         active_connection = self.network_manager.activate_connection(con, dev)
-        if self.wait_generic_connection_activation(
+        if self._wait_generic_connection_activation(
             active_connection, self.timeouts.connection_activation_timeout
         ):
             return active_connection
         return None
 
     @staticmethod
-    def wait_generic_connection_activation(con: NMActiveConnection, timeout) -> bool:
+    def _wait_generic_connection_activation(con: NMActiveConnection, timeout) -> bool:
         logging.debug("Waiting for connection activation")
         start = datetime.datetime.now()
         while start + timeout >= datetime.datetime.now():
@@ -295,7 +295,7 @@ class ConnectionManager:
             time.sleep(1)
         return False
 
-    def activate_gsm_connection(self, dev: NMDevice, con: NMConnection) -> Optional[NMActiveConnection]:
+    def _activate_gsm_connection(self, dev: NMDevice, con: NMConnection) -> Optional[NMActiveConnection]:
         dev_path = dev.get_property("Udi")
         logging.debug('Device path "%s"', dev_path)
         # Switching SIM card while other connection is active can cause NM restart
@@ -314,13 +314,13 @@ class ConnectionManager:
         if not dev:
             return None
         active_connection = self.network_manager.activate_connection(con, dev)
-        if self.wait_connection_activation(active_connection, self.timeouts.connection_activation_timeout):
+        if self._wait_connection_activation(active_connection, self.timeouts.connection_activation_timeout):
             return active_connection
         return None
 
     def deactivate_connection(self, active_cn: NMActiveConnection) -> None:
         self.network_manager.deactivate_connection(active_cn)
-        self.wait_connection_deactivation(active_cn, CONNECTION_DEACTIVATION_TIMEOUT)
+        self._wait_connection_deactivation(active_cn, CONNECTION_DEACTIVATION_TIMEOUT)
 
     @staticmethod
     def get_sim_slot(con: NMConnection) -> str:
@@ -334,7 +334,7 @@ class ConnectionManager:
         if not self.modem_manager.set_primary_sim_slot(dev_path, sim_slot):
             return None
         # After switching SIM card MM recreates device with new path
-        dev = self.wait_gsm_sim_slot_to_change(con, dev_path, str(sim_slot), DEVICE_WAITING_TIMEOUT)
+        dev = self._wait_gsm_sim_slot_to_change(con, dev_path, str(sim_slot), DEVICE_WAITING_TIMEOUT)
         if not dev:
             logging.debug("Failed to get new device after changing SIM slot")
             return None
@@ -348,7 +348,7 @@ class ConnectionManager:
         logging.debug('Deactivate active connection "%s"', old_active_connection_id)
         self.timeouts.reset_connection_retry_timeout(old_active_connection_id)
         self.network_manager.deactivate_connection(active_connection)
-        self.wait_connection_deactivation(active_connection, CONNECTION_DEACTIVATION_TIMEOUT)
+        self._wait_connection_deactivation(active_connection, CONNECTION_DEACTIVATION_TIMEOUT)
         if self.current_connection == old_active_connection_id:
             logging.debug("We deactivated current connection, resetting current connection pointer")
             self.current_connection = None
@@ -356,7 +356,7 @@ class ConnectionManager:
         else:
             logging.debug("We deactivated non-current connection")
 
-    def wait_gsm_sim_slot_to_change(
+    def _wait_gsm_sim_slot_to_change(
         self, con: NMConnection, dev_path: str, sim_slot: str, timeout: datetime.timedelta
     ) -> Optional[NMDevice]:
         logging.debug("Waiting for GSM device path %s to change", dev_path)
@@ -380,7 +380,7 @@ class ConnectionManager:
         return None
 
     @staticmethod
-    def wait_connection_activation(con: NMActiveConnection, timeout) -> bool:
+    def _wait_connection_activation(con: NMActiveConnection, timeout) -> bool:
         logging.debug("Waiting for connection activation")
         start = datetime.datetime.now()
         while start + timeout >= datetime.datetime.now():
@@ -391,7 +391,7 @@ class ConnectionManager:
         return False
 
     @staticmethod
-    def wait_connection_deactivation(con: NMActiveConnection, timeout) -> None:
+    def _wait_connection_deactivation(con: NMActiveConnection, timeout) -> None:
         logging.debug("Waiting for connection deactivation")
         start = datetime.datetime.now()
         while start + timeout >= datetime.datetime.now():
