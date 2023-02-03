@@ -84,8 +84,8 @@ class FakeNMDevice:
             logging.info(json.dumps(self.net_man.connections))
             for name, data in self.net_man.connections.items():
                 if (
-                        data.get("sim_slot") == self.net_man.gsm_sim_slot
-                        and data.get("connection_state") == NM_ACTIVE_CONNECTION_STATE_ACTIVATED
+                    data.get("sim_slot") == self.net_man.gsm_sim_slot
+                    and data.get("connection_state") == NM_ACTIVE_CONNECTION_STATE_ACTIVATED
                 ):
                     logging.info("Active Device GSM connection is %s", name)
                     return FakeNMActiveConnection(name, self.net_man)
@@ -106,12 +106,12 @@ class FakeNetworkManager:
         return self.devices.get(device_name).get("metric")
 
     def add_connection(
-            self,
-            name,
-            device_type,
-            device_connected=False,
-            connection_state=NM_ACTIVE_CONNECTION_STATE_UNKNOWN,
-            **kwargs
+        self,
+        name,
+        device_type,
+        device_connected=False,
+        connection_state=NM_ACTIVE_CONNECTION_STATE_UNKNOWN,
+        **kwargs
     ):
         device_name = kwargs.get("device_name")
         if not device_name:
@@ -139,7 +139,7 @@ class FakeNetworkManager:
         self.connections[name][param] = value
 
     def add_wifi_client(
-            self, name, device_connected=False, connection_state=NM_ACTIVE_CONNECTION_STATE_UNKNOWN, **kwargs
+        self, name, device_connected=False, connection_state=NM_ACTIVE_CONNECTION_STATE_UNKNOWN, **kwargs
     ):
         self.add_connection(
             name,
@@ -150,7 +150,7 @@ class FakeNetworkManager:
         )
 
     def add_ethernet(
-            self, name, device_connected=False, connection_state=NM_ACTIVE_CONNECTION_STATE_UNKNOWN, **kwargs
+        self, name, device_connected=False, connection_state=NM_ACTIVE_CONNECTION_STATE_UNKNOWN, **kwargs
     ):
         self.add_connection(
             name,
@@ -161,12 +161,12 @@ class FakeNetworkManager:
         )
 
     def add_gsm(
-            self,
-            name,
-            device_connected=False,
-            connection_state=NM_ACTIVE_CONNECTION_STATE_UNKNOWN,
-            sim_slot=1,
-            **kwargs
+        self,
+        name,
+        device_connected=False,
+        connection_state=NM_ACTIVE_CONNECTION_STATE_UNKNOWN,
+        sim_slot=1,
+        **kwargs
     ):
         if not kwargs.get("device_name"):
             kwargs["device_name"] = "ttyUSB1"
@@ -187,8 +187,8 @@ class FakeNetworkManager:
         for name, data in self.connections.items():
             logging.debug("Connection %s is %s", name, data.get("connection_state"))
             if data.get("connection_state") in (
-                    NM_ACTIVE_CONNECTION_STATE_ACTIVATED,
-                    NM_ACTIVE_CONNECTION_STATE_ACTIVATING,
+                NM_ACTIVE_CONNECTION_STATE_ACTIVATED,
+                NM_ACTIVE_CONNECTION_STATE_ACTIVATING,
             ):
                 output[name] = FakeNMActiveConnection(name, self)
         logging.debug(output)
@@ -217,7 +217,7 @@ class FakeNetworkManager:
         if not self.connections.get(con.name).get("device_connected"):
             self.connections[con.name]["connection_state"] = NM_ACTIVE_CONNECTION_STATE_DEACTIVATED
         if self.connections.get(con.name).get("device_type") == "gsm" and self.connections.get(con.name).get(
-                "sim_slot"
+            "sim_slot"
         ) != dev.data().get("sim_slot"):
             self.connections[con.name]["connection_state"] = NM_ACTIVE_CONNECTION_STATE_UNKNOWN
         elif self.connections.get(con.name).get("should_stuck_activating"):
@@ -256,9 +256,9 @@ class FakeModemManager:
         device = FakeNMDevice(dev_name, self.net_man)
         for data in self.net_man.connections.values():
             if (
-                    data.get("device_type") == "gsm"
-                    and data.get("device_connected")
-                    and data.get("sim_slot") == sim_slot
+                data.get("device_type") == "gsm"
+                and data.get("device_connected")
+                and data.get("sim_slot") == sim_slot
             ):
                 logging.warning("set primary sim slot %s, %s", dev_path, sim_slot)
                 logging.warning("Set SIM slot %s", str(sim_slot))
