@@ -106,10 +106,10 @@ function enableUpDownButton(mqttConnectionDevice) {
   runShellCommand('LC_ALL=C nmcli -g uuid,device,active,state c s | grep ' + uuid + ' ', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
-      var dataList = capturedOutput.split(':');
-      var device = dataList[1].replace('--', '');
+      var dataList = capturedOutput.replace(/\n/).split(':');
+      var device = dataList[1] || '';
       var active = dataList[2] == 'yes' ? true : false;
-      var state = dataList[3].replace('--', '');
+      var state = dataList[3] || '';
 
       // we should publicate this at the end of up/down process in any case
       mqttConnectionDevice.getControl('Device').setValue(device);
@@ -170,7 +170,7 @@ function initializeDevices() {
     exitCallback: function (exitCode, capturedOutput) {
       var connectionsList = capturedOutput.split(/\r?\n/);
       for (var i = 0; i < connectionsList.length - 1; i++) {
-        var dataList = connectionsList[i].split(':');
+        var dataList = connectionsList[i].replace(/\n/).split(':');
         var name = dataList[0];
         var uuid = dataList[1];
         var type = dataList[2];
@@ -191,13 +191,13 @@ function updateDevices() {
       var connectionsList = capturedOutput.split(/\r?\n/);
 
       for (var i = 0; i < connectionsList.length - 1; i++) {
-        var dataList = connectionsList[i].split(':');
+        var dataList = connectionsList[i].replace(/\n/).split(':');
         var name = dataList[0];
         var uuid = dataList[1];
         var type = dataList[2];
-        var device = dataList[3].replace('--', '');
+        var device = dataList[3] || '';
         var active = dataList[4] == 'yes' ? true : false;
-        var state = dataList[5].replace('--', '');
+        var state = dataList[5] || '';
 
         var mqttConnectionDevice = getDevice(getVirtualDeviceName(uuid));
         if (mqttConnectionDevice == undefined) {
