@@ -106,7 +106,7 @@ function enableUpDownButton(mqttConnectionDevice) {
   runShellCommand('LC_ALL=C nmcli -g uuid,device,active,state c s | grep ' + uuid + ' ', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
-      var dataList = capturedOutput.replace(/\n/).split(':');
+      var dataList = capturedOutput.replace(/\n/, '').split(':');
       var device = dataList[1] || '';
       var active = dataList[2] == 'yes' ? true : false;
       var state = dataList[3] || '';
@@ -170,7 +170,7 @@ function initializeDevices() {
     exitCallback: function (exitCode, capturedOutput) {
       var connectionsList = capturedOutput.split(/\r?\n/);
       for (var i = 0; i < connectionsList.length - 1; i++) {
-        var dataList = connectionsList[i].replace(/\n/).split(':');
+        var dataList = connectionsList[i].replace(/\n/, '').split(':');
         var name = dataList[0];
         var uuid = dataList[1];
         var type = dataList[2];
@@ -191,7 +191,7 @@ function updateDevices() {
       var connectionsList = capturedOutput.split(/\r?\n/);
 
       for (var i = 0; i < connectionsList.length - 1; i++) {
-        var dataList = connectionsList[i].replace(/\n/).split(':');
+        var dataList = connectionsList[i].replace(/\n/, '').split(':');
         var name = dataList[0];
         var uuid = dataList[1];
         var type = dataList[2];
