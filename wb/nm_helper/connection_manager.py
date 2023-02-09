@@ -536,7 +536,7 @@ def main():
             network_manager=NetworkManager(), config=config, modem_manager=ModemManager()
         )
         while True:
-            manager.check()
+            manager.cycle_loop()
             time.sleep(CHECK_PERIOD.total_seconds())
     else:
         logging.info("Nothing to manage")
