@@ -194,6 +194,9 @@ class NMActiveConnection(NMObject):
     def get_connection_id(self) -> str:
         return str(self.get_connection().get_settings()["connection"]["id"])
 
+    def get_connection_type(self) -> str:
+        return self.get_connection().get_connection_type()
+
     def get_connection(self) -> NMConnection:
         return NMConnection(self.get_property("Connection"), self.bus)
 

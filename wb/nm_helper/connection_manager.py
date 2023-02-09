@@ -497,7 +497,7 @@ class ConnectionManager:
             logging.debug("No devices found for connection %s", active_cn.get_connection_id())
             return
         device = devices[0]
-        if active_cn.get_connection_type() == "gsm":
+        if active_cn.get_connection().get_connection_type() == "gsm":
             iface = device.get_property("IpInterface")
             self.call_ifmetric(iface, metric)
         else:
