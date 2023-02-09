@@ -148,6 +148,9 @@ class NMConnection(NMObject):
     def get_settings(self):
         return self.get_iface().GetSettings()
 
+    def get_connection_type(self) -> str:
+        return str(self.get_settings()["connection"]["type"])
+
     def delete(self):
         self.get_iface().Delete()
 
@@ -190,9 +193,6 @@ class NMActiveConnection(NMObject):
 
     def get_connection_id(self) -> str:
         return str(self.get_connection().get_settings()["connection"]["id"])
-
-    def get_connection_type(self) -> str:
-        return str(self.get_connection().get_settings()["connection"]["type"])
 
     def get_connection(self) -> NMConnection:
         return NMConnection(self.get_property("Connection"), self.bus)

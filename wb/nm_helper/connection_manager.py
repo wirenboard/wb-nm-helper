@@ -41,17 +41,11 @@ class ImproperlyConfigured(ValueError):
     pass
 
 
-class ConnectionTier:
+class ConnectionTier:  # pylint: disable=R0903
     def __init__(self, name: str, priority: int, connections: List):
         self.name = name
         self.priority = priority
-        self.connections = []
-        self.from_json(connections)
-
-    def from_json(self, connections: List) -> None:
-        self.connections = []
-        for item in connections:
-            self.connections.append(item)
+        self.connections = connections.copy()
 
     def get_route_metric(self):
         return (100 * (4 - self.priority)) + 5
@@ -66,9 +60,11 @@ class ConnectionManagerConfigFile:
         self.connectivity_check_payload: str = self.get_connectivity_check_payload(cfg)
 
     @staticmethod
-    def get_tiers(cfg: Dict) -> Iterator[ConnectionTier]:
+    def get_tiers(cfg: Dict) -> List[ConnectionTier]:
+        tiers = []
         for name, level in (("high", 3), ("medium", 2), ("low", 1)):
-            yield ConnectionTier(name, level, cfg.get("tiers", {}).get(name, []))
+            tiers.append(ConnectionTier(name, level, cfg.get("tiers", {}).get(name, [])))
+        return tiers
 
     @staticmethod
     def get_sticky_sim_period(cfg: Dict) -> datetime.timedelta:
@@ -97,11 +93,11 @@ class ConnectionManagerConfigFile:
             raise ImproperlyConfigured("Empty connectivity payload")
         return value
 
-    def connection_count(self) -> int:
-        count = 0
+    def has_connections(self) -> bool:
         for tier in self.tiers:
-            count += len(tier.connections)
-        return count
+            if len(tier.connections):
+                return True
+        return False
 
 
 class TimeoutManager:
@@ -126,8 +122,8 @@ class TimeoutManager:
     def reset_connection_retry_timeout(self, cn_id):
         self.connection_retry_timeouts[cn_id] = self.now()
 
-    def touch_gsm_timeout(self, active_cn: NMActiveConnection) -> None:
-        if active_cn.get_connection_type() == "gsm":
+    def touch_gsm_timeout(self, con: NMConnection) -> None:
+        if con.get_connection_type() == "gsm":
             self.deny_sim_switch_until = self.now() + self.config.sticky_sim_period
             logging.info(
                 "New active connection is GSM, not changing SIM slots until %s",
@@ -157,14 +153,24 @@ class TimeoutManager:
 # pylint: disable=too-many-instance-attributes
 class ConnectionManager:
     def __init__(
-        self, network_manager: NetworkManager, config: ConnectionManagerConfigFile, modem_manager=None
+        self,
+        network_manager: NetworkManager,
+        config: ConnectionManagerConfigFile,
+        modem_manager: ModemManager,
     ) -> None:
         self.network_manager: NetworkManager = network_manager
+        self.modem_manager = modem_manager
         self.config: ConnectionManagerConfigFile = config
+        self.timeouts: TimeoutManager = TimeoutManager(config)
         self.current_tier: Optional[ConnectionTier] = None
         self.current_connection: Optional[str] = None
-        self.timeouts: TimeoutManager = TimeoutManager(config)
-        self.modem_manager = modem_manager or ModemManager()
+
+    def cycle_loop(self):
+        new_tier, new_connection, changed = self.check()
+        if changed:
+            self.set_current_connection(new_connection, new_tier)
+            self.deactivate_lesser_gsm_connections(new_connection, new_tier)
+            self.apply_metrics()
 
     def check(self) -> (ConnectionTier, str, bool):
         logging.debug("check(): starting iteration")
@@ -173,7 +179,7 @@ class ConnectionManager:
             # first, if tier is current, check current connection
             if self.current_tier and self.current_connection and self.current_tier.priority == tier.priority:
                 try:
-                    active_cn = self.get_active_connection(self.current_connection, require_activated=True)
+                    active_cn = self.find_activated_connection(self.current_connection)
                     if active_cn and self.check_connectivity(active_cn):
                         logging.debug(
                             "Current connection %s is most preferred and has connectivity",
@@ -192,17 +198,17 @@ class ConnectionManager:
                     # current connection was already checked above
                     continue
                 try:
-                    active_cn = self.get_active_connection(cn_id, require_activated=True)
+                    active_cn = self.find_activated_connection(cn_id)
                     if not active_cn and self.ok_to_activate_connection(cn_id):
                         active_cn = self.activate_connection(cn_id)
                         self.timeouts.touch_connection_retry_timeout(cn_id)
                     if active_cn and self.check_connectivity(active_cn):
-                        self.deactivate_lesser_gsm_connections(cn_id, tier)
-                        return self.set_current_connection(active_cn, cn_id, tier)
+                        return tier, cn_id, True
                 except dbus.exceptions.DBusException as ex:
                     self._log_connection_check_error(cn_id, ex)
                     self.timeouts.touch_connection_retry_timeout(cn_id)
 
+        # no working connections found at all
         return self.current_tier, self.current_connection, False
 
     def ok_to_activate_connection(self, cn_id: str) -> bool:
@@ -223,13 +229,12 @@ class ConnectionManager:
         data = {"cn_id": cn_id}
         logging.warning('Error during connection "%s" checking: %s', cn_id, e, extra=data)
 
-    def get_active_connection(self, cn_id: str, require_activated=False) -> Optional[NMActiveConnection]:
-        active_cn = self.network_manager.get_active_connections().get(cn_id)
-        if (
-            active_cn
-            and require_activated
-            and active_cn.get_property("State") != NM_ACTIVE_CONNECTION_STATE_ACTIVATED
-        ):
+    def find_active_connection(self, cn_id: str) -> Optional[NMActiveConnection]:
+        return self.network_manager.get_active_connections().get(cn_id)
+
+    def find_activated_connection(self, cn_id: str) -> Optional[NMActiveConnection]:
+        active_cn = self.find_active_connection(cn_id)
+        if active_cn and active_cn.get_property("State") != NM_ACTIVE_CONNECTION_STATE_ACTIVATED:
             return None
         return active_cn
 
@@ -243,7 +248,7 @@ class ConnectionManager:
         con = self.find_connection(cn_id)
         if not con:
             return None
-        dev = self.find_device_for_connection(con, cn_id)
+        dev = self._find_device_for_connection(con, cn_id)
         if not dev:
             return None
         connection_type = con.get_settings().get("connection").get("type")
@@ -269,7 +274,7 @@ class ConnectionManager:
             logging.warning('Connection "%s" not found', cn_id, extra=extra)
         return con
 
-    def find_device_for_connection(self, con: NMConnection, cn_id: str) -> Optional[NMDevice]:
+    def _find_device_for_connection(self, con: NMConnection, cn_id: str) -> Optional[NMDevice]:
         dev = self.network_manager.find_device_for_connection(con)
         if not dev:
             extra = {"rate_limit_tag": "DEV_NOT_FOUND_" + cn_id, "rate_limit_timeout": LOG_RATE_LIMIT_DEFAULT}
@@ -415,16 +420,13 @@ class ConnectionManager:
         logging.debug("Connection %s not found", cn_id)
         return False
 
-    def set_current_connection(self, active_cn: NMActiveConnection, cn_id: str, tier: ConnectionTier):
+    def set_current_connection(self, cn_id: str, tier: ConnectionTier):
         if self.current_connection != cn_id:
-            self.timeouts.touch_gsm_timeout(active_cn)
+            self.timeouts.touch_gsm_timeout(self.network_manager.find_connection(cn_id))
             self.current_connection = cn_id
             self.current_tier = tier
-            self.apply_metrics()
             logging.info("Current connection changed to %s", cn_id)
-            return tier, cn_id, True
         logging.debug("Current connection is the same (%s), not changing", cn_id)
-        return tier, cn_id, False
 
     def deactivate_lesser_gsm_connections(self, cn_id: str, tier: ConnectionTier) -> None:
         connections = list(self.find_lesser_gsm_connections(cn_id, tier))
@@ -440,7 +442,7 @@ class ConnectionManager:
             for cn_id in [
                 item for item in tier.connections if item != current_con_id and self.connection_is_gsm(item)
             ]:
-                active_cn = self.get_active_connection(cn_id)
+                active_cn = self.find_active_connection(cn_id)
                 if active_cn:
                     yield active_cn
 
@@ -529,8 +531,10 @@ def main():
 
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-    if config.connection_count() > 0:
-        manager = ConnectionManager(NetworkManager(), config)
+    if config.has_connections():
+        manager = ConnectionManager(
+            network_manager=NetworkManager(), config=config, modem_manager=ModemManager()
+        )
         while True:
             manager.check()
             time.sleep(CHECK_PERIOD.total_seconds())
