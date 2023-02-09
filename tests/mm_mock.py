@@ -25,11 +25,14 @@ class AbsFakeNMConnection:
             settings["gsm"] = {"sim-slot": self.data().get("sim_slot")}
         return settings
 
-    def get_connection_type(self):
-        return self.get_settings().get("connection").get("type")
-
     def get_connection_id(self):
         return self.name
+
+
+class FakeNMConnection(AbsFakeNMConnection):
+
+    def get_connection_type(self):
+        return self.get_settings().get("connection").get("type")
 
 
 class FakeNMActiveConnection(AbsFakeNMConnection):
@@ -51,9 +54,11 @@ class FakeNMActiveConnection(AbsFakeNMConnection):
         logging.warning("get ifaces: ifaces are %s", res)
         return res
 
+    def get_connection(self):
+        return FakeNMConnection(self.name, self.net_man)
 
-class FakeNMConnection(AbsFakeNMConnection):
-    pass
+    def get_connection_type(self):
+        return self.get_connection().get_connection_type()
 
 
 class FakeNMDevice:
