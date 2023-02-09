@@ -13,7 +13,7 @@ import pycurl
 
 from wb.nm_helper.logging_filter import ConnectionStateFilter
 from wb.nm_helper.modem_manager import ModemManager
-from wb.nm_helper.modem_manager_interfaces import ModemManagerInterface
+from wb.nm_helper.modem_manager_interfaces import IModemManager
 from wb.nm_helper.network_manager import (
     NM_ACTIVE_CONNECTION_STATE_ACTIVATED,
     NM_ACTIVE_CONNECTION_STATE_DEACTIVATED,
@@ -23,7 +23,7 @@ from wb.nm_helper.network_manager import (
     NMConnection,
     NMDevice,
 )
-from wb.nm_helper.network_manager_interfaces import NetworkManagerInterface
+from wb.nm_helper.network_manager_interfaces import INetworkManager
 
 EXIT_NOT_CONFIGURED = 6
 
@@ -156,12 +156,12 @@ class TimeoutManager:
 class ConnectionManager:
     def __init__(
         self,
-        network_manager: NetworkManagerInterface,
+        network_manager: INetworkManager,
         config: ConnectionManagerConfigFile,
-        modem_manager: ModemManagerInterface,
+        modem_manager: IModemManager,
     ) -> None:
-        self.network_manager: NetworkManagerInterface = network_manager
-        self.modem_manager: ModemManagerInterface = modem_manager
+        self.network_manager: INetworkManager = network_manager
+        self.modem_manager: IModemManager = modem_manager
         self.config: ConnectionManagerConfigFile = config
         self.timeouts: TimeoutManager = TimeoutManager(config)
         self.current_tier: Optional[ConnectionTier] = None
