@@ -53,28 +53,28 @@ class TimeoutManagerTests(unittest.TestCase):
         with patch.object(self.timeout_manager, "now") as now_mock:
             now_mock.return_value = TEST_NOW
 
-            self.network_manager.add_ethernet(
+            self.network_manager.fake_add_ethernet(
                 "wb-eth0", device_connected=True, connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED
             )
-            self.network_manager.add_gsm(
+            self.network_manager.fake_add_gsm(
                 "wb-gsm-sim1",
                 device_connected=True,
                 connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED,
                 sim_slot=1,
             )
 
-            active_cn = self.network_manager.get_active_connections().get("wb-eth0")
-            self.timeout_manager.touch_gsm_timeout(active_cn)
+            con = self.network_manager.find_connection("wb-eth0")
+            self.timeout_manager.touch_gsm_timeout(con)
             assert self.timeout_manager.deny_sim_switch_until is None
 
-            active_cn = self.network_manager.get_active_connections().get("wb-gsm-sim1")
-            self.timeout_manager.touch_gsm_timeout(active_cn)
+            con = self.network_manager.find_connection("wb-gsm-sim1")
+            self.timeout_manager.touch_gsm_timeout(con)
             assert isinstance(self.timeout_manager.deny_sim_switch_until, datetime.datetime)
             delta = self.timeout_manager.deny_sim_switch_until - TEST_NOW
             assert delta.total_seconds() == self.timeout_manager.config.sticky_sim_period.total_seconds()
 
-            active_cn = self.network_manager.get_active_connections().get("wb-eth0")
-            self.timeout_manager.touch_gsm_timeout(active_cn)
+            con = self.network_manager.find_connection("wb-eth0")
+            self.timeout_manager.touch_gsm_timeout(con)
             assert self.timeout_manager.deny_sim_switch_until is None
 
     def test_04_connection_retry_timeout_is_active__empty(self):
