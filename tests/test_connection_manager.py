@@ -55,8 +55,8 @@ class AbsConManCheckTests(unittest.TestCase):
         self.con_man.call_ifmetric = MagicMock()
 
 
-class ConnectionManagerCheckTests(AbsConManCheckTests):
-    def test_01_check_simple(self):
+class ConnectionManagerLoopTests(AbsConManCheckTests):
+    def test_01_loop_simple(self):
         local_config = {
             "tiers": {
                 "high": ["wb-eth0"],
@@ -71,16 +71,15 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
         assert self.con_man.current_tier is None
         assert len(self.con_man.network_manager.get_active_connections()) == 0
 
-        tier, con, changed = self.con_man.check()
+        self.con_man.cycle_loop()
 
-        assert tier == self.config.tiers[0]
-        assert con == "wb-eth0"
-        assert changed is True
+        assert self.con_man.current_tier == self.config.tiers[0]
+        assert self.con_man.current_connection == "wb-eth0"
         assert self.net_man.get_device_metric("dev_wb-eth0") == 55
         curl_calls = [call("if_wb-eth0", self.con_man.config.connectivity_check_url)]
         assert self.con_man.curl_get.mock_calls == curl_calls
 
-    def test_02_check_one_skip_disconnected(self):
+    def test_02_loop_one_skip_disconnected(self):
         local_config = {
             "tiers": {
                 "high": ["wb-eth0"],
@@ -96,16 +95,15 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
         assert self.con_man.current_tier is None
         assert len(self.con_man.network_manager.get_active_connections()) == 0
 
-        tier, con, changed = self.con_man.check()
+        self.con_man.cycle_loop()
 
-        assert tier == self.config.tiers[1]
-        assert con == "wb-eth1"
-        assert changed is True
+        assert self.con_man.current_tier == self.config.tiers[1]
+        assert self.con_man.current_connection == "wb-eth1"
         assert self.net_man.get_device_metric("dev_wb-eth1") == 55
         curl_calls = [call("if_wb-eth1", self.con_man.config.connectivity_check_url)]
         assert self.con_man.curl_get.mock_calls == curl_calls
 
-    def test_03_check_one_skip_unreachable(self):
+    def test_03_loop_one_skip_unreachable(self):
         local_config = {
             "tiers": {
                 "high": ["wb-eth0"],
@@ -121,11 +119,10 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
         assert self.con_man.current_tier is None
         assert len(self.con_man.network_manager.get_active_connections()) == 0
 
-        tier, con, changed = self.con_man.check()
+        self.con_man.cycle_loop()
 
-        assert tier == self.config.tiers[1]
-        assert con == "wb-eth1"
-        assert changed is True
+        assert self.con_man.current_tier == self.config.tiers[1]
+        assert self.con_man.current_connection == "wb-eth1"
         assert self.net_man.get_device_metric("dev_wb-eth0") == 105
         assert self.net_man.get_device_metric("dev_wb-eth1") == 55
         curl_calls = [
@@ -134,7 +131,7 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
         ]
         assert self.con_man.curl_get.mock_calls == curl_calls
 
-    def test_04_check_wifi_ok(self):
+    def test_04_loop_wifi_ok(self):
         local_config = {
             "tiers": {
                 "high": ["wb-eth0"],
@@ -150,11 +147,10 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
         assert self.con_man.current_tier is None
         assert len(self.con_man.network_manager.get_active_connections()) == 0
 
-        tier, con, changed = self.con_man.check()
+        self.con_man.cycle_loop()
 
-        assert tier == self.config.tiers[1]
-        assert con == "wb-wifi-client"
-        assert changed is True
+        assert self.con_man.current_tier == self.config.tiers[1]
+        assert self.con_man.current_connection == "wb-wifi-client"
         assert self.net_man.get_device_metric("dev_wb-eth0") == 105
         assert self.net_man.get_device_metric("dev_wb-wifi-client") == 55
         curl_calls = [
@@ -163,7 +159,7 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
         ]
         assert self.con_man.curl_get.mock_calls == curl_calls
 
-    def test_05_check_wifi_stuck_activating(self):
+    def test_05_loop_wifi_stuck_activating(self):
         local_config = {
             "tiers": {
                 "high": ["wb-eth0"],
@@ -180,11 +176,10 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
         assert self.con_man.current_tier is None
         assert len(self.con_man.network_manager.get_active_connections()) == 0
 
-        tier, con, changed = self.con_man.check()
+        self.con_man.cycle_loop()
 
-        assert tier == self.config.tiers[2]
-        assert con == "wb-eth1"
-        assert changed is True
+        assert self.con_man.current_tier == self.config.tiers[2]
+        assert self.con_man.current_connection == "wb-eth1"
         assert self.net_man.get_device_metric("dev_wb-eth0") == 105
         assert self.net_man.get_device_metric("dev_wb-eth1") == 55
         curl_calls = [
@@ -193,7 +188,7 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
         ]
         assert self.con_man.curl_get.mock_calls == curl_calls
 
-    def test_06_check_gsm_simple(self):
+    def test_06_loop_gsm_simple(self):
         local_config = {
             "tiers": {
                 "high": ["wb-eth0", "wb-eth1"],
@@ -211,11 +206,10 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
         assert self.con_man.current_tier is None
         assert len(self.con_man.network_manager.get_active_connections()) == 0
 
-        tier, con, changed = self.con_man.check()
+        self.con_man.cycle_loop()
 
-        assert tier == self.config.tiers[2]
-        assert con == "wb-gsm-sim1"
-        assert changed is True
+        assert self.con_man.current_tier == self.config.tiers[2]
+        assert self.con_man.current_connection == "wb-gsm-sim1"
         assert self.net_man.get_device_metric("dev_wb-eth0") == 105
         assert self.net_man.get_device_metric("dev_wb-eth1") == 105
         curl_calls = [
@@ -226,7 +220,7 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
         assert self.con_man.curl_get.mock_calls == curl_calls
         assert self.con_man.call_ifmetric.mock_calls == [call("ppp0", 55)]
 
-    def test_07_check_gsm_change_slot_inactive(self):
+    def test_07_loop_gsm_change_slot_inactive(self):
         local_config = {
             "tiers": {
                 "high": ["wb-eth0", "wb-eth1"],
@@ -245,11 +239,10 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
         assert self.con_man.current_tier is None
         assert len(self.con_man.network_manager.get_active_connections()) == 0
 
-        tier, con, changed = self.con_man.check()
+        self.con_man.cycle_loop()
 
-        assert changed is True
-        assert con == "wb-gsm-sim2"
-        assert tier == self.config.tiers[2]
+        assert self.con_man.current_tier == self.config.tiers[2]
+        assert self.con_man.current_connection == "wb-gsm-sim2"
         assert self.net_man.get_device_metric("dev_wb-eth0") == 105
         assert self.net_man.get_device_metric("dev_wb-eth1") == 105
         curl_calls = [
@@ -260,7 +253,7 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
         assert self.con_man.curl_get.mock_calls == curl_calls
         assert self.con_man.call_ifmetric.mock_calls == [call("ppp0", 55)]
 
-    def test_08_check_gsm_change_slot_active(self):
+    def test_08_loop_gsm_change_slot_active(self):
         local_config = {
             "tiers": {
                 "high": ["wb-eth0", "wb-eth1", "wb-gsm-sim2"],
@@ -284,11 +277,10 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
         self.con_man.current_tier = self.config.tiers[2]
         assert len(self.con_man.network_manager.get_active_connections()) == 1
 
-        tier, con, changed = self.con_man.check()
+        self.con_man.cycle_loop()
 
-        assert changed is True
-        assert con == "wb-gsm-sim2"
-        assert tier == self.config.tiers[0]
+        assert self.con_man.current_tier == self.config.tiers[0]
+        assert self.con_man.current_connection == "wb-gsm-sim2"
         assert self.net_man.get_device_metric("dev_wb-eth0") == 105
         assert self.net_man.get_device_metric("dev_wb-eth1") == 105
         curl_calls = [
@@ -299,7 +291,7 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
         assert self.con_man.curl_get.mock_calls == curl_calls
         assert self.con_man.call_ifmetric.mock_calls == [call("ppp0", 55)]
 
-    def test_09_check_metrics(self):
+    def test_09_loop_metrics(self):
         local_config = {
             "tiers": {
                 "high": ["wb-eth0", "wb-gsm1-sim1"],
@@ -338,11 +330,10 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
         self.con_man.current_tier = self.config.tiers[0]
         assert len(self.con_man.network_manager.get_active_connections()) == 5
 
-        tier, con, changed = self.con_man.check()
+        self.con_man.cycle_loop()
 
-        assert changed is True
-        assert con == "wb-gsm2-sim1"
-        assert tier == self.config.tiers[2]
+        assert self.con_man.current_tier == self.config.tiers[2]
+        assert self.con_man.current_connection == "wb-gsm2-sim1"
         assert self.net_man.get_device_metric("dev_wb-eth0") == 105
         assert self.net_man.get_device_metric("dev_wb-eth1") == 305
         assert self.net_man.get_device_metric("dev_wb-wifi-client") == 205
@@ -363,7 +354,7 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
             == NM_ACTIVE_CONNECTION_STATE_ACTIVATED
         )
 
-    def test_10_check_gsm_disconnect_lesser_modems(self):
+    def test_10_loop_gsm_disconnect_lesser_modems(self):
         local_config = {
             "tiers": {
                 "high": ["wb-eth0", "wb-gsm1-sim1"],
@@ -396,7 +387,7 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
         self.con_man.current_tier = self.config.tiers[2]
         assert len(self.con_man.network_manager.get_active_connections()) == 2
 
-        tier, con, changed = self.con_man.check()
+        self.con_man.cycle_loop()
 
         curl_calls = [
             call("ppp0", self.con_man.config.connectivity_check_url),
@@ -405,9 +396,8 @@ class ConnectionManagerCheckTests(AbsConManCheckTests):
         assert self.con_man.call_ifmetric.mock_calls == [
             call("ppp0", 55),
         ]
-        assert changed is True
-        assert con == "wb-gsm1-sim1"
-        assert tier == self.config.tiers[0]
+        assert self.con_man.current_tier == self.config.tiers[0]
+        assert self.con_man.current_connection == "wb-gsm1-sim1"
         assert (
             self.net_man.connections.get("wb-gsm1-sim1").get("connection_state")
             == NM_ACTIVE_CONNECTION_STATE_ACTIVATED
@@ -494,10 +484,10 @@ class ConnectionManagerTests(AbsConManCheckTests):
             sim_slot=2,
         )
 
-        result1 = self.con_man.get_active_connection("wb-eth0")
-        result2 = self.con_man.get_active_connection("wb-eth1")
-        result3 = self.con_man.get_active_connection("wb-gsm-sim1")
-        result4 = self.con_man.get_active_connection("wb-gsm-sim2")
+        result1 = self.con_man.find_active_connection("wb-eth0")
+        result2 = self.con_man.find_active_connection("wb-eth1")
+        result3 = self.con_man.find_active_connection("wb-gsm-sim1")
+        result4 = self.con_man.find_active_connection("wb-gsm-sim2")
 
         assert self._is_active_connection(result1)
         assert result1.get_connection_id() == "wb-eth0"
@@ -515,8 +505,8 @@ class ConnectionManagerTests(AbsConManCheckTests):
             "wb-eth1", device_connected=True, connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATING
         )
 
-        result1 = self.con_man.get_active_connection("wb-eth0", require_activated=True)
-        result2 = self.con_man.get_active_connection("wb-eth1", require_activated=True)
+        result1 = self.con_man.find_activated_connection("wb-eth0")
+        result2 = self.con_man.find_activated_connection("wb-eth1")
         assert self._is_active_connection(result1)
         assert result1.get_connection_id() == "wb-eth0"
         assert result2 is None
@@ -527,10 +517,10 @@ class ConnectionManagerTests(AbsConManCheckTests):
             "wb-eth0", device_connected=True, connection_state=NM_ACTIVE_CONNECTION_STATE_UNKNOWN
         )
 
-        con = self.con_man.get_active_connection("wb-eth0")
+        con = self.con_man.find_active_connection("wb-eth0")
         assert con is None
         self.con_man.activate_connection("wb-eth0")
-        con = self.con_man.get_active_connection("wb-eth0", require_activated=True)
+        con = self.con_man.find_activated_connection("wb-eth0")
         assert self._is_active_connection(con)
         assert con.get_connection_id() == "wb-eth0"
 
@@ -540,10 +530,10 @@ class ConnectionManagerTests(AbsConManCheckTests):
             "wb-wifi-client", device_connected=True, connection_state=NM_ACTIVE_CONNECTION_STATE_UNKNOWN
         )
 
-        con = self.con_man.get_active_connection("wb-wifi-client")
+        con = self.con_man.find_active_connection("wb-wifi-client")
         assert con is None
         self.con_man.activate_connection("wb-wifi-client")
-        con = self.con_man.get_active_connection("wb-wifi-client", require_activated=True)
+        con = self.con_man.find_activated_connection("wb-wifi-client")
         assert self._is_active_connection(con)
         assert con.get_connection_id() == "wb-wifi-client"
 
@@ -553,10 +543,10 @@ class ConnectionManagerTests(AbsConManCheckTests):
             "wb-gsm-sim1", device_connected=True, state=NM_ACTIVE_CONNECTION_STATE_DEACTIVATED, sim_slot=1
         )
 
-        con = self.con_man.get_active_connection("wb-gsm-sim1")
+        con = self.con_man.find_active_connection("wb-gsm-sim1")
         assert con is None
         self.con_man.activate_connection("wb-gsm-sim1")
-        con = self.con_man.get_active_connection("wb-gsm-sim1", require_activated=True)
+        con = self.con_man.find_activated_connection("wb-gsm-sim1")
         assert self._is_active_connection(con)
         assert con.get_connection_id() == "wb-gsm-sim1"
 
@@ -566,14 +556,14 @@ class ConnectionManagerTests(AbsConManCheckTests):
             "wb-eth0", device_connected=True, connection_state=NM_ACTIVE_CONNECTION_STATE_UNKNOWN
         )
 
-        con = self.con_man.get_active_connection("wb-eth0")
+        con = self.con_man.find_active_connection("wb-eth0")
         assert con is None
         self.con_man.activate_connection("wb-eth0")
-        con = self.con_man.get_active_connection("wb-eth0", require_activated=True)
+        con = self.con_man.find_activated_connection("wb-eth0")
         assert self._is_active_connection(con)
         assert con.get_connection_id() == "wb-eth0"
         self.con_man.deactivate_connection(con)
-        con = self.con_man.get_active_connection("wb-eth0")
+        con = self.con_man.find_active_connection("wb-eth0")
         assert con is None
 
     def test_09_deactivate_connection_wifi(self):
@@ -582,14 +572,14 @@ class ConnectionManagerTests(AbsConManCheckTests):
             "wb-wifi-client", device_connected=True, connection_state=NM_ACTIVE_CONNECTION_STATE_UNKNOWN
         )
 
-        con = self.con_man.get_active_connection("wb-wifi-client")
+        con = self.con_man.find_active_connection("wb-wifi-client")
         assert con is None
         self.con_man.activate_connection("wb-wifi-client")
-        con = self.con_man.get_active_connection("wb-wifi-client", require_activated=True)
+        con = self.con_man.find_activated_connection("wb-wifi-client")
         assert self._is_active_connection(con)
         assert con.get_connection_id() == "wb-wifi-client"
         self.con_man.deactivate_connection(con)
-        con = self.con_man.get_active_connection("wb-wifi-client")
+        con = self.con_man.find_active_connection("wb-wifi-client")
         assert con is None
 
     def test_10_deactivate_connection_gsm(self):
@@ -601,11 +591,11 @@ class ConnectionManagerTests(AbsConManCheckTests):
             sim_slot=1,
         )
 
-        con = self.con_man.get_active_connection("wb-gsm-sim1")
+        con = self.con_man.find_active_connection("wb-gsm-sim1")
         assert self._is_active_connection(con)
         assert con.get_connection_id() == "wb-gsm-sim1"
         self.con_man.deactivate_connection(con)
-        con = self.con_man.get_active_connection("wb-gsm-sim1")
+        con = self.con_man.find_active_connection("wb-gsm-sim1")
         assert con is None
 
     def test_11_get_sim_slot(self):
@@ -642,62 +632,34 @@ class ConnectionManagerTests(AbsConManCheckTests):
         )
 
         with patch.object(self.con_man.timeouts, "now") as now_mock:
-            with patch.object(self.con_man, "call_ifmetric") as call_ifmetric_mock:
-                now_mock.return_value = TEST_NOW
+            now_mock.return_value = TEST_NOW
 
-                self.con_man.current_tier = self.config.tiers[0]
-                self.con_man.current_connection = "wb-eth1"
+            self.con_man.current_tier = self.config.tiers[0]
+            self.con_man.current_connection = "wb-eth1"
 
-                active_cn = self.con_man.network_manager.get_active_connections().get("wb-eth0")
-                new_tier, new_cn_id, changed = self.con_man.set_current_connection(
-                    active_cn, "wb-eth0", self.config.tiers[0]
-                )
-                assert new_tier == self.config.tiers[0]
-                assert new_cn_id == "wb-eth0"
-                assert changed is True
-                assert self.con_man.timeouts.deny_sim_switch_until is None
+            self.con_man.set_current_connection("wb-eth0", self.config.tiers[0])
+            assert self.con_man.current_tier == self.config.tiers[0]
+            assert self.con_man.current_connection == "wb-eth0"
+            assert self.con_man.timeouts.deny_sim_switch_until is None
 
-                active_cn = self.con_man.network_manager.get_active_connections().get("wb-eth0")
-                new_tier, new_cn_id, changed = self.con_man.set_current_connection(
-                    active_cn, "wb-eth0", self.config.tiers[0]
-                )
-                assert new_tier == self.config.tiers[0]
-                assert new_cn_id == "wb-eth0"
-                assert changed is False
-                assert self.con_man.timeouts.deny_sim_switch_until is None
+            self.con_man.set_current_connection("wb-gsm-sim1", self.config.tiers[2])
+            assert self.con_man.current_tier == self.config.tiers[2]
+            assert self.con_man.current_connection == "wb-gsm-sim1"
+            assert isinstance(self.con_man.timeouts.deny_sim_switch_until, datetime.datetime)
+            delta = self.con_man.timeouts.deny_sim_switch_until - TEST_NOW
+            assert delta.total_seconds() == self.config.sticky_sim_period.total_seconds()
 
-                active_cn = self.con_man.network_manager.get_active_connections().get("wb-gsm-sim1")
-                new_tier, new_cn_id, changed = self.con_man.set_current_connection(
-                    active_cn, "wb-gsm-sim1", self.config.tiers[2]
-                )
-                assert new_tier == self.config.tiers[2]
-                assert new_cn_id == "wb-gsm-sim1"
-                assert changed is True
-                assert isinstance(self.con_man.timeouts.deny_sim_switch_until, datetime.datetime)
-                delta = self.con_man.timeouts.deny_sim_switch_until - TEST_NOW
-                assert delta.total_seconds() == self.config.sticky_sim_period.total_seconds()
+            self.con_man.set_current_connection("wb-gsm-sim1", self.config.tiers[2])
+            assert self.con_man.current_tier == self.config.tiers[2]
+            assert self.con_man.current_connection == "wb-gsm-sim1"
+            assert isinstance(self.con_man.timeouts.deny_sim_switch_until, datetime.datetime)
+            delta = self.con_man.timeouts.deny_sim_switch_until - TEST_NOW
+            assert delta.total_seconds() == self.config.sticky_sim_period.total_seconds()
 
-                active_cn = self.con_man.network_manager.get_active_connections().get("wb-gsm-sim1")
-                new_tier, new_cn_id, changed = self.con_man.set_current_connection(
-                    active_cn, "wb-gsm-sim1", self.config.tiers[2]
-                )
-                assert new_tier == self.config.tiers[2]
-                assert new_cn_id == "wb-gsm-sim1"
-                assert changed is False
-                assert isinstance(self.con_man.timeouts.deny_sim_switch_until, datetime.datetime)
-                delta = self.con_man.timeouts.deny_sim_switch_until - TEST_NOW
-                assert delta.total_seconds() == self.config.sticky_sim_period.total_seconds()
-
-                active_cn = self.con_man.network_manager.get_active_connections().get("wb-eth0")
-                new_tier, new_cn_id, changed = self.con_man.set_current_connection(
-                    active_cn, "wb-eth0", self.config.tiers[0]
-                )
-                assert new_tier == self.config.tiers[0]
-                assert new_cn_id == "wb-eth0"
-                assert changed is True
-                assert self.con_man.timeouts.deny_sim_switch_until is None
-
-                call_ifmetric_mock.assert_has_calls([call("ppp0", 305), call("ppp0", 55), call("ppp0", 305)])
+            self.con_man.set_current_connection("wb-eth0", self.config.tiers[0])
+            assert self.con_man.current_tier == self.config.tiers[0]
+            assert self.con_man.current_connection == "wb-eth0"
+            assert self.con_man.timeouts.deny_sim_switch_until is None
 
     def test_14_find_lesser_gsm_connections(self):
         config_data = {
@@ -758,12 +720,12 @@ class ConnectionManagerTests(AbsConManCheckTests):
         self.con_man.current_connection = "wb-eth0"
         self.con_man.current_tier = self.config.tiers[1]
 
-        assert self._is_active_connection(self.con_man.get_active_connection("wb-gsm-sim1"))
-        assert self._is_active_connection(self.con_man.get_active_connection("wb-gsm-sim2"))
+        assert self._is_active_connection(self.con_man.find_active_connection("wb-gsm-sim1"))
+        assert self._is_active_connection(self.con_man.find_active_connection("wb-gsm-sim2"))
 
         self.con_man.deactivate_lesser_gsm_connections(
             self.con_man.current_connection, self.con_man.current_tier
         )
 
-        assert self._is_active_connection(self.con_man.get_active_connection("wb-gsm-sim1"))
-        assert self.con_man.get_active_connection("wb-gsm-sim2") is None
+        assert self._is_active_connection(self.con_man.find_active_connection("wb-gsm-sim1"))
+        assert self.con_man.find_active_connection("wb-gsm-sim2") is None
