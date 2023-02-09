@@ -1,9 +1,9 @@
 import dbus
 
-from wb.nm_helper.modem_manager_interfaces import ModemManagerInterface
+from wb.nm_helper.modem_manager_interfaces import IModemManager
 
 
-class ModemManager(ModemManagerInterface):
+class ModemManager(IModemManager):
     def __init__(self):
         self.bus = dbus.SystemBus()
         self.mm_proxy = self.bus.get_object("org.freedesktop.ModemManager1", "/org/freedesktop/ModemManager1")

@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional
 
 
-class NMObjectInterface(ABC):
+class INMObject(ABC):
     @abstractmethod
     def get_object(self):
         pass
@@ -26,25 +26,25 @@ class NMObjectInterface(ABC):
         pass
 
 
-class NetworkManagerInterface(NMObjectInterface, ABC):
+class INetworkManager(INMObject):
     @abstractmethod
-    def find_connection(self, cn_id: str) -> Optional[NMConnectionInterface]:
+    def find_connection(self, cn_id: str) -> Optional[INMConnection]:
         pass
 
     @abstractmethod
-    def get_active_connections(self) -> Dict[str, NMActiveConnectionInterface]:
+    def get_active_connections(self) -> Dict[str, INMActiveConnection]:
         pass
 
     @abstractmethod
-    def find_device_by_param(self, param_name: str, param_value: str) -> Optional[NMDeviceInterface]:
+    def find_device_by_param(self, param_name: str, param_value: str) -> Optional[INMDevice]:
         pass
 
     @abstractmethod
-    def find_device_for_connection(self, cn_obj: NMConnectionInterface) -> Optional[NMDeviceInterface]:
+    def find_device_for_connection(self, cn_obj: INMConnection) -> Optional[INMDevice]:
         pass
 
     @abstractmethod
-    def deactivate_connection(self, con: NMActiveConnectionInterface) -> None:
+    def deactivate_connection(self, con: INMActiveConnection) -> None:
         pass
 
     @abstractmethod
@@ -52,11 +52,11 @@ class NetworkManagerInterface(NMObjectInterface, ABC):
         pass
 
     @abstractmethod
-    def get_devices(self) -> List[NMDeviceInterface]:
+    def get_devices(self) -> List[INMDevice]:
         pass
 
     @abstractmethod
-    def get_connections(self) -> List[NMConnectionInterface]:
+    def get_connections(self) -> List[INMConnection]:
         pass
 
     @abstractmethod
@@ -64,13 +64,11 @@ class NetworkManagerInterface(NMObjectInterface, ABC):
         pass
 
     @abstractmethod
-    def activate_connection(
-        self, con: NMConnectionInterface, dev: NMDeviceInterface
-    ) -> NMActiveConnectionInterface:
+    def activate_connection(self, con: INMConnection, dev: INMDevice) -> INMActiveConnection:
         pass
 
 
-class NMConnectionInterface(NMObjectInterface, ABC):
+class INMConnection(INMObject):
     @abstractmethod
     def get_settings(self):
         pass
@@ -88,19 +86,19 @@ class NMConnectionInterface(NMObjectInterface, ABC):
         pass
 
 
-class NMDeviceInterface(NMObjectInterface, ABC):
+class INMDevice(INMObject):
     @abstractmethod
     def set_metric(self, metric: int):
         pass
 
     @abstractmethod
-    def get_active_connection(self) -> Optional[NMActiveConnectionInterface]:
+    def get_active_connection(self) -> Optional[INMActiveConnection]:
         pass
 
 
-class NMActiveConnectionInterface(NMObjectInterface, ABC):
+class INMActiveConnection(INMObject):
     @abstractmethod
-    def get_devices(self) -> List[NMDeviceInterface]:
+    def get_devices(self) -> List[INMDevice]:
         pass
 
     @abstractmethod
@@ -116,7 +114,7 @@ class NMActiveConnectionInterface(NMObjectInterface, ABC):
         pass
 
     @abstractmethod
-    def get_connection(self) -> NMConnectionInterface:
+    def get_connection(self) -> INMConnection:
         pass
 
     @abstractmethod
@@ -124,15 +122,15 @@ class NMActiveConnectionInterface(NMObjectInterface, ABC):
         pass
 
 
-class NMAccessPointInterface(NMObjectInterface, ABC):
+class INMAccessPoint(INMObject, ABC):
     pass
 
 
-class NMWirelessDeviceInterface(NMObjectInterface, ABC):
+class INMWirelessDevice(INMObject):
     @abstractmethod
     def request_wifi_scan(self) -> None:
         pass
 
     @abstractmethod
-    def get_access_points(self) -> List[NMAccessPointInterface]:
+    def get_access_points(self) -> List[INMAccessPoint]:
         pass

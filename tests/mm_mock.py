@@ -4,7 +4,7 @@ import json
 import logging
 from typing import List, Optional
 
-from wb.nm_helper.modem_manager_interfaces import ModemManagerInterface
+from wb.nm_helper.modem_manager_interfaces import IModemManager
 from wb.nm_helper.network_manager import (
     NM_ACTIVE_CONNECTION_STATE_ACTIVATED,
     NM_ACTIVE_CONNECTION_STATE_ACTIVATING,
@@ -12,22 +12,20 @@ from wb.nm_helper.network_manager import (
     NM_ACTIVE_CONNECTION_STATE_UNKNOWN,
 )
 from wb.nm_helper.network_manager_interfaces import (
-    NetworkManagerInterface,
-    NMActiveConnectionInterface,
-    NMConnectionInterface,
-    NMDeviceInterface,
+    INetworkManager,
+    INMActiveConnection,
+    INMConnection,
+    INMDevice,
 )
 
 # pylint: disable=duplicate-code
-
-
 
 
 class FakeNMError(Exception):
     pass
 
 
-class FakeNMConnection(NMConnectionInterface):
+class FakeNMConnection(INMConnection):
     def __init__(self, name, net_man):
         self.name = name
         self.net_man = net_man
@@ -69,7 +67,7 @@ class FakeNMConnection(NMConnectionInterface):
         pass
 
 
-class FakeNMActiveConnection(NMActiveConnectionInterface):
+class FakeNMActiveConnection(INMActiveConnection):
     def __init__(self, name, net_man):
         self.name = name
         self.net_man = net_man
@@ -123,7 +121,7 @@ class FakeNMActiveConnection(NMActiveConnectionInterface):
         pass
 
 
-class FakeNMDevice(NMDeviceInterface):
+class FakeNMDevice(INMDevice):
     def __init__(self, name, net_man):
         self.name = name
         self.net_man: FakeNetworkManager = net_man
@@ -179,7 +177,7 @@ class FakeNMDevice(NMDeviceInterface):
         pass
 
 
-class FakeNetworkManager(NetworkManagerInterface):  # pylint: disable=too-many-public-methods
+class FakeNetworkManager(INetworkManager):  # pylint: disable=too-many-public-methods
     def __init__(self):
         self.connections = {}
         self.devices = {}
@@ -338,10 +336,10 @@ class FakeNetworkManager(NetworkManagerInterface):  # pylint: disable=too-many-p
     def add_connection(self, connection_settings):
         pass
 
-    def get_connections(self) -> List[NMConnectionInterface]:
+    def get_connections(self) -> List[INMConnection]:
         pass
 
-    def get_devices(self) -> List[NMDeviceInterface]:
+    def get_devices(self) -> List[INMDevice]:
         pass
 
     def get_iface(self):
@@ -353,11 +351,11 @@ class FakeNetworkManager(NetworkManagerInterface):  # pylint: disable=too-many-p
     def get_version(self) -> str:
         pass
 
-    def find_device_by_param(self, param_name: str, param_value: str) -> Optional[NMDeviceInterface]:
+    def find_device_by_param(self, param_name: str, param_value: str) -> Optional[INMDevice]:
         pass
 
 
-class FakeModemManager(ModemManagerInterface):
+class FakeModemManager(IModemManager):
     def __init__(self, net_man):
         self.net_man = net_man
 
