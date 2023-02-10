@@ -1,11 +1,12 @@
 from __future__ import annotations
-# pylint: disable=duplicate-code
 
 import json
 import logging
 from typing import List, Optional
 
 from wb.nm_helper.modem_manager_interfaces import IModemManager
+
+# pylint: disable=duplicate-code
 from wb.nm_helper.network_manager import (
     NM_ACTIVE_CONNECTION_STATE_ACTIVATED,
     NM_ACTIVE_CONNECTION_STATE_ACTIVATING,
@@ -18,8 +19,6 @@ from wb.nm_helper.network_manager_interfaces import (
     INMConnection,
     INMDevice,
 )
-
-# pylint: disable=duplicate-code
 
 
 class FakeNMError(Exception):
