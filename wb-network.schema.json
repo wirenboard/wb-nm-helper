@@ -8,7 +8,8 @@
         "fromJSON": ["wb-nm-helper", "-s"],
         "restartDelayMS": 4000,
         "service": "wb-connection-manager",
-        "needReload": true
+        "needReload": true,
+        "editor": "network-connections"
     },
     "definitions": {
         "mac-addr": {
@@ -36,49 +37,52 @@
         },
         "802-11-wireless-security": {
             "title": "Security",
-            "type": "object",
-            "properties": {
-                "security": {
-                    "type": "string",
-                    "title": "Security",
-                    "enum": ["none", "wpa-psk"],
-                    "options": {
-                        "enum_titles": ["None", "WPA/WPA2 Personal"]
-                    },
-                    "default": "wpa-psk",
-                    "propertyOrder": 1
-                },
-                "key-mgmt": {
-                    "type": "string",
-                    "enum": ["wpa-psk"],
-                    "options": {
-                        "hidden": true,
-                        "dependencies": {
-                            "security": "wpa-psk"
-                        },
-                        "wb": {
-                            "show_editor": true
-                        }
-                    }
-                },
-                "psk": {
-                    "type": "string",
-                    "title": "Password",
-                    "minLength": 8,
-                    "maxLength": 63,
-                    "options": {
-                        "dependencies": {
-                            "key-mgmt": "wpa-psk"
-                        },
-                        "wb": {
-                            "show_editor": true
+            "oneOf": [
+                {
+                    "type": "object",
+                    "title": "None",
+                    "properties": {
+                        "security": {
+                            "type": "string",
+                            "enum": ["none"],
+                            "options": {
+                                "hidden" : true
+                            }
                         }
                     },
-                    "propertyOrder": 2
+                    "required": ["security"]
+                },
+                {
+                    "type": "object",
+                    "title": "WPA/WPA2 Personal",
+                    "properties": {
+                        "security": {
+                            "type": "string",
+                            "enum": ["wpa-psk"],
+                            "options": {
+                                "hidden": true
+                            }
+                        },
+                        "key-mgmt": {
+                            "type": "string",
+                            "enum": ["wpa-psk"],
+                            "options": {
+                                "hidden": true
+                            }
+                        },
+                        "psk": {
+                            "type": "string",
+                            "title": "Password",
+                            "minLength": 8,
+                            "maxLength": 63,
+                            "propertyOrder": 2
+                        }
+                    },
+                    "required": ["security", "key-mgmt", "psk"]
                 }
-            },
-            "required": ["security"],
+            ],
             "options": {
+                "keep_oneof_values": false,
                 "wb": {
                     "disable_title": true
                 }
@@ -634,7 +638,6 @@
         },
         "nm_ethernet": {
             "title": "Ethernet",
-            "description": "Configured in NetworkManager",
             "allOf": [
                 {
                     "type": "object",
@@ -708,7 +711,6 @@
         },
         "nm_wifi": {
             "title": "Wi-Fi",
-            "description": "Configured in NetworkManager",
             "allOf": [
                 {
                     "type": "object",
@@ -804,7 +806,6 @@
         },
         "nm_wifi_ap": {
             "title": "Wi-Fi access point",
-            "description": "Configured in NetworkManager",
             "allOf": [
                 {
                     "type": "object",
@@ -892,7 +893,6 @@
         },
         "nm_modem": {
             "title": "Modem",
-            "description": "Configured in NetworkManager",
             "allOf":[
                 {
                     "type": "object",
@@ -904,24 +904,13 @@
                             },
                             "enum": ["02_nm_modem"]
                         },
-                        "gsm_auto-config": {
-                            "type": "boolean",
-                            "default": true,
-                            "title": "gsm_auto-config_title",
-                            "_format": "checkbox",
-                            "propertyOrder": 3
-                        },
                         "gsm_apn": {
                             "type": "string",
                             "title": "APN",
                             "propertyOrder": 4,
-                            "minLength": 1,
                             "options": {
-                                "dependencies": {
-                                    "gsm_auto-config": [false]
-                                },
-                                "wb": {
-                                    "show_editor": true
+                                "inputAttributes": {
+                                    "placeholder":  "gsm_auto-config_title"
                                 }
                             }
                         },
@@ -975,7 +964,7 @@
                             "_format": "edWb"
                         }
                     },
-                    "required": ["type", "gsm_auto-config"]
+                    "required": ["type", "gsm_apn", "ipv4"]
                 },
                 {
                     "$ref": "#/definitions/nm_connection"
@@ -994,14 +983,16 @@
             "properties": {
                 "connection_id": {
                     "type": "string",
-                    "title": "Connection name",
                     "minLength": 1,
-                    "propertyOrder": 1
+                    "propertyOrder": 1,
+                    "options": {
+                        "hidden": true
+                    }
                 },
                 "connection_autoconnect": {
                     "type": "boolean",
                     "default": true,
-                    "title": "Auto",
+                    "title": "Autoconnect",
                     "_format": "checkbox",
                     "propertyOrder": 2
                 },
@@ -1013,7 +1004,7 @@
                     "default": ""
                 }
             },
-            "required": ["connection_id", "connection_uuid"]
+            "required": ["connection_autoconnect", "connection_id", "connection_uuid"]
         },
         "nm_ipv4_manual": {
             "type": "object",
@@ -1071,9 +1062,7 @@
                     "description": "Comma-separated list of IP addresses",
                     "propertyOrder": 16,
                     "options": {
-                        "wb": {
-                            "show_editor": true
-                        }
+                        "show_opt_in": true
                     }
                 },
                 "dns-search": {
@@ -1082,9 +1071,7 @@
                     "description": "Comma-separated list of domains",
                     "propertyOrder": 17,
                     "options": {
-                        "wb": {
-                            "show_editor": true
-                        }
+                        "show_opt_in": true
                     }
                 }
             },
@@ -1112,9 +1099,7 @@
                     "title": "Hostname to be requested",
                     "propertyOrder": 12,
                     "options": {
-                        "wb": {
-                            "show_editor": true
-                        }
+                        "show_opt_in": true
                     }
                 },
                 "dhcp-client-id": {
@@ -1122,9 +1107,7 @@
                     "title": "Client identifier",
                     "propertyOrder": 13,
                     "options": {
-                        "wb": {
-                            "show_editor": true
-                        }
+                        "show_opt_in": true
                     }
                 },
                 "route-metric": {
@@ -1144,9 +1127,7 @@
                     "description": "Comma-separated list of IP addresses",
                     "propertyOrder": 16,
                     "options": {
-                        "wb": {
-                            "show_editor": true
-                        }
+                        "show_opt_in": true
                     }
                 },
                 "dns-search": {
@@ -1155,9 +1136,7 @@
                     "description": "Comma-separated list of domains",
                     "propertyOrder": 17,
                     "options": {
-                        "wb": {
-                            "show_editor": true
-                        }
+                        "show_opt_in": true
                     }
                 }
             },
@@ -1370,7 +1349,7 @@
     "translations": {
         "en": {
             "connection_title": "Connection",
-            "gsm_auto-config_title": "Define APN according to information from SIM-card",
+            "gsm_auto-config_title": "define APN according to information from SIM-card",
             "con_switch_desc": "The controller checks the connection with the Internet every 5 seconds, if there is no connection, the current connection will down and the next one in the list will be activated. Further, every 60 seconds the controller will try to up one of the connections with a higher priority and, if it succeeds, will switch to it.",
             "mac-pattern-message": "Must be six hexadecimal byte values divided by colon (example f2:c8:14:48:d3:97)",
             "interfaces_description": "Configured in /etc/network/interfaces",
@@ -1379,6 +1358,7 @@
         },
         "ru": {
             "Network connections": "Сетевые соединения",
+            "Autoconnect": "Подключаться автоматически",
             "Auto": "Включать автоматически",
             "Name": "Имя интерфейса",
             "Allow hotplug": "Разрешить горячее подключение",
@@ -1422,10 +1402,9 @@
             "interfaces_description": "Настроено в /etc/network/interfaces",
             "old_interface_deprecated_description": "Доступно управление через NetworkManager - это современный сервис настройки, поддержка которого сейчас развивается в Wiren Board. Для перехода на NetworkManager <b>удалите это соединение</b> и используйте существующее из списка выше (или создайте новое, если нужно)",
             "loopback_deprecated_description": "Ручные определения loopback-интерфейсов <b>можно удалить</b>, systemd создаёт loopback автоматически",
-            "Configured in NetworkManager": "Настроено в NetworkManager",
             "Interface": "Имя интерфейса",
             "connection_title": "Соединение",
-            "gsm_auto-config_title": "Определить APN автоматически на основании информации об операторе SIM-карты",
+            "gsm_auto-config_title": "определить APN автоматически на основании информации об операторе SIM-карты",
             "Connection name": "Название соединения",
             "Only for SIM slot": "Только для SIM-слота",
             "Only for device": "Только для устройства",

@@ -128,7 +128,7 @@ def from_json(cfg, args) -> Dict:
         if res or len(released_interfaces) > 0:
             manager.RestartUnit("NetworkManager.service", "fail")
 
-    return cfg["ui"]["con_switch"]
+    return cfg["ui"]["con_switch"] if "con_switch" in cfg["ui"] else {}
 
 
 def main() -> None:
