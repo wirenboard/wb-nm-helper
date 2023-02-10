@@ -78,7 +78,6 @@ class ConnectionManagerConfigFile:
                 raise ImproperlyConfigured("Incorrect sticky_sim_period_s ({}): {}".format(seconds, e)) from e
         else:
             value = DEFAULT_STICKY_SIM_PERIOD
-        logging.debug("Initialized sticky_sim_period as %s seconds", value)
         return value
 
     @staticmethod
@@ -166,6 +165,9 @@ class ConnectionManager:
         self.timeouts: TimeoutManager = TimeoutManager(config)
         self.current_tier: Optional[ConnectionTier] = None
         self.current_connection: Optional[str] = None
+        logging.debug(
+            "Initialized sticky_sim_period as %s seconds", self.config.sticky_sim_period.total_seconds()
+        )
 
     def cycle_loop(self):
         new_tier, new_connection, changed = self.check()
