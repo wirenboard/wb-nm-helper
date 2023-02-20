@@ -486,7 +486,9 @@ class NetworkManagerAdapter:
         for dev in self.network_manager.get_devices():
             mapping = type_mapping.get(dev.get_property("DeviceType"))
             if mapping:
-                devices.append({"type": mapping, "iface": dev.get_property("Interface")})
+                iface = dev.get_property("Interface")
+                if iface != "dbg0":
+                    devices.append({"type": mapping, "iface": iface})
         return devices
 
     def get_wifi_ssids(self, scan_timeout: datetime.timedelta) -> List[str]:
