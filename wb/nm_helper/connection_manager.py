@@ -357,9 +357,9 @@ class ConnectionManager:
         return dev
 
     def deactivate_current_gsm_connection(self, active_connection):
-        logging.debug("Active gsm connection is %s", active_connection)
+        logging.debug("Currently active gsm connection is %s", active_connection)
         old_active_connection_id = active_connection.get_connection_id()
-        logging.debug('Deactivate active connection "%s"', old_active_connection_id)
+        logging.debug('Deactivating active connection "%s" to switch SIM slot', old_active_connection_id)
         self.timeouts.reset_connection_retry_timeout(old_active_connection_id)
         self.network_manager.deactivate_connection(active_connection)
         self._wait_connection_deactivation(active_connection, CONNECTION_DEACTIVATION_TIMEOUT)
@@ -395,7 +395,7 @@ class ConnectionManager:
 
     @staticmethod
     def _wait_connection_activation(con: NMActiveConnection, timeout) -> bool:
-        logging.debug("Waiting for connection activation")
+        logging.debug("Waiting for connection activation (%s)", con.get_connection_id())
         start = datetime.datetime.now()
         while start + timeout >= datetime.datetime.now():
             current_state = con.get_property("State")
@@ -406,7 +406,7 @@ class ConnectionManager:
 
     @staticmethod
     def _wait_connection_deactivation(con: NMActiveConnection, timeout) -> None:
-        logging.debug("Waiting for connection deactivation")
+        logging.debug("Waiting for connection deactivation (%s)", con.get_connection_id())
         start = datetime.datetime.now()
         while start + timeout >= datetime.datetime.now():
             try:
@@ -441,7 +441,7 @@ class ConnectionManager:
         for connection in connections:
             data = {"cn_id": connection.get_connection_id()}
             self.deactivate_connection(connection)
-            logging.info('Deactivated unneeded GSM connection "%s"', cn_id, extra=data)
+            logging.info('Deactivated unneeded GSM connection "%s" to save GSM traffic', cn_id, extra=data)
 
     def find_lesser_gsm_connections(
         self, current_con_id: str, current_tier: ConnectionTier
