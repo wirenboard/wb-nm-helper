@@ -295,13 +295,17 @@ class ConnectionManager:
 
     @staticmethod
     def _wait_generic_connection_activation(con: NMActiveConnection, timeout) -> bool:
-        logging.debug("Waiting for connection activation")
+        logging.debug("Waiting for connection activation (%s)", con.get_connection_id())
         start = datetime.datetime.now()
         while start + timeout >= datetime.datetime.now():
             current_state = con.get_property("State")
             if current_state == NM_ACTIVE_CONNECTION_STATE_ACTIVATED:
                 return True
-            logging.debug("state: %s", current_state)
+            logging.debug(
+                "Still waiting for connection activation (%s, state: %s)",
+                con.get_connection_id(),
+                current_state,
+            )
             time.sleep(1)
         return False
 
