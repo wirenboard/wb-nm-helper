@@ -170,8 +170,8 @@ class ConnectionManager:
         )
 
     def cycle_loop(self):
-        new_tier, new_connection, changed = self.check()
-        if changed:
+        new_tier, new_connection = self.check()
+        if new_connection != self.current_connection or new_tier != self.current_tier:
             self.set_current_connection(new_connection, new_tier)
             self.deactivate_lesser_gsm_connections(new_connection, new_tier)
             self.apply_metrics()
@@ -189,7 +189,7 @@ class ConnectionManager:
                             "Current connection %s is most preferred and has connectivity",
                             self.current_connection,
                         )
-                        return self.current_tier, self.current_connection, False
+                        return self.current_tier, self.current_connection
                 except dbus.exceptions.DBusException as ex:
                     self._log_connection_check_error(self.current_connection, ex)
             # second, iterate all connections in tier
@@ -207,13 +207,13 @@ class ConnectionManager:
                         active_cn = self.activate_connection(cn_id)
                         self.timeouts.touch_connection_retry_timeout(cn_id)
                     if active_cn and self.check_connectivity(active_cn):
-                        return tier, cn_id, True
+                        return tier, cn_id
                 except dbus.exceptions.DBusException as ex:
                     self._log_connection_check_error(cn_id, ex)
                     self.timeouts.touch_connection_retry_timeout(cn_id)
 
-        # no working connections found at all
-        return self.current_tier, self.current_connection, False
+        logging.debug("No working connections found at all")
+        return self.current_tier, self.current_connection
 
     def ok_to_activate_connection(self, cn_id: str) -> bool:
         if self.timeouts.connection_retry_timeout_is_active(cn_id):
@@ -496,6 +496,7 @@ class ConnectionManager:
                     metric = 55
                 else:
                     metric = tier.get_route_metric()
+                logging.warning("set metric for %s (%s)", active_cn, metric)
                 self.set_device_metric_for_connection(active_cn, metric)
 
     def set_device_metric_for_connection(self, active_cn: NMActiveConnection, metric: int) -> None:
