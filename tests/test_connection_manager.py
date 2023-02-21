@@ -61,6 +61,113 @@ class AbsConManTests(unittest.TestCase):
         return isinstance(con, (NMConnection, FakeNMConnection))
 
 
+class CycleLoopTests(AbsConManTests):
+    def test_01_cycle_loop_from_empty(self):
+        local_config = {
+            "tiers": {
+                "high": ["wb-eth0"],
+                "medium": ["wb-eth1"],
+                "low": [],
+            }
+        }
+        self._init_con_man(local_config)
+        assert self.con_man.current_connection is None
+        assert self.con_man.current_tier is None
+        self.net_man.fake_add_ethernet("wb-eth0", device_connected=True)
+        self.net_man.fake_add_ethernet("wb-eth1", device_connected=True)
+        self.con_man.check = MagicMock(return_value=(self.config.tiers[0], "wb-eth0"))
+        self.con_man.set_current_connection = MagicMock()
+        self.con_man.deactivate_lesser_gsm_connections = MagicMock()
+        self.con_man.apply_metrics = MagicMock()
+
+        self.con_man.cycle_loop()
+
+        assert self.con_man.set_current_connection.mock_calls == [call("wb-eth0", self.config.tiers[0])]
+        assert self.con_man.deactivate_lesser_gsm_connections.mock_calls == [
+            call("wb-eth0", self.config.tiers[0])
+        ]
+        assert self.con_man.apply_metrics.mock_calls == [call()]
+
+    def test_02_cycle_loop_no_change(self):
+        local_config = {
+            "tiers": {
+                "high": ["wb-eth0"],
+                "medium": ["wb-eth1"],
+                "low": [],
+            }
+        }
+        self._init_con_man(local_config)
+        assert self.con_man.current_connection is None
+        assert self.con_man.current_tier is None
+        self.net_man.fake_add_ethernet("wb-eth0", device_connected=True)
+        self.net_man.fake_add_ethernet("wb-eth1", device_connected=True)
+        self.con_man.set_current_connection("wb-eth0", self.config.tiers[0])
+        self.con_man.check = MagicMock(return_value=(self.config.tiers[0], "wb-eth0"))
+        self.con_man.set_current_connection = MagicMock()
+        self.con_man.deactivate_lesser_gsm_connections = MagicMock()
+        self.con_man.apply_metrics = MagicMock()
+
+        self.con_man.cycle_loop()
+
+        assert self.con_man.set_current_connection.mock_calls == []
+        assert self.con_man.deactivate_lesser_gsm_connections.mock_calls == []
+        assert self.con_man.apply_metrics.mock_calls == []
+
+    def test_03_cycle_loop_changed_con(self):
+        local_config = {
+            "tiers": {
+                "high": ["wb-eth0", "wb-eth1"],
+                "medium": [],
+                "low": [],
+            }
+        }
+        self._init_con_man(local_config)
+        assert self.con_man.current_connection is None
+        assert self.con_man.current_tier is None
+        self.net_man.fake_add_ethernet("wb-eth0", device_connected=True)
+        self.net_man.fake_add_ethernet("wb-eth1", device_connected=True)
+        self.con_man.set_current_connection("wb-eth0", self.config.tiers[0])
+        self.con_man.check = MagicMock(return_value=(self.config.tiers[0], "wb-eth1"))
+        self.con_man.set_current_connection = MagicMock()
+        self.con_man.deactivate_lesser_gsm_connections = MagicMock()
+        self.con_man.apply_metrics = MagicMock()
+
+        self.con_man.cycle_loop()
+
+        assert self.con_man.set_current_connection.mock_calls == [call("wb-eth1", self.config.tiers[0])]
+        assert self.con_man.deactivate_lesser_gsm_connections.mock_calls == [
+            call("wb-eth1", self.config.tiers[0])
+        ]
+        assert self.con_man.apply_metrics.mock_calls == [call()]
+
+    def test_04_cycle_loop_changed_tier(self):
+        local_config = {
+            "tiers": {
+                "high": ["wb-eth0"],
+                "medium": ["wb-eth0"],
+                "low": [],
+            }
+        }
+        self._init_con_man(local_config)
+        assert self.con_man.current_connection is None
+        assert self.con_man.current_tier is None
+        self.net_man.fake_add_ethernet("wb-eth0", device_connected=True)
+        self.net_man.fake_add_ethernet("wb-eth1", device_connected=True)
+        self.con_man.set_current_connection("wb-eth0", self.config.tiers[1])
+        self.con_man.check = MagicMock(return_value=(self.config.tiers[0], "wb-eth0"))
+        self.con_man.set_current_connection = MagicMock()
+        self.con_man.deactivate_lesser_gsm_connections = MagicMock()
+        self.con_man.apply_metrics = MagicMock()
+
+        self.con_man.cycle_loop()
+
+        assert self.con_man.set_current_connection.mock_calls == [call("wb-eth0", self.config.tiers[0])]
+        assert self.con_man.deactivate_lesser_gsm_connections.mock_calls == [
+            call("wb-eth0", self.config.tiers[0])
+        ]
+        assert self.con_man.apply_metrics.mock_calls == [call()]
+
+
 class CheckTests(AbsConManTests):
     def test_01_simple(self):
         local_config = {
@@ -781,11 +888,10 @@ class OKToActivateTests(AbsConManTests):
             connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED,
             sim_slot=1,
         )
-
         self.con_man.timeouts.now = MagicMock(return_value=TEST_NOW)
-
         self.con_man.timeouts.connection_retry_timeouts = {}
         self.con_man.timeouts.deny_sim_switch_until = None
+
         assert self.con_man.ok_to_activate_connection("wb-eth0") is True
         assert self.con_man.ok_to_activate_connection("wb-gsm-sim1") is True
 
@@ -793,6 +899,7 @@ class OKToActivateTests(AbsConManTests):
             "wb-eth0": TEST_NOW - CONNECTION_ACTIVATION_RETRY_TIMEOUT,
             "wb-gsm-sim1": TEST_NOW - CONNECTION_ACTIVATION_RETRY_TIMEOUT,
         }
+
         assert self.con_man.ok_to_activate_connection("wb-eth0") is True
         assert self.con_man.ok_to_activate_connection("wb-gsm-sim1") is True
 
