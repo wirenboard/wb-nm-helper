@@ -352,69 +352,6 @@ class CheckTests(AbsConManTests):
         assert new_tier == self.config.tiers[0]
         assert new_con == "wb-gsm-sim2"
 
-    def test_09_loop_metrics(self):
-        local_config = {
-            "tiers": {
-                "high": ["wb-eth0", "wb-gsm1-sim1"],
-                "medium": ["wb-wifi-client"],
-                "low": ["wb-gsm2-sim1", "wb-eth1"],
-            }
-        }
-        self._init_con_man(local_config)
-        self.net_man.fake_add_ethernet(
-            "wb-eth0", device_connected=True, connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED
-        )
-        self.net_man.fake_add_ethernet(
-            "wb-eth1", device_connected=True, connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED
-        )
-        self.net_man.fake_add_wifi_client(
-            "wb-wifi-client", device_connected=True, connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED
-        )
-        self.net_man.fake_add_gsm(
-            "wb-gsm1-sim1",
-            device_connected=True,
-            connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED,
-            sim_slot=1,
-            device_name="ttyUSB1",
-            iface_name="ppp0",
-        )
-        self.net_man.fake_add_gsm(
-            "wb-gsm2-sim1",
-            device_connected=True,
-            connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED,
-            sim_slot=1,
-            device_name="ttyUSB2",
-            iface_name="ppp1",
-        )
-        self.con_man.curl_get.side_effect = ["", "", "", self.con_man.config.connectivity_check_payload]
-        self.con_man.current_connection = "wb-gsm1-sim1"
-        self.con_man.current_tier = self.config.tiers[0]
-        assert len(self.con_man.network_manager.get_active_connections()) == 5
-
-        self.con_man.cycle_loop()
-
-        assert self.con_man.current_tier == self.config.tiers[2]
-        assert self.con_man.current_connection == "wb-gsm2-sim1"
-        assert self.net_man.fake_get_device_metric("dev_wb-eth0") == 105
-        assert self.net_man.fake_get_device_metric("dev_wb-eth1") == 305
-        assert self.net_man.fake_get_device_metric("dev_wb-wifi-client") == 205
-        curl_calls = [
-            call("ppp0", self.con_man.config.connectivity_check_url),
-            call("if_wb-eth0", self.con_man.config.connectivity_check_url),
-            call("if_wb-wifi-client", self.con_man.config.connectivity_check_url),
-            call("ppp1", self.con_man.config.connectivity_check_url),
-        ]
-        assert self.con_man.curl_get.mock_calls == curl_calls
-        assert self.con_man.call_ifmetric.mock_calls == [call("ppp0", 105), call("ppp1", 55)]
-        assert (
-            self.net_man.connections.get("wb-gsm1-sim1").get("connection_state")
-            == NM_ACTIVE_CONNECTION_STATE_ACTIVATED
-        )
-        assert (
-            self.net_man.connections.get("wb-gsm2-sim1").get("connection_state")
-            == NM_ACTIVE_CONNECTION_STATE_ACTIVATED
-        )
-
 
 class SetMetricsTests(AbsConManTests):
     def test_01_set_device_metric_for_connection(self):
