@@ -109,9 +109,9 @@ class CycleLoopTests(AbsConManTests):
 
         self.con_man.cycle_loop()
 
-        assert self.con_man.set_current_connection.mock_calls == []
-        assert self.con_man.deactivate_lesser_gsm_connections.mock_calls == []
-        assert self.con_man.apply_metrics.mock_calls == []
+        assert not self.con_man.set_current_connection.mock_calls
+        assert not self.con_man.deactivate_lesser_gsm_connections.mock_calls
+        assert not self.con_man.apply_metrics.mock_calls
 
     def test_03_cycle_loop_changed_con(self):
         local_config = {
