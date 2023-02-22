@@ -27,6 +27,7 @@ from wb.nm_helper.network_manager_interfaces import INetworkManager
 
 EXIT_NOT_CONFIGURED = 6
 
+CONNECTIVITY_CHECK_TIMEOUT = 15
 LOGGING_FORMAT = "%(message)s"
 CONFIG_FILE = "/etc/wb-connection-manager.conf"
 CHECK_PERIOD = datetime.timedelta(seconds=5)
@@ -504,6 +505,8 @@ class ConnectionManager:
         curl.setopt(curl.URL, url)
         curl.setopt(curl.WRITEDATA, buffer)
         curl.setopt(curl.INTERFACE, iface)
+        curl.setopt(pycurl.CONNECTTIMEOUT, CONNECTIVITY_CHECK_TIMEOUT)
+        curl.setopt(pycurl.TIMEOUT, CONNECTIVITY_CHECK_TIMEOUT)
         curl.perform()
         curl.close()
         return buffer.getvalue().decode("UTF-8")
