@@ -42,7 +42,8 @@ class FakeNMConnection(INMConnection):
                 "id": self.name,
                 "type": self._data().get("device_type"),
                 "autoconnect": self._data().get("autoconnect", ""),
-            }
+            },
+            "ipv4": {"never-default": self._data().get("never_default", "")},
         }
         if self._data().get("device_type") == "gsm":
             settings["gsm"] = {"sim-slot": self._data().get("sim_slot")}

@@ -34,10 +34,11 @@ def test_connection_tier_route_metrics():
 
 def test_config_file_empty():
     net_man = FakeNetworkManager()
+    net_man.fake_add_gsm("wb-debug", never_default=True, autoconnect=True)
     net_man.fake_add_gsm("wb-gsm-sim1")
-    net_man.fake_add_gsm("wb-gsm-sim2", autoconnect="true")
+    net_man.fake_add_gsm("wb-gsm-sim2", autoconnect=True)
     net_man.fake_add_wifi_client("wb-wifi-client")
-    net_man.fake_add_wifi_client("wb-wifi-client2", autoconnect="true")
+    net_man.fake_add_wifi_client("wb-wifi-client2", autoconnect=True)
     net_man.fake_add_ethernet("wb-eth0")
     net_man.fake_add_ethernet("wb-eth1", autoconnect="true")
     cfg = {}
