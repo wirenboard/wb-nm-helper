@@ -27,6 +27,7 @@ from wb.nm_helper.network_manager_interfaces import INetworkManager
 
 EXIT_NOT_CONFIGURED = 6
 
+LOGGING_FORMAT = "%(message)s"
 CONFIG_FILE = "/etc/wb-connection-manager.conf"
 CHECK_PERIOD = datetime.timedelta(seconds=5)
 CONNECTION_ACTIVATION_RETRY_TIMEOUT = datetime.timedelta(seconds=60)
@@ -70,7 +71,7 @@ class ConnectionManagerConfigFile:
         if log_level > logging.DEBUG:
             logger = logging.getLogger()
             logger.addFilter(ConnectionStateFilter())
-        logging.basicConfig(level=log_level)
+        logging.basicConfig(level=log_level, format=LOGGING_FORMAT)
 
     @staticmethod
     def get_tiers(cfg: Dict) -> List[ConnectionTier]:
