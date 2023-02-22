@@ -117,10 +117,11 @@ class ConnectionManagerConfigFile:
         for name, level in (("high", 3), ("medium", 2), ("low", 1)):
             tiers.append(ConnectionTier(name, level, []))
         for item in network_manager.get_connections():
-            autoconnect = item.get_settings().get("connection").get("autoconnect")
+            autoconnect = item.get_settings().get("connection").get("autoconnect", True)
+            never_default = item.get_settings().get("ipv4").get("never-default")
             connection_type = item.get_connection_type()
-            connection_id = item.get_settings().get("connection").get("id")
-            if autoconnect != "true":
+            connection_id = str(item.get_settings().get("connection").get("id"))
+            if not autoconnect or never_default:
                 continue
             if connection_type == "gsm":
                 tiers[2].connections.append(connection_id)
@@ -130,9 +131,12 @@ class ConnectionManagerConfigFile:
                 tiers[0].connections.append(connection_id)
             else:
                 logging.warning("Unknown connection type: %s", connection_type)
-        logging.debug("get_default_tiers: high results: %s", tiers[0].connections)
-        logging.debug("get_default_tiers: medium results: %s", tiers[1].connections)
-        logging.debug("get_default_tiers: low results: %s", tiers[2].connections)
+        logging.debug(
+            "get_default_tiers: high %s, medium %s, low %s",
+            tiers[0].connections,
+            tiers[1].connections,
+            tiers[2].connections,
+        )
         return tiers
 
     def get_network_manager(self):
