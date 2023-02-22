@@ -130,9 +130,9 @@ class ConnectionManagerConfigFile:
                 tiers[0].connections.append(connection_id)
             else:
                 logging.warning("Unknown connection type: %s", connection_type)
-        logging.debug("get_default_tiers: high results: %s", tiers[0])
-        logging.debug("get_default_tiers: medium results: %s", tiers[1])
-        logging.debug("get_default_tiers: low results: %s", tiers[2])
+        logging.debug("get_default_tiers: high results: %s", tiers[0].connections)
+        logging.debug("get_default_tiers: medium results: %s", tiers[1].connections)
+        logging.debug("get_default_tiers: low results: %s", tiers[2].connections)
         return tiers
 
     def get_network_manager(self):
