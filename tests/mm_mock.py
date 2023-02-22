@@ -37,7 +37,13 @@ class FakeNMConnection(INMConnection):
         return self._data().get(param_name)
 
     def get_settings(self):
-        settings = {"connection": {"type": self._data().get("device_type")}}
+        settings = {
+            "connection": {
+                "id": self.name,
+                "type": self._data().get("device_type"),
+                "autoconnect": self._data().get("autoconnect", ""),
+            }
+        }
         if self._data().get("device_type") == "gsm":
             settings["gsm"] = {"sim-slot": self._data().get("sim_slot")}
         return settings
@@ -337,7 +343,7 @@ class FakeNetworkManager(INetworkManager):  # pylint: disable=too-many-public-me
         pass
 
     def get_connections(self) -> List[INMConnection]:
-        pass
+        return [FakeNMConnection(item, self) for item in self.connections]
 
     def get_devices(self) -> List[INMDevice]:
         pass

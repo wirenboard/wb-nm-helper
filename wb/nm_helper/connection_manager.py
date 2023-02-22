@@ -56,7 +56,10 @@ class ConnectionTier:  # pylint: disable=R0903
 class ConnectionManagerConfigFile:
     def __init__(self, cfg: Dict) -> None:
         self.debug: bool = cfg.get("debug", False)
-        self.tiers: List[ConnectionTier] = list(self.get_tiers(cfg))
+        if cfg.get("tiers"):
+            self.tiers: List[ConnectionTier] = list(self.get_tiers(cfg))
+        else:
+            self.tiers: List[ConnectionTier] = self.get_default_tiers()
         self.sticky_sim_period: datetime.timedelta = self.get_sticky_sim_period(cfg)
         self.connectivity_check_url: str = self.get_connectivity_check_url(cfg)
         self.connectivity_check_payload: str = self.get_connectivity_check_payload(cfg)
@@ -99,6 +102,33 @@ class ConnectionManagerConfigFile:
             if len(tier.connections):
                 return True
         return False
+
+    def get_default_tiers(self):
+        network_manager = self.get_network_manager()
+        tiers = []
+        for name, level in (("high", 3), ("medium", 2), ("low", 1)):
+            tiers.append(ConnectionTier(name, level, []))
+        for item in network_manager.get_connections():
+            autoconnect = item.get_settings().get("connection").get("autoconnect")
+            connection_type = item.get_connection_type()
+            connection_id = item.get_settings().get("connection").get("id")
+            if autoconnect != "true":
+                continue
+            if connection_type == "gsm":
+                tiers[2].connections.append(connection_id)
+            elif connection_type == "802-11-wireless":
+                tiers[1].connections.append(connection_id)
+            elif connection_type == "802-3-ethernet":
+                tiers[0].connections.append(connection_id)
+            else:
+                logging.warning("Unknown connection type: %s", connection_type)
+        logging.debug("get_default_tiers: high results: %s", tiers[0])
+        logging.debug("get_default_tiers: medium results: %s", tiers[1])
+        logging.debug("get_default_tiers: low results: %s", tiers[2])
+        return tiers
+
+    def get_network_manager(self):
+        return NetworkManager()
 
 
 class TimeoutManager:
@@ -496,7 +526,6 @@ class ConnectionManager:
                     metric = 55
                 else:
                     metric = tier.get_route_metric()
-                logging.warning("set metric for %s (%s)", active_cn, metric)
                 self.set_device_metric_for_connection(active_cn, metric)
 
     def set_device_metric_for_connection(self, active_cn: NMActiveConnection, metric: int) -> None:

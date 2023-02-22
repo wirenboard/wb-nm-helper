@@ -1,7 +1,9 @@
 import datetime
+from unittest.mock import MagicMock
 
 import pytest
 
+from tests.mm_mock import FakeNetworkManager
 from wb.nm_helper.connection_manager import (
     DEFAULT_CONNECTIVITY_CHECK_PAYLOAD,
     DEFAULT_CONNECTIVITY_CHECK_URL,
@@ -31,7 +33,15 @@ def test_connection_tier_route_metrics():
 
 
 def test_config_file_empty():
+    net_man = FakeNetworkManager()
+    net_man.fake_add_gsm("wb-gsm-sim1")
+    net_man.fake_add_gsm("wb-gsm-sim2", autoconnect="true")
+    net_man.fake_add_wifi_client("wb-wifi-client")
+    net_man.fake_add_wifi_client("wb-wifi-client2", autoconnect="true")
+    net_man.fake_add_ethernet("wb-eth0")
+    net_man.fake_add_ethernet("wb-eth1", autoconnect="true")
     cfg = {}
+    ConnectionManagerConfigFile.get_network_manager = MagicMock(return_value=net_man)
     conffile = ConnectionManagerConfigFile(cfg)
     assert conffile.debug is False
     assert conffile.connectivity_check_url == DEFAULT_CONNECTIVITY_CHECK_URL
@@ -40,13 +50,13 @@ def test_config_file_empty():
     assert len(conffile.tiers) == 3
     assert conffile.tiers[0].name == "high"
     assert conffile.tiers[0].priority == 3
-    assert conffile.tiers[0].connections == []
+    assert conffile.tiers[0].connections == ["wb-eth1"]
     assert conffile.tiers[1].name == "medium"
     assert conffile.tiers[1].priority == 2
-    assert conffile.tiers[1].connections == []
+    assert conffile.tiers[1].connections == ["wb-wifi-client2"]
     assert conffile.tiers[2].name == "low"
     assert conffile.tiers[2].priority == 1
-    assert conffile.tiers[2].connections == []
+    assert conffile.tiers[2].connections == ["wb-gsm-sim2"]
 
 
 def test_config_file_normal():
