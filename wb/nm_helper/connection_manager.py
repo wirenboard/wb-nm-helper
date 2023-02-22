@@ -56,6 +56,7 @@ class ConnectionTier:  # pylint: disable=R0903
 class ConnectionManagerConfigFile:
     def __init__(self, cfg: Dict) -> None:
         self.debug: bool = cfg.get("debug", False)
+        self.init_logging()
         if cfg.get("tiers"):
             self.tiers: List[ConnectionTier] = list(self.get_tiers(cfg))
         else:
@@ -63,6 +64,13 @@ class ConnectionManagerConfigFile:
         self.sticky_sim_period: datetime.timedelta = self.get_sticky_sim_period(cfg)
         self.connectivity_check_url: str = self.get_connectivity_check_url(cfg)
         self.connectivity_check_payload: str = self.get_connectivity_check_payload(cfg)
+
+    def init_logging(self):
+        log_level = logging.DEBUG if self.debug else logging.INFO
+        if log_level > logging.DEBUG:
+            logger = logging.getLogger()
+            logger.addFilter(ConnectionStateFilter())
+        logging.basicConfig(level=log_level)
 
     @staticmethod
     def get_tiers(cfg: Dict) -> List[ConnectionTier]:
@@ -560,12 +568,6 @@ def main():
     ) as ex:
         logging.error("Loading %s failed: %s", CONFIG_FILE, ex)
         sys.exit(EXIT_NOT_CONFIGURED)
-
-    log_level = logging.DEBUG if config.debug else logging.INFO
-    if log_level > logging.DEBUG:
-        logger = logging.getLogger()
-        logger.addFilter(ConnectionStateFilter())
-    logging.basicConfig(level=log_level)
 
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
