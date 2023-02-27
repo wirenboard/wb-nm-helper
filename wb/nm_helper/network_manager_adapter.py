@@ -5,6 +5,7 @@ import time
 from collections import namedtuple
 from enum import Enum
 from ipaddress import IPv4Interface
+from socket import htonl, ntohl
 from typing import List, TypedDict
 
 import dbus
@@ -63,14 +64,14 @@ def to_dns_list(string):
     if not string:
         return None
     return dbus.Array(
-        [dbus.UInt32(int(IPv4Interface(s.strip()).network.network_address)) for s in string.split(",")]
+        [dbus.UInt32(htonl(int(IPv4Interface(s.strip()).network.network_address))) for s in string.split(",")]
     )
 
 
 def to_dns_string(array):
     if not array:
         return None
-    return ",".join([str(IPv4Interface((s, "32")).network.network_address) for s in array])
+    return ",".join([str(IPv4Interface((ntohl(s), "32")).network.network_address) for s in array])
 
 
 def to_dns_search_list(string):
