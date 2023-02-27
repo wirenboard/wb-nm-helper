@@ -51,7 +51,7 @@ class ConnectionTier:  # pylint: disable=R0903
         self.priority = priority
         self.connections = connections.copy()
 
-    def get_route_metric(self):
+    def get_base_route_metric(self):
         return (100 * (4 - self.priority)) + 5
 
 
@@ -536,6 +536,7 @@ class ConnectionManager:
     def apply_metrics(self):
         active_connections = self.network_manager.get_active_connections()
         for tier in self.config.tiers:
+            tier_counter = 0
             for cn_id in tier.connections:
                 active_cn = active_connections.get(cn_id)
                 if not active_cn:
@@ -543,7 +544,8 @@ class ConnectionManager:
                 if self.current_connection == cn_id:
                     metric = 55
                 else:
-                    metric = tier.get_route_metric()
+                    metric = tier.get_base_route_metric() + tier_counter
+                    tier_counter += 1
                 self.set_device_metric_for_connection(active_cn, metric)
 
     def set_device_metric_for_connection(self, active_cn: NMActiveConnection, metric: int) -> None:

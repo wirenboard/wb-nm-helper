@@ -540,7 +540,7 @@ class IntegratedTests(AbsConManTests):
             "tiers": {
                 "high": ["wb-eth0", "wb-gsm1-sim1"],
                 "medium": ["wb-wifi-client"],
-                "low": ["wb-gsm2-sim1", "wb-eth1"],
+                "low": ["wb-gsm2-sim1", "wb-eth1", "wb-eth2"],
             }
         }
         self._init_con_man(local_config)
@@ -549,6 +549,9 @@ class IntegratedTests(AbsConManTests):
         )
         self.net_man.fake_add_ethernet(
             "wb-eth1", device_connected=True, connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED
+        )
+        self.net_man.fake_add_ethernet(
+            "wb-eth2", device_connected=True, connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED
         )
         self.net_man.fake_add_wifi_client(
             "wb-wifi-client", device_connected=True, connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED
@@ -580,6 +583,7 @@ class IntegratedTests(AbsConManTests):
         assert self.con_man.current_connection == "wb-gsm2-sim1"
         assert self.net_man.fake_get_device_metric("dev_wb-eth0") == 105
         assert self.net_man.fake_get_device_metric("dev_wb-eth1") == 305
+        assert self.net_man.fake_get_device_metric("dev_wb-eth2") == 306
         assert self.net_man.fake_get_device_metric("dev_wb-wifi-client") == 205
         curl_calls = [
             call("ppp0", self.con_man.config.connectivity_check_url),
