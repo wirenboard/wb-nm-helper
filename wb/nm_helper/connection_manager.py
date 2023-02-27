@@ -485,7 +485,9 @@ class ConnectionManager:
         for connection in connections:
             data = {"cn_id": connection.get_connection_id()}
             self.deactivate_connection(connection)
-            logging.info('Deactivated unneeded GSM connection "%s" to save GSM traffic', cn_id, extra=data)
+            logging.info(
+                'Deactivated unneeded GSM connection "%s" to save GSM traffic', data["cn_id"], extra=data
+            )
 
     def find_lesser_gsm_connections(
         self, current_con_id: str, current_tier: ConnectionTier
