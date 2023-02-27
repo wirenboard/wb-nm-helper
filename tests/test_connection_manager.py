@@ -437,7 +437,7 @@ class ApplyMetricsTests(AbsConManTests):
             call(gsm_con, 55),
             call(eth1_con, 105),
             call(eth0_con, 205),
-            call(wifi_con, 205),
+            call(wifi_con, 206),
             call(eth2_con, 305),
         ]
 
@@ -575,7 +575,7 @@ class IntegratedTests(AbsConManTests):
         self.con_man.curl_get.side_effect = ["", "", "", self.con_man.config.connectivity_check_payload]
         self.con_man.current_connection = "wb-gsm1-sim1"
         self.con_man.current_tier = self.config.tiers[0]
-        assert len(self.con_man.network_manager.get_active_connections()) == 5
+        assert len(self.con_man.network_manager.get_active_connections()) == 6
 
         self.con_man.cycle_loop()
 
