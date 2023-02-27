@@ -592,7 +592,7 @@ class IntegratedTests(AbsConManTests):
             call("ppp1", self.con_man.config.connectivity_check_url),
         ]
         assert self.con_man.curl_get.mock_calls == curl_calls
-        assert self.con_man.call_ifmetric.mock_calls == [call("ppp0", 105), call("ppp1", 55)]
+        assert self.con_man.call_ifmetric.mock_calls == [call("ppp0", 106), call("ppp1", 55)]
         assert (
             self.net_man.connections.get("wb-gsm1-sim1").get("connection_state")
             == NM_ACTIVE_CONNECTION_STATE_ACTIVATED
