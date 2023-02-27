@@ -25,11 +25,11 @@ def test_connection_tier():
 
 def test_connection_tier_route_metrics():
     tier = ConnectionTier("high", 3, ["wb-eth0", "wb-eth1"])
-    assert tier.get_route_metric() == 105
+    assert tier.get_base_route_metric() == 105
     tier = ConnectionTier("medium", 2, ["wb-eth0", "wb-eth1"])
-    assert tier.get_route_metric() == 205
+    assert tier.get_base_route_metric() == 205
     tier = ConnectionTier("low", 1, ["wb-eth0", "wb-eth1"])
-    assert tier.get_route_metric() == 305
+    assert tier.get_base_route_metric() == 305
 
 
 def test_config_file_empty():
