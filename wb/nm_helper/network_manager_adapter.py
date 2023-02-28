@@ -156,11 +156,12 @@ def scan(dev: NMWirelessDevice, scan_timeout: datetime.timedelta) -> None:
             if last_scan_ms != dev.get_property("LastScan"):
                 break
             time.sleep(1)
-    res = []
+    ssids = set()
     for access_point in dev.get_access_points():
         ssid = to_utf8_string(access_point.get_property("Ssid"))
         if len(ssid) > 0:
-            res.append(ssid)
+            ssids.add(ssid)
+    res = list(ssids)
     res.sort()
     return res
 
