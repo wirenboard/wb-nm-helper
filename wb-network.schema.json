@@ -8,9 +8,27 @@
         "fromJSON": ["wb-nm-helper", "-s"],
         "restartDelayMS": 4000,
         "service": "wb-connection-manager",
-        "needReload": true
+        "needReload": true,
+        "editor": "network-connections"
     },
     "definitions": {
+        "switch_connections": {
+            "title": "connection_title",
+            "type": "string",
+            "minLength": 1,
+            "watch": {
+                "connections": "ui.connections"
+            },
+            "enumSource": [
+                {
+                    "source": "connections",
+                    "filter": "{{if item.type in [\"01_nm_ethernet\",\"02_nm_modem\",\"03_nm_wifi\"]}}1{{endif}}{{endif}}",
+                    "title": "{{item.connection_id}}",
+                    "value": "{{item.connection_id}}"
+                }
+            ],
+            "_format": "edWb"
+        },
         "mac-addr": {
             "type": "string",
             "title": "MAC address",
@@ -36,49 +54,52 @@
         },
         "802-11-wireless-security": {
             "title": "Security",
-            "type": "object",
-            "properties": {
-                "security": {
-                    "type": "string",
-                    "title": "Security",
-                    "enum": ["none", "wpa-psk"],
-                    "options": {
-                        "enum_titles": ["None", "WPA/WPA2 Personal"]
-                    },
-                    "default": "wpa-psk",
-                    "propertyOrder": 1
-                },
-                "key-mgmt": {
-                    "type": "string",
-                    "enum": ["wpa-psk"],
-                    "options": {
-                        "hidden": true,
-                        "dependencies": {
-                            "security": "wpa-psk"
-                        },
-                        "wb": {
-                            "show_editor": true
-                        }
-                    }
-                },
-                "psk": {
-                    "type": "string",
-                    "title": "Password",
-                    "minLength": 8,
-                    "maxLength": 63,
-                    "options": {
-                        "dependencies": {
-                            "key-mgmt": "wpa-psk"
-                        },
-                        "wb": {
-                            "show_editor": true
+            "oneOf": [
+                {
+                    "type": "object",
+                    "title": "None",
+                    "properties": {
+                        "security": {
+                            "type": "string",
+                            "enum": ["none"],
+                            "options": {
+                                "hidden" : true
+                            }
                         }
                     },
-                    "propertyOrder": 2
+                    "required": ["security"]
+                },
+                {
+                    "type": "object",
+                    "title": "WPA/WPA2 Personal",
+                    "properties": {
+                        "security": {
+                            "type": "string",
+                            "enum": ["wpa-psk"],
+                            "options": {
+                                "hidden": true
+                            }
+                        },
+                        "key-mgmt": {
+                            "type": "string",
+                            "enum": ["wpa-psk"],
+                            "options": {
+                                "hidden": true
+                            }
+                        },
+                        "psk": {
+                            "type": "string",
+                            "title": "Password",
+                            "minLength": 8,
+                            "maxLength": 63,
+                            "propertyOrder": 2
+                        }
+                    },
+                    "required": ["security", "key-mgmt", "psk"]
                 }
-            },
-            "required": ["security"],
+            ],
             "options": {
+                "keep_oneof_values": false,
                 "wb": {
                     "disable_title": true
                 }
@@ -634,7 +655,6 @@
         },
         "nm_ethernet": {
             "title": "Ethernet",
-            "description": "Configured in NetworkManager",
             "allOf": [
                 {
                     "type": "object",
@@ -708,7 +728,6 @@
         },
         "nm_wifi": {
             "title": "Wi-Fi",
-            "description": "Configured in NetworkManager",
             "allOf": [
                 {
                     "type": "object",
@@ -804,7 +823,6 @@
         },
         "nm_wifi_ap": {
             "title": "Wi-Fi access point",
-            "description": "Configured in NetworkManager",
             "allOf": [
                 {
                     "type": "object",
@@ -892,7 +910,6 @@
         },
         "nm_modem": {
             "title": "Modem",
-            "description": "Configured in NetworkManager",
             "allOf":[
                 {
                     "type": "object",
@@ -904,24 +921,13 @@
                             },
                             "enum": ["02_nm_modem"]
                         },
-                        "gsm_auto-config": {
-                            "type": "boolean",
-                            "default": true,
-                            "title": "gsm_auto-config_title",
-                            "_format": "checkbox",
-                            "propertyOrder": 3
-                        },
                         "gsm_apn": {
                             "type": "string",
                             "title": "APN",
                             "propertyOrder": 4,
-                            "minLength": 1,
                             "options": {
-                                "dependencies": {
-                                    "gsm_auto-config": [false]
-                                },
-                                "wb": {
-                                    "show_editor": true
+                                "inputAttributes": {
+                                    "placeholder":  "gsm_auto-config_title"
                                 }
                             }
                         },
@@ -975,7 +981,7 @@
                             "_format": "edWb"
                         }
                     },
-                    "required": ["type", "gsm_auto-config"]
+                    "required": ["type", "gsm_apn", "ipv4"]
                 },
                 {
                     "$ref": "#/definitions/nm_connection"
@@ -994,14 +1000,16 @@
             "properties": {
                 "connection_id": {
                     "type": "string",
-                    "title": "Connection name",
                     "minLength": 1,
-                    "propertyOrder": 1
+                    "propertyOrder": 1,
+                    "options": {
+                        "hidden": true
+                    }
                 },
                 "connection_autoconnect": {
                     "type": "boolean",
                     "default": true,
-                    "title": "Auto",
+                    "title": "Autoconnect",
                     "_format": "checkbox",
                     "propertyOrder": 2
                 },
@@ -1013,7 +1021,7 @@
                     "default": ""
                 }
             },
-            "required": ["connection_id", "connection_uuid"]
+            "required": ["connection_autoconnect", "connection_id", "connection_uuid"]
         },
         "nm_ipv4_manual": {
             "type": "object",
@@ -1071,9 +1079,7 @@
                     "description": "Comma-separated list of IP addresses",
                     "propertyOrder": 16,
                     "options": {
-                        "wb": {
-                            "show_editor": true
-                        }
+                        "show_opt_in": true
                     }
                 },
                 "dns-search": {
@@ -1082,9 +1088,7 @@
                     "description": "Comma-separated list of domains",
                     "propertyOrder": 17,
                     "options": {
-                        "wb": {
-                            "show_editor": true
-                        }
+                        "show_opt_in": true
                     }
                 }
             },
@@ -1112,9 +1116,7 @@
                     "title": "Hostname to be requested",
                     "propertyOrder": 12,
                     "options": {
-                        "wb": {
-                            "show_editor": true
-                        }
+                        "show_opt_in": true
                     }
                 },
                 "dhcp-client-id": {
@@ -1122,9 +1124,7 @@
                     "title": "Client identifier",
                     "propertyOrder": 13,
                     "options": {
-                        "wb": {
-                            "show_editor": true
-                        }
+                        "show_opt_in": true
                     }
                 },
                 "route-metric": {
@@ -1144,9 +1144,7 @@
                     "description": "Comma-separated list of IP addresses",
                     "propertyOrder": 16,
                     "options": {
-                        "wb": {
-                            "show_editor": true
-                        }
+                        "show_opt_in": true
                     }
                 },
                 "dns-search": {
@@ -1155,9 +1153,7 @@
                     "description": "Comma-separated list of domains",
                     "propertyOrder": 17,
                     "options": {
-                        "wb": {
-                            "show_editor": true
-                        }
+                        "show_opt_in": true
                     }
                 }
             },
@@ -1271,37 +1267,71 @@
                     "propertyOrder": 2,
                     "description": "con_switch_desc",
                     "properties": {
-                        "connections": {
-                            "title": "Connections in descending order of priority",
-                            "type": "array",
-                            "uniqueItems": true,
-                            "propertyOrder": 2,
-                            "items": {
-                                "title": "connection_title",
-                                "type": "string",
-                                "minLength": 1,
-                                "watch": {
-                                    "connections": "ui.connections"
-                                },
-                                "enumSource": [
-                                    {
-                                        "source": "connections",
-                                        "filter": "{{if item.type in [\"01_nm_ethernet\",\"02_nm_modem\",\"03_nm_wifi\"]}}1{{endif}}{{endif}}",
-                                        "title": "{{item.connection_id}}",
-                                        "value": "{{item.connection_id}}"
-                                    }
-                                ],
-                                "_format": "edWb"
-                            },
+                        "tiers": {
+                            "type": "object",
+                            "title": "Connection Tiers",
+                            "propertyOrder": 1,
                             "options": {
-                                "disable_collapse": true,
-                                "disable_array_delete_last_row": true,
-                                "array_controls_top": true,
                                 "wb": {
                                     "show_editor": true
                                 }
                             },
-                            "_format": "table"
+                            "properties": {
+                                "high": {
+                                    "title": "High-priority connections",
+                                    "type": "array",
+                                    "uniqueItems": true,
+                                    "propertyOrder": 1,
+                                    "items": {
+                                        "$ref": "#/definitions/switch_connections"
+                                    },
+                                    "options": {
+                                        "disable_collapse": true,
+                                        "disable_array_delete_last_row": true,
+                                        "array_controls_top": true,
+                                        "wb": {
+                                            "show_editor": true
+                                        }
+                                    },
+                                    "_format": "table"
+                                },
+                                "medium": {
+                                    "title": "Medium-priority connections",
+                                    "type": "array",
+                                    "uniqueItems": true,
+                                    "propertyOrder": 2,
+                                    "items": {
+                                        "$ref": "#/definitions/switch_connections"
+                                    },
+                                    "options": {
+                                        "disable_collapse": true,
+                                        "disable_array_delete_last_row": true,
+                                        "array_controls_top": true,
+                                        "wb": {
+                                            "show_editor": true
+                                        }
+                                    },
+                                    "_format": "table"
+                                },
+                                "low": {
+                                    "title": "Low-priority connections",
+                                    "type": "array",
+                                    "uniqueItems": true,
+                                    "propertyOrder": 3,
+                                    "items": {
+                                        "$ref": "#/definitions/switch_connections"
+                                    },
+                                    "options": {
+                                        "disable_collapse": true,
+                                        "disable_array_delete_last_row": true,
+                                        "array_controls_top": true,
+                                        "wb": {
+                                            "show_editor": true
+                                        }
+                                    },
+                                    "_format": "table"
+                                }
+                            }
                         },
                         "debug": {
                             "title": "Enable debug logging",
@@ -1323,6 +1353,32 @@
                             "default": 900,
                             "minimum": 0,
                             "options": {
+                                "wb": {
+                                    "show_editor": true
+                                }
+                            }
+                        },
+                        "connectivity_check_url": {
+                            "title": "Connectivity Check URL",
+                            "description": "URL address used to check connection's network connectivity and absense of captive portals",
+                            "type": "string",
+                            "propertyOrder": 4,
+                            "minLength": 8,
+                            "options": {
+                                "show_opt_in": true,
+                                "wb": {
+                                    "show_editor": true
+                                }
+                            }
+                        },
+                        "connectivity_check_payload": {
+                            "title": "Connectivity Check Payload",
+                            "description": "Connectivity check response content should contain specified string",
+                            "type": "string",
+                            "propertyOrder": 5,
+                            "minLength": 1,
+                            "options": {
+                                "show_opt_in": true,
                                 "wb": {
                                     "show_editor": true
                                 }
@@ -1370,7 +1426,7 @@
     "translations": {
         "en": {
             "connection_title": "Connection",
-            "gsm_auto-config_title": "Define APN according to information from SIM-card",
+            "gsm_auto-config_title": "define APN according to information from SIM-card",
             "con_switch_desc": "The controller checks the connection with the Internet every 5 seconds, if there is no connection, the current connection will down and the next one in the list will be activated. Further, every 60 seconds the controller will try to up one of the connections with a higher priority and, if it succeeds, will switch to it.",
             "mac-pattern-message": "Must be six hexadecimal byte values divided by colon (example f2:c8:14:48:d3:97)",
             "interfaces_description": "Configured in /etc/network/interfaces",
@@ -1379,6 +1435,7 @@
         },
         "ru": {
             "Network connections": "Сетевые соединения",
+            "Autoconnect": "Подключаться автоматически",
             "Auto": "Включать автоматически",
             "Name": "Имя интерфейса",
             "Allow hotplug": "Разрешить горячее подключение",
@@ -1422,10 +1479,9 @@
             "interfaces_description": "Настроено в /etc/network/interfaces",
             "old_interface_deprecated_description": "Доступно управление через NetworkManager - это современный сервис настройки, поддержка которого сейчас развивается в Wiren Board. Для перехода на NetworkManager <b>удалите это соединение</b> и используйте существующее из списка выше (или создайте новое, если нужно)",
             "loopback_deprecated_description": "Ручные определения loopback-интерфейсов <b>можно удалить</b>, systemd создаёт loopback автоматически",
-            "Configured in NetworkManager": "Настроено в NetworkManager",
             "Interface": "Имя интерфейса",
             "connection_title": "Соединение",
-            "gsm_auto-config_title": "Определить APN автоматически на основании информации об операторе SIM-карты",
+            "gsm_auto-config_title": "определить APN автоматически на основании информации об операторе SIM-карты",
             "Connection name": "Название соединения",
             "Only for SIM slot": "Только для SIM-слота",
             "Only for device": "Только для устройства",
@@ -1438,7 +1494,6 @@
             "Automatic connections switching": "Автоматическое переключение соединений",
             "con_switch_desc": "Контроллер каждые 5 секунд проверяет связь с интернетом, если связи нет — текущее соединение завершится, и будет активировано следующее по списку. Далее контроллер каждые 60 секунд попытается поднять одно из соединений с более высоким приоритетом и, если это удастся, переключится на него.",
             "Enable debug logging": "Включить отладочные сообщения",
-            "Connections in descending order of priority": "Соединения в порядке убывания приоритета",
             "Wi-Fi access point": "Wi-Fi точка доступа",
             "mac-pattern-message": "Необходимо задать шесть байт в шестнадцатеричном виде, разделённых двоеточием (например f2:c8:14:48:d3:97)",
             "Password": "Пароль",
@@ -1453,7 +1508,11 @@
             "DNS servers": "DNS-серверы",
             "DNS search domains": "DNS-домены поиска",
             "Comma-separated list of IP addresses": "Список IP-адресов, разделённых запятыми",
-            "Comma-separated list of domains": "Список доменов, разделённых запятыми"
+            "Comma-separated list of domains": "Список доменов, разделённых запятыми",
+            "Connection Tiers": "Приоритеты сетевых соединений",
+            "High-priority connections": "Соединения с высоким приоритетом",
+            "Medium-priority connections": "Соединения со средним приоритетом",
+            "Low-priority connections": "Соединения с низким приоритетом"
         }
     }
 }
