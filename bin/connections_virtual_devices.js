@@ -1,3 +1,18 @@
+var connectionUuids = [];
+var controlMetaTopicList = ['type', 'order', 'readonly'];
+var controlTopicList = [
+  'Name',
+  'UUID',
+  'Type',
+  'Active',
+  'Device',
+  'State',
+  'Address',
+  'Connectivity',
+  'UpDown',
+];
+var deviceMetaTopicList = ['name', 'driver'];
+
 function getVirtualDeviceName(connectionUuid) {
   return 'system__networks__' + connectionUuid;
 }
@@ -29,6 +44,40 @@ function defineNewDevice(connectionName, connectionUuid, connectionType) {
       },
     },
   });
+}
+
+function deleteDevice(connectionUuid) {
+  for (var i = 0; i < controlTopicList.length; i++) {
+    for (var j = 0; j < controlMetaTopicList.length; j++) {
+      var topic =
+        '/devices/' +
+        getVirtualDeviceName(connectionUuid) +
+        '/controls/' +
+        controlTopicList[i] +
+        '/meta/' +
+        controlMetaTopicList[j];
+      publish(topic, '');
+    }
+    var topic =
+      '/devices/' + getVirtualDeviceName(connectionUuid) + '/controls/' + controlTopicList[i];
+    publish(topic, '');
+  }
+  for (var i = 0; i < deviceMetaTopicList.length; i++) {
+    var topic =
+      '/devices/' + getVirtualDeviceName(connectionUuid) + '/meta/' + deviceMetaTopicList[i];
+    publish(topic, '');
+  }
+  var topic = '/devices/' + getVirtualDeviceName(connectionUuid);
+  publish(topic, '');
+}
+
+function deleteOldDevices(newConnectionUuids) {
+  var difference = connectionUuids.filter(function (value) {
+    return newConnectionUuids.indexOf(value) == -1;
+  });
+  for (var i = 0; i < difference.length; i++) {
+    deleteDevice(difference[i]);
+  }
 }
 
 function updateDeviceControl(mqttConnectionDevice, controlName, value) {
@@ -164,6 +213,25 @@ function defineNewRules(mqttConnectionDevice) {
   });
 }
 
+function initializeOldDevices() {
+  trackMqtt('/devices/+/controls/UUID', function (message) {
+    var regex = new RegExp(/^\/devices\/system__networks__(.*)\/controls\/UUID/);
+    oldUuid = regex.exec(message.topic)[1];
+
+    if (message.value === '') {
+      var index = connectionUuids.indexOf(oldUuid);
+      if (index > -1) {
+        connectionUuids.splice(index, 1);
+      }
+      return;
+    }
+
+    if (connectionUuids.indexOf(oldUuid) == -1) {
+      connectionUuids.push(oldUuid);
+    }
+  });
+}
+
 function initializeDevices() {
   runShellCommand('LC_ALL=C nmcli -g name,uuid,type,active  c s', {
     captureOutput: true,
@@ -188,6 +256,7 @@ function updateDevices() {
   runShellCommand('LC_ALL=C nmcli -g name,uuid,type,device,active,state c s', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
+      var uuidList = [];
       var connectionsList = capturedOutput.split(/\r?\n/);
 
       for (var i = 0; i < connectionsList.length - 1; i++) {
@@ -198,6 +267,7 @@ function updateDevices() {
         var device = dataList[3] || '';
         var active = dataList[4] == 'yes' ? true : false;
         var state = dataList[5] || '';
+        uuidList.push(uuid);
 
         var mqttConnectionDevice = getDevice(getVirtualDeviceName(uuid));
         if (mqttConnectionDevice == undefined) {
@@ -206,9 +276,14 @@ function updateDevices() {
         }
         updateDeviceData(mqttConnectionDevice, device, active, state);
       }
+
+      if (uuidList.length != 0) {
+        deleteOldDevices(uuidList);
+      }
     },
   });
 }
 
+initializeOldDevices();
 initializeDevices();
 setInterval(updateDevices, 2000);
