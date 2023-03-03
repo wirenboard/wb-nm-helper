@@ -256,28 +256,28 @@ function updateDevices() {
   runShellCommand('LC_ALL=C nmcli -g name,uuid,type,device,active,state c s', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
-      var uuidList = [];
-      var connectionsList = capturedOutput.split(/\r?\n/);
+      if (exitCode == 0) {
+        var uuidList = [];
+        var connectionsList = capturedOutput.split(/\r?\n/);
 
-      for (var i = 0; i < connectionsList.length - 1; i++) {
-        var dataList = connectionsList[i].replace(/\n/, '').split(':');
-        var name = dataList[0];
-        var uuid = dataList[1];
-        var type = dataList[2];
-        var device = dataList[3] || '';
-        var active = dataList[4] == 'yes' ? true : false;
-        var state = dataList[5] || '';
-        uuidList.push(uuid);
+        for (var i = 0; i < connectionsList.length - 1; i++) {
+          var dataList = connectionsList[i].replace(/\n/, '').split(':');
+          var name = dataList[0];
+          var uuid = dataList[1];
+          var type = dataList[2];
+          var device = dataList[3] || '';
+          var active = dataList[4] == 'yes' ? true : false;
+          var state = dataList[5] || '';
+          uuidList.push(uuid);
 
-        var mqttConnectionDevice = getDevice(getVirtualDeviceName(uuid));
-        if (mqttConnectionDevice == undefined) {
-          mqttConnectionDevice = defineNewDevice(name, uuid, type);
-          defineNewRules(mqttConnectionDevice);
+          var mqttConnectionDevice = getDevice(getVirtualDeviceName(uuid));
+          if (mqttConnectionDevice == undefined) {
+            mqttConnectionDevice = defineNewDevice(name, uuid, type);
+            defineNewRules(mqttConnectionDevice);
+          }
+          updateDeviceData(mqttConnectionDevice, device, active, state);
         }
-        updateDeviceData(mqttConnectionDevice, device, active, state);
-      }
 
-      if (uuidList.length != 0) {
         deleteOldDevices(uuidList);
       }
     },
