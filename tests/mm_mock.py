@@ -12,6 +12,7 @@ from wb.nm_helper.network_manager import (
     NM_ACTIVE_CONNECTION_STATE_ACTIVATING,
     NM_ACTIVE_CONNECTION_STATE_DEACTIVATED,
     NM_ACTIVE_CONNECTION_STATE_UNKNOWN,
+    NM_SETTINGS_GSM_SIM_SLOT_DEFAULT,
 )
 from wb.nm_helper.network_manager_interfaces import (
     INetworkManager,
@@ -48,6 +49,12 @@ class FakeNMConnection(INMConnection):
         if self._data().get("device_type") == "gsm":
             settings["gsm"] = {"sim-slot": self._data().get("sim_slot")}
         return settings
+
+    def get_sim_slot(self) -> int:
+        settings = self.get_settings()
+        if "sim-slot" in settings["gsm"]:
+            return settings["gsm"]["sim-slot"]
+        return NM_SETTINGS_GSM_SIM_SLOT_DEFAULT
 
     def get_connection_type(self):
         return self.get_settings().get("connection").get("type")

@@ -74,6 +74,10 @@ class INMConnection(INMObject):
         pass
 
     @abstractmethod
+    def get_sim_slot(self) -> int:
+        pass
+
+    @abstractmethod
     def get_connection_type(self) -> str:
         pass
 

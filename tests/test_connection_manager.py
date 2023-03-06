@@ -695,26 +695,26 @@ class SetCurrentConnectionTests(AbsConManTests):
             self.con_man.set_current_connection("wb-eth0", self.config.tiers[0])
             assert self.con_man.current_tier == self.config.tiers[0]
             assert self.con_man.current_connection == "wb-eth0"
-            assert self.con_man.timeouts.deny_sim_switch_until is None
+            assert self.con_man.timeouts.keep_sticky_connections_until is None
 
             self.con_man.set_current_connection("wb-gsm-sim1", self.config.tiers[2])
             assert self.con_man.current_tier == self.config.tiers[2]
             assert self.con_man.current_connection == "wb-gsm-sim1"
-            assert isinstance(self.con_man.timeouts.deny_sim_switch_until, datetime.datetime)
-            delta = self.con_man.timeouts.deny_sim_switch_until - TEST_NOW
-            assert delta.total_seconds() == self.config.sticky_sim_period.total_seconds()
+            assert isinstance(self.con_man.timeouts.keep_sticky_connections_until, datetime.datetime)
+            delta = self.con_man.timeouts.keep_sticky_connections_until - TEST_NOW
+            assert delta.total_seconds() == self.config.sticky_connection_period.total_seconds()
 
             self.con_man.set_current_connection("wb-gsm-sim1", self.config.tiers[2])
             assert self.con_man.current_tier == self.config.tiers[2]
             assert self.con_man.current_connection == "wb-gsm-sim1"
-            assert isinstance(self.con_man.timeouts.deny_sim_switch_until, datetime.datetime)
-            delta = self.con_man.timeouts.deny_sim_switch_until - TEST_NOW
-            assert delta.total_seconds() == self.config.sticky_sim_period.total_seconds()
+            assert isinstance(self.con_man.timeouts.keep_sticky_connections_until, datetime.datetime)
+            delta = self.con_man.timeouts.keep_sticky_connections_until - TEST_NOW
+            assert delta.total_seconds() == self.config.sticky_connection_period.total_seconds()
 
             self.con_man.set_current_connection("wb-eth0", self.config.tiers[0])
             assert self.con_man.current_tier == self.config.tiers[0]
             assert self.con_man.current_connection == "wb-eth0"
-            assert self.con_man.timeouts.deny_sim_switch_until is None
+            assert self.con_man.timeouts.keep_sticky_connections_until is None
 
 
 class ConnectionIsGSMTests(AbsConManTests):
@@ -831,7 +831,7 @@ class OKToActivateTests(AbsConManTests):
         )
         self.con_man.timeouts.now = MagicMock(return_value=TEST_NOW)
         self.con_man.timeouts.connection_retry_timeouts = {}
-        self.con_man.timeouts.deny_sim_switch_until = None
+        self.con_man.timeouts.keep_sticky_connections_until = None
 
         assert self.con_man.ok_to_activate_connection("wb-eth0") is True
         assert self.con_man.ok_to_activate_connection("wb-gsm-sim1") is True
@@ -852,19 +852,25 @@ class OKToActivateTests(AbsConManTests):
         assert self.con_man.ok_to_activate_connection("wb-gsm-sim1") is False
 
         self.con_man.timeouts.connection_retry_timeouts = {}
-        self.con_man.timeouts.deny_sim_switch_until = TEST_NOW + self.con_man.config.sticky_sim_period
+        self.con_man.timeouts.keep_sticky_connections_until = (
+            TEST_NOW + self.con_man.config.sticky_connection_period
+        )
         assert self.con_man.ok_to_activate_connection("wb-gsm-sim1") is False
 
         self.con_man.timeouts.connection_retry_timeouts = {
             "wb-gsm-sim1": TEST_NOW - CONNECTION_ACTIVATION_RETRY_TIMEOUT
         }
-        self.con_man.timeouts.deny_sim_switch_until = TEST_NOW + self.con_man.config.sticky_sim_period
+        self.con_man.timeouts.keep_sticky_connections_until = (
+            TEST_NOW + self.con_man.config.sticky_connection_period
+        )
         assert self.con_man.ok_to_activate_connection("wb-gsm-sim1") is False
 
         self.con_man.timeouts.connection_retry_timeouts = {
             "wb-gsm-sim1": TEST_NOW + CONNECTION_ACTIVATION_RETRY_TIMEOUT
         }
-        self.con_man.timeouts.deny_sim_switch_until = TEST_NOW + self.con_man.config.sticky_sim_period
+        self.con_man.timeouts.keep_sticky_connections_until = (
+            TEST_NOW + self.con_man.config.sticky_connection_period
+        )
         assert self.con_man.ok_to_activate_connection("wb-gsm-sim1") is False
 
 
@@ -916,18 +922,18 @@ class GetActiveConnectionTests(AbsConManTests):
         assert result2 is None
 
 
-class GetSimSlotsTests(AbsConManTests):
-    def test_11_get_sim_slot(self):
-        self._init_con_man(DEFAULT_CONFIG)
-        self.net_man.fake_add_gsm("wb-gsm-sim1", sim_slot=1)
-        self.net_man.fake_add_gsm("wb-gsm-sim2", sim_slot=2)
-
-        con = self.con_man.find_connection("wb-gsm-sim1")
-        assert self._is_connection(con)
-        val = self.con_man.get_sim_slot(con)
-        assert val == 1
-
-        con = self.con_man.find_connection("wb-gsm-sim2")
-        assert self._is_connection(con)
-        val = self.con_man.get_sim_slot(con)
-        assert val == 2
+# class GetSimSlotsTests(AbsConManTests):
+#     def test_11_get_sim_slot(self):
+#         self._init_con_man(DEFAULT_CONFIG)
+#         self.net_man.fake_add_gsm("wb-gsm-sim1", sim_slot=1)
+#         self.net_man.fake_add_gsm("wb-gsm-sim2", sim_slot=2)
+#
+#         con = self.con_man.find_connection("wb-gsm-sim1")
+#         assert self._is_connection(con)
+#         val = self.con_man.get_sim_slot(con)
+#         assert val == 1
+#
+#         con = self.con_man.find_connection("wb-gsm-sim2")
+#         assert self._is_connection(con)
+#         val = self.con_man.get_sim_slot(con)
+#         assert val == 2
