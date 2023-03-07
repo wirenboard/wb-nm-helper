@@ -1345,9 +1345,9 @@
                                 }
                             }
                         },
-                        "sticky_sim_period_s": {
-                            "title": "Deny SIM switching period (seconds)",
-                            "description": "After successfully establishing a modem connection, do not try changing SIM slot for this amount of seconds",
+                        "sticky_connection_period_s": {
+                            "title": "Deny GSM/Wi-Fi connections switching period (seconds)",
+                            "description": "After successfully establishing a modem/Wi-Fi connection, do not try changing SIM slot or change to another Wi-Fi network for this amount of seconds",
                             "type": "integer",
                             "propertyOrder": 3,
                             "default": 900,
@@ -1503,8 +1503,8 @@
             "Shared to other computers": "Общий с другими компьютерами",
             "Type": "Тип",
             "Share Internet connection": "Разрешить доступ в Интернет",
-            "Deny SIM switching period (seconds)": "Не переключать SIM-слот в течение этого периода (секунды)",
-            "After successfully establishing a modem connection, do not try changing SIM slot for this amount of seconds": "После успешного подключения через модем, не пытаться менять SIM-слот даже на более приоритетный в течение этого количества секунд",
+            "Deny GSM/Wi-Fi connections switching period (seconds)": "Не переключать SIM-слот или Wi-Fi-сеть в течение этого периода (секунды)",
+            "After successfully establishing a modem/Wi-Fi connection, do not try changing SIM slot or change to another Wi-Fi network for this amount of seconds": "После успешного подключения через модем или Wi-Fi, не пытаться менять SIM-слот или Wi-Fi-соединение даже на более приоритетные в течение этого количества секунд",
             "DNS servers": "DNS-серверы",
             "DNS search domains": "DNS-домены поиска",
             "Comma-separated list of IP addresses": "Список IP-адресов, разделённых запятыми",

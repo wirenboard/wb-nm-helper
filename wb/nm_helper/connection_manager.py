@@ -408,6 +408,9 @@ class ConnectionManager:
         return None
 
     def deactivate_connection(self, active_cn: NMActiveConnection) -> None:
+        if active_cn.get_connection_id() == self.current_connection:
+            self.current_connection = None
+            self.current_tier = None
         self.network_manager.deactivate_connection(active_cn)
         self._wait_connection_deactivation(active_cn, CONNECTION_DEACTIVATION_TIMEOUT)
 
