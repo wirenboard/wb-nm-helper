@@ -1,3 +1,9 @@
+wb-nm-helper (1.20.1) stable; urgency=medium
+
+  * Wi-Fi connections are now also considered sticky
+
+ -- Aleksandr Kazadaev <aleksandr.kazadaev@wirenboard.com>  Tue, 07 Mar 2023 12:18:00 +0600
+
 wb-nm-helper (1.20.0) stable; urgency=medium
 
   * Add old connections virtual devices auto removing
