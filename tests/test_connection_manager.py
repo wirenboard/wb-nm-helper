@@ -920,20 +920,3 @@ class GetActiveConnectionTests(AbsConManTests):
         assert self._is_active_connection(result1)
         assert result1.get_connection_id() == "wb-eth0"
         assert result2 is None
-
-
-# class GetSimSlotsTests(AbsConManTests):
-#     def test_11_get_sim_slot(self):
-#         self._init_con_man(DEFAULT_CONFIG)
-#         self.net_man.fake_add_gsm("wb-gsm-sim1", sim_slot=1)
-#         self.net_man.fake_add_gsm("wb-gsm-sim2", sim_slot=2)
-#
-#         con = self.con_man.find_connection("wb-gsm-sim1")
-#         assert self._is_connection(con)
-#         val = self.con_man.get_sim_slot(con)
-#         assert val == 1
-#
-#         con = self.con_man.find_connection("wb-gsm-sim2")
-#         assert self._is_connection(con)
-#         val = self.con_man.get_sim_slot(con)
-#         assert val == 2

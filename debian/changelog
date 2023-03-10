@@ -1,4 +1,4 @@
-wb-nm-helper (1.20.1) stable; urgency=medium
+wb-nm-helper (1.21.0) stable; urgency=medium
 
   * Wi-Fi connections are now also considered sticky
 
