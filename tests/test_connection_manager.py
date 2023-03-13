@@ -717,8 +717,21 @@ class SetCurrentConnectionTests(AbsConManTests):
             assert self.con_man.timeouts.keep_sticky_connections_until is None
 
 
+class ConnectionIsStickyTests(AbsConManTests):
+    def test_01_connection_is_sticky(self):
+        self._init_con_man(DEFAULT_CONFIG)
+        self.net_man.fake_add_gsm("wb-gsm-sim1")
+        self.net_man.fake_add_wifi_client("wb-wifi-client")
+        self.net_man.fake_add_ethernet("wb-eth0")
+
+        assert self.con_man.connection_is_sticky("eth0") is False
+        assert self.con_man.connection_is_sticky("wb-gsm-sim1") is True
+        assert self.con_man.connection_is_sticky("wb-wifi-client") is True
+        assert self.con_man.connection_is_sticky("non-entity") is False
+
+
 class ConnectionIsGSMTests(AbsConManTests):
-    def test_12_connection_is_gsm(self):
+    def test_01_connection_is_gsm(self):
         self._init_con_man(DEFAULT_CONFIG)
         self.net_man.fake_add_gsm("wb-gsm-sim1")
         self.net_man.fake_add_ethernet("wb-eth0")
@@ -823,6 +836,9 @@ class OKToActivateTests(AbsConManTests):
         self.net_man.fake_add_ethernet(
             "wb-eth0", device_connected=True, connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED
         )
+        self.net_man.fake_add_wifi_client(
+            "wb-wifi-client", device_connected=True, connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED
+        )
         self.net_man.fake_add_gsm(
             "wb-gsm-sim1",
             device_connected=True,
@@ -834,6 +850,7 @@ class OKToActivateTests(AbsConManTests):
         self.con_man.timeouts.keep_sticky_connections_until = None
 
         assert self.con_man.ok_to_activate_connection("wb-eth0") is True
+        assert self.con_man.ok_to_activate_connection("wb-wifi-client") is True
         assert self.con_man.ok_to_activate_connection("wb-gsm-sim1") is True
 
         self.con_man.timeouts.connection_retry_timeouts = {
@@ -855,6 +872,7 @@ class OKToActivateTests(AbsConManTests):
         self.con_man.timeouts.keep_sticky_connections_until = (
             TEST_NOW + self.con_man.config.sticky_connection_period
         )
+        assert self.con_man.ok_to_activate_connection("wb-wifi-client") is False
         assert self.con_man.ok_to_activate_connection("wb-gsm-sim1") is False
 
         self.con_man.timeouts.connection_retry_timeouts = {

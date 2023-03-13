@@ -56,6 +56,12 @@ class TimeoutManagerTests(unittest.TestCase):
             self.network_manager.fake_add_ethernet(
                 "wb-eth0", device_connected=True, connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED
             )
+            self.network_manager.fake_add_wifi_client(
+                "wb-wifi-client",
+                device_connected=True,
+                connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED,
+                sim_slot=1,
+            )
             self.network_manager.fake_add_gsm(
                 "wb-gsm-sim1",
                 device_connected=True,
@@ -78,6 +84,14 @@ class TimeoutManagerTests(unittest.TestCase):
             con = self.network_manager.find_connection("wb-eth0")
             self.timeout_manager.touch_sticky_timeout(con)
             assert self.timeout_manager.keep_sticky_connections_until is None
+
+            con = self.network_manager.find_connection("wb-wifi-client")
+            self.timeout_manager.touch_sticky_timeout(con)
+            assert isinstance(self.timeout_manager.keep_sticky_connections_until, datetime.datetime)
+            delta = self.timeout_manager.keep_sticky_connections_until - TEST_NOW
+            assert (
+                delta.total_seconds() == self.timeout_manager.config.sticky_connection_period.total_seconds()
+            )
 
     def test_04_connection_retry_timeout_is_active__empty(self):
         with patch.object(self.timeout_manager, "now") as now_mock:
@@ -104,13 +118,13 @@ class TimeoutManagerTests(unittest.TestCase):
             assert self.timeout_manager.connection_retry_timeout_is_active("wb-eth0") is True
             assert self.timeout_manager.connection_retry_timeout_is_active("wb-gsm-sim1") is False
 
-    def test_07_gsm_sticky_timeout_is_active__empty(self):
+    def test_07_sticky_timeout_is_active__empty(self):
         with patch.object(self.timeout_manager, "now") as now_mock:
             now_mock.return_value = TEST_NOW
             self.timeout_manager.keep_sticky_connections_until = None
             assert self.timeout_manager.sticky_timeout_is_active() is False
 
-    def test_08_gsm_sticky_timeout_is_active__expired(self):
+    def test_08_sticky_timeout_is_active__expired(self):
         with patch.object(self.timeout_manager, "now") as now_mock:
             now_mock.return_value = TEST_NOW
             self.timeout_manager.keep_sticky_connections_until = (
@@ -118,7 +132,7 @@ class TimeoutManagerTests(unittest.TestCase):
             )
             assert self.timeout_manager.sticky_timeout_is_active() is False
 
-    def test_09_gsm_sticky_timeout_is_active__active(self):
+    def test_09_sticky_timeout_is_active__active(self):
         with patch.object(self.timeout_manager, "now") as now_mock:
             now_mock.return_value = TEST_NOW
             self.timeout_manager.keep_sticky_connections_until = (
