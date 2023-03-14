@@ -17,11 +17,15 @@ from wb.nm_helper.modem_manager_interfaces import IModemManager
 from wb.nm_helper.network_manager import (
     NM_ACTIVE_CONNECTION_STATE_ACTIVATED,
     NM_ACTIVE_CONNECTION_STATE_DEACTIVATED,
+    NM_DEVICE_TYPE_ETHERNET,
+    NM_DEVICE_TYPE_MODEM,
+    NM_DEVICE_TYPE_WIFI,
     NM_SETTINGS_GSM_SIM_SLOT_DEFAULT,
     NetworkManager,
     NMActiveConnection,
     NMConnection,
     NMDevice,
+    connection_type_to_device_type,
 )
 from wb.nm_helper.network_manager_interfaces import INetworkManager
 
@@ -32,7 +36,7 @@ LOGGING_FORMAT = "%(message)s"
 CONFIG_FILE = "/etc/wb-connection-manager.conf"
 CHECK_PERIOD = datetime.timedelta(seconds=5)
 CONNECTION_ACTIVATION_RETRY_TIMEOUT = datetime.timedelta(seconds=60)
-DEFAULT_STICKY_SIM_PERIOD = datetime.timedelta(minutes=15)
+DEFAULT_STICKY_CONNECTION_PERIOD = datetime.timedelta(minutes=15)
 DEVICE_WAITING_TIMEOUT = datetime.timedelta(seconds=30)
 CONNECTION_ACTIVATION_TIMEOUT = datetime.timedelta(seconds=30)
 CONNECTION_DEACTIVATION_TIMEOUT = datetime.timedelta(seconds=30)
@@ -63,7 +67,7 @@ class ConnectionManagerConfigFile:
             self.tiers: List[ConnectionTier] = list(self.get_tiers(cfg))
         else:
             self.tiers: List[ConnectionTier] = self.get_default_tiers()
-        self.sticky_sim_period: datetime.timedelta = self.get_sticky_sim_period(cfg)
+        self.sticky_connection_period: datetime.timedelta = self.get_sticky_connection_period(cfg)
         self.connectivity_check_url: str = self.get_connectivity_check_url(cfg)
         self.connectivity_check_payload: str = self.get_connectivity_check_payload(cfg)
 
@@ -82,15 +86,17 @@ class ConnectionManagerConfigFile:
         return tiers
 
     @staticmethod
-    def get_sticky_sim_period(cfg: Dict) -> datetime.timedelta:
-        if cfg.get("sticky_sim_period_s"):
-            seconds = cfg.get("sticky_sim_period_s")
+    def get_sticky_connection_period(cfg: Dict) -> datetime.timedelta:
+        if cfg.get("sticky_connection_period_s"):
+            seconds = cfg.get("sticky_connection_period_s")
             try:
                 value = datetime.timedelta(seconds=int(seconds))
             except Exception as e:
-                raise ImproperlyConfigured("Incorrect sticky_sim_period_s ({}): {}".format(seconds, e)) from e
+                raise ImproperlyConfigured(
+                    "Incorrect sticky_connection_period_s ({}): {}".format(seconds, e)
+                ) from e
         else:
-            value = DEFAULT_STICKY_SIM_PERIOD
+            value = DEFAULT_STICKY_CONNECTION_PERIOD
         return value
 
     @staticmethod
@@ -122,14 +128,15 @@ class ConnectionManagerConfigFile:
             autoconnect = item.get_settings().get("connection").get("autoconnect", True)
             never_default = item.get_settings().get("ipv4").get("never-default")
             connection_type = item.get_connection_type()
+            device_type = connection_type_to_device_type(connection_type)
             connection_id = str(item.get_settings().get("connection").get("id"))
             if not autoconnect or never_default:
                 continue
-            if connection_type == "gsm":
+            if device_type == NM_DEVICE_TYPE_MODEM:
                 tiers[2].connections.append(connection_id)
-            elif connection_type == "802-11-wireless":
+            elif device_type == NM_DEVICE_TYPE_WIFI:
                 tiers[1].connections.append(connection_id)
-            elif connection_type == "802-3-ethernet":
+            elif device_type == NM_DEVICE_TYPE_ETHERNET:
                 tiers[0].connections.append(connection_id)
             else:
                 logging.warning("Unknown connection type: %s", connection_type)
@@ -149,7 +156,7 @@ class TimeoutManager:
     def __init__(self, config: ConnectionManagerConfigFile) -> None:
         self.config: ConnectionManagerConfigFile = config
         self.connection_retry_timeouts = {}
-        self.deny_sim_switch_until: Optional[datetime.datetime] = None
+        self.keep_sticky_connections_until: Optional[datetime.datetime] = None
         self.connection_activation_timeout = CONNECTION_ACTIVATION_TIMEOUT
 
     @staticmethod
@@ -157,7 +164,7 @@ class TimeoutManager:
         return datetime.datetime.now()
 
     def debug_log_timeouts(self):
-        logging.debug("GSM Sticky Timeout: %s", self.deny_sim_switch_until)
+        logging.debug("Sticky Connections Timeout: %s", self.keep_sticky_connections_until)
         for connection, timeout in self.connection_retry_timeouts.items():
             logging.debug("Connection Retry Timeout for %s: %s", connection, timeout)
 
@@ -167,16 +174,19 @@ class TimeoutManager:
     def reset_connection_retry_timeout(self, cn_id):
         self.connection_retry_timeouts[cn_id] = self.now()
 
-    def touch_gsm_timeout(self, con: NMConnection) -> None:
-        if con.get_connection_type() == "gsm":
-            self.deny_sim_switch_until = self.now() + self.config.sticky_sim_period
+    def touch_sticky_timeout(self, con: NMConnection) -> None:
+        if connection_type_to_device_type(con.get_connection_type()) in (
+            NM_DEVICE_TYPE_MODEM,
+            NM_DEVICE_TYPE_WIFI,
+        ):
+            self.keep_sticky_connections_until = self.now() + self.config.sticky_connection_period
             logging.info(
-                "New active connection is GSM, not changing SIM slots until %s",
-                self.deny_sim_switch_until.isoformat(),
+                "New active connection is Sticky (GSM/Wifi), not changing SIM/Wifi connections until %s",
+                self.keep_sticky_connections_until.isoformat(),
             )
         else:
-            self.deny_sim_switch_until = None
-            logging.debug("Active connection is not GSM, sticky SIM timeout cleared")
+            self.keep_sticky_connections_until = None
+            logging.debug("Active connection is not Sticky (GSM/Wifi), sticky SIM/Wifi timeout cleared")
 
     def connection_retry_timeout_is_active(self, cn_id):
         if (
@@ -188,9 +198,9 @@ class TimeoutManager:
         logging.debug("Connection retry timeout is active for connection %s", cn_id)
         return True
 
-    def gsm_sticky_timeout_is_active(self) -> bool:
-        if self.deny_sim_switch_until and self.deny_sim_switch_until > self.now():
-            logging.debug("Sticky GSM SIM slot timeout is active")
+    def sticky_timeout_is_active(self) -> bool:
+        if self.keep_sticky_connections_until and self.keep_sticky_connections_until > self.now():
+            logging.debug("Sticky connection timeout is active")
             return True
         return False
 
@@ -210,7 +220,8 @@ class ConnectionManager:
         self.current_tier: Optional[ConnectionTier] = None
         self.current_connection: Optional[str] = None
         logging.debug(
-            "Initialized sticky_sim_period as %s seconds", self.config.sticky_sim_period.total_seconds()
+            "Initialized sticky_connection_period as %s seconds",
+            self.config.sticky_connection_period.total_seconds(),
         )
 
     def cycle_loop(self):
@@ -224,8 +235,10 @@ class ConnectionManager:
         logging.debug("check(): starting iteration")
         self.timeouts.debug_log_timeouts()
         for tier in self.config.tiers:
+            logging.debug("checking tier %s", tier.name)
             # first, if tier is current, check current connection
             if self.current_tier and self.current_connection and self.current_tier.priority == tier.priority:
+                logging.debug("checking currently active connection %s", self.current_connection)
                 try:
                     active_cn = self.find_activated_connection(self.current_connection)
                     if active_cn and self.check_connectivity(active_cn):
@@ -243,8 +256,9 @@ class ConnectionManager:
                     and tier.priority == self.current_tier.priority
                     and cn_id == self.current_connection
                 ):
-                    # current connection was already checked above
+                    logging.debug("current connection %s was already checked above, skipping", cn_id)
                     continue
+                logging.debug("checking connection %s", cn_id)
                 try:
                     active_cn = self.find_activated_connection(cn_id)
                     if not active_cn and self.ok_to_activate_connection(cn_id):
@@ -263,10 +277,10 @@ class ConnectionManager:
         if self.timeouts.connection_retry_timeout_is_active(cn_id):
             logging.debug("Retry timeout is still effective for %s", cn_id)
             return False
-        if self.connection_is_gsm(cn_id) and self.timeouts.gsm_sticky_timeout_is_active():
+        if self.connection_is_sticky(cn_id) and self.timeouts.sticky_timeout_is_active():
             logging.debug(
-                "SIM switch disabled until %s, not changing SIM",
-                self.timeouts.deny_sim_switch_until.isoformat(),
+                "Sticky connections timeout active until %s, not touching sticky connections",
+                self.timeouts.keep_sticky_connections_until.isoformat(),
             )
             return False
         logging.debug("It is ok to activate connection %s", cn_id)
@@ -289,9 +303,9 @@ class ConnectionManager:
     def activate_connection(self, cn_id: str) -> Optional[NMActiveConnection]:
         logging.debug("Trying to activate connection %s", cn_id)
         activation_fns = {
-            "gsm": self._activate_gsm_connection,
-            "802-3-ethernet": self._activate_generic_connection,
-            "802-11-wireless": self._activate_generic_connection,
+            NM_DEVICE_TYPE_ETHERNET: self._activate_generic_connection,
+            NM_DEVICE_TYPE_WIFI: self._activate_wifi_connection,
+            NM_DEVICE_TYPE_MODEM: self._activate_gsm_connection,
         }
         con = self.find_connection(cn_id)
         if not con:
@@ -299,8 +313,9 @@ class ConnectionManager:
         dev = self._find_device_for_connection(con, cn_id)
         if not dev:
             return None
-        connection_type = con.get_settings().get("connection").get("type")
-        activate_fn = activation_fns.get(connection_type)
+        connection_type = con.get_connection_type()
+        device_type = connection_type_to_device_type(connection_type)
+        activate_fn = activation_fns.get(device_type)
         if not activate_fn:
             extra = {
                 "rate_limit_tag": "ACT_FN_NOT_FOUND_" + cn_id,
@@ -363,7 +378,7 @@ class ConnectionManager:
             self.deactivate_current_gsm_connection(active_connection)
         else:
             logging.debug("No active gsm connection detected")
-        sim_slot = self.get_sim_slot(con)
+        sim_slot = con.get_sim_slot()
         current_sim_slot = self.modem_manager.get_primary_sim_slot(dev_path)
         logging.debug("Current SIM slot: %s, new SIM slot: %s", str(current_sim_slot), str(sim_slot))
         if sim_slot not in (NM_SETTINGS_GSM_SIM_SLOT_DEFAULT, current_sim_slot):
@@ -376,16 +391,28 @@ class ConnectionManager:
             return active_connection
         return None
 
+    def _activate_wifi_connection(self, dev: NMDevice, con: NMConnection) -> Optional[NMActiveConnection]:
+        # Deactivate other active wifi connection if it exists
+        active_wifi_connections = self._get_active_wifi_connections()
+        for active_connection in active_wifi_connections:
+            logging.debug(
+                "Other wifi connection %s is active, will deactivate it",
+                active_connection.get_connection_id(),
+            )
+            self.deactivate_connection(active_connection)
+        if not active_wifi_connections:
+            logging.debug("No active wifi connection detected")
+        active_connection = self.network_manager.activate_connection(con, dev)
+        if self._wait_connection_activation(active_connection, self.timeouts.connection_activation_timeout):
+            return active_connection
+        return None
+
     def deactivate_connection(self, active_cn: NMActiveConnection) -> None:
+        if active_cn.get_connection_id() == self.current_connection:
+            self.current_connection = None
+            self.current_tier = None
         self.network_manager.deactivate_connection(active_cn)
         self._wait_connection_deactivation(active_cn, CONNECTION_DEACTIVATION_TIMEOUT)
-
-    @staticmethod
-    def get_sim_slot(con: NMConnection) -> str:
-        settings = con.get_settings()
-        if "sim-slot" in settings["gsm"]:
-            return settings["gsm"]["sim-slot"]
-        return NM_SETTINGS_GSM_SIM_SLOT_DEFAULT
 
     def change_modem_sim_slot(self, dev: NMDevice, con: NMConnection, sim_slot: str) -> Optional[NMDevice]:
         dev_path = dev.get_property("Udi")
@@ -466,15 +493,26 @@ class ConnectionManager:
     def connection_is_gsm(self, cn_id: str) -> bool:
         con = self.network_manager.find_connection(cn_id)
         if con:
-            value = con.get_settings().get("connection").get("type") == "gsm"
-            logging.debug("Connection %s is gsm: %s", cn_id, value)
+            device_type = connection_type_to_device_type(con.get_connection_type())
+            value = device_type == NM_DEVICE_TYPE_MODEM
+            logging.debug("Connection %s is GSM: %s", cn_id, value)
+            return value
+        logging.debug("Connection %s not found", cn_id)
+        return False
+
+    def connection_is_sticky(self, cn_id: str) -> bool:
+        con = self.network_manager.find_connection(cn_id)
+        if con:
+            device_type = connection_type_to_device_type(con.get_connection_type())
+            value = device_type in (NM_DEVICE_TYPE_MODEM, NM_DEVICE_TYPE_WIFI)
+            logging.debug("Connection %s is sticky: %s", cn_id, value)
             return value
         logging.debug("Connection %s not found", cn_id)
         return False
 
     def set_current_connection(self, cn_id: str, tier: ConnectionTier):
         if self.current_connection != cn_id:
-            self.timeouts.touch_gsm_timeout(self.network_manager.find_connection(cn_id))
+            self.timeouts.touch_sticky_timeout(self.network_manager.find_connection(cn_id))
             self.current_connection = cn_id
             self.current_tier = tier
             logging.info("Current connection changed to %s", cn_id)
@@ -555,7 +593,7 @@ class ConnectionManager:
             logging.debug("No devices found for connection %s", active_cn.get_connection_id())
             return
         device = devices[0]
-        if active_cn.get_connection().get_connection_type() == "gsm":
+        if connection_type_to_device_type(active_cn.get_connection_type()) == NM_DEVICE_TYPE_MODEM:
             iface = device.get_property("IpInterface")
             self.call_ifmetric(iface, metric)
         else:
@@ -564,6 +602,13 @@ class ConnectionManager:
     @staticmethod
     def call_ifmetric(iface, metric):
         subprocess.run(["/usr/sbin/ifmetric", iface, str(metric)], shell=False, check=False)
+
+    def _get_active_wifi_connections(self):
+        results = []
+        for active_cn in self.network_manager.get_active_connections().values():
+            if connection_type_to_device_type(active_cn.get_connection_type()) == NM_DEVICE_TYPE_WIFI:
+                results.append(active_cn)
+        return results
 
 
 def main():

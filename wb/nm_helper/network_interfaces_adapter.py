@@ -192,7 +192,7 @@ class NetworkInterfacesAdapter:
             if name in interfaces:
                 iface = interfaces[name]
             else:
-                iface = dict(name=name, auto=False)
+                iface = {"name": name, "auto": False}
                 interfaces[name] = iface
                 res.append(iface)
             # auto?

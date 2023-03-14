@@ -7,7 +7,7 @@ from tests.mm_mock import FakeNetworkManager
 from wb.nm_helper.connection_manager import (
     DEFAULT_CONNECTIVITY_CHECK_PAYLOAD,
     DEFAULT_CONNECTIVITY_CHECK_URL,
-    DEFAULT_STICKY_SIM_PERIOD,
+    DEFAULT_STICKY_CONNECTION_PERIOD,
     ConnectionManagerConfigFile,
     ConnectionTier,
     ImproperlyConfigured,
@@ -47,7 +47,7 @@ def test_config_file_empty():
     assert conffile.debug is False
     assert conffile.connectivity_check_url == DEFAULT_CONNECTIVITY_CHECK_URL
     assert conffile.connectivity_check_payload == DEFAULT_CONNECTIVITY_CHECK_PAYLOAD
-    assert conffile.sticky_sim_period == DEFAULT_STICKY_SIM_PERIOD
+    assert conffile.sticky_connection_period == DEFAULT_STICKY_CONNECTION_PERIOD
     assert len(conffile.tiers) == 3
     assert conffile.tiers[0].name == "high"
     assert conffile.tiers[0].priority == 3
@@ -63,7 +63,7 @@ def test_config_file_empty():
 def test_config_file_normal():
     cfg = {
         "debug": True,
-        "sticky_sim_period_s": 451,
+        "sticky_connection_period_s": 451,
         "connectivity_check_url": "http://test-server/test-url",
         "connectivity_check_payload": "Dummy CC Payload",
         "tiers": {
@@ -76,7 +76,7 @@ def test_config_file_normal():
     assert conffile.debug is True
     assert conffile.connectivity_check_url == "http://test-server/test-url"
     assert conffile.connectivity_check_payload == "Dummy CC Payload"
-    assert conffile.sticky_sim_period == datetime.timedelta(seconds=451)
+    assert conffile.sticky_connection_period == datetime.timedelta(seconds=451)
     assert len(conffile.tiers) == 3
     assert conffile.tiers[0].name == "high"
     assert conffile.tiers[0].priority == 3
@@ -92,7 +92,7 @@ def test_config_file_normal():
 def test_config_file_bad_cc_url():
     cfg = {
         "debug": True,
-        "sticky_sim_period_s": 451,
+        "sticky_connection_period_s": 451,
         "connectivity_check_url": "zzz",
         "connectivity_check_payload": "Dummy CC Payload",
         "tiers": {
@@ -108,7 +108,7 @@ def test_config_file_bad_cc_url():
 def test_config_file_bad_cc_payload():
     cfg = {
         "debug": True,
-        "sticky_sim_period_s": 451,
+        "sticky_connection_period_s": 451,
         "connectivity_check_url": "http://test-server/test-url",
         "connectivity_check_payload": "",
         "tiers": {
