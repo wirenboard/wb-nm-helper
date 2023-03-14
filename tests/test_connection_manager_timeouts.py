@@ -57,9 +57,7 @@ class TimeoutManagerTests(unittest.TestCase):
                 "wb-eth0", device_connected=True, connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED
             )
             self.network_manager.fake_add_wifi_client(
-                "wb-wifi-client",
-                device_connected=True,
-                connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED
+                "wb-wifi-client", device_connected=True, connection_state=NM_ACTIVE_CONNECTION_STATE_ACTIVATED
             )
             self.network_manager.fake_add_gsm(
                 "wb-gsm-sim1",
