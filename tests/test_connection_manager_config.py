@@ -127,6 +127,8 @@ class ConManConfigFileTestCase(unittest.TestCase):
             obj.load_config(cfg=cfg)
 
     def test_config_file_is_connection_managed(self):
+        self.net_man.fake_add_ethernet("wb-eth0", device_connected=True)
+        self.net_man.fake_add_ethernet("wb-eth1", device_connected=True, managed=False)
         conffile = ConnectionManagerConfigFile(network_manager=self.net_man)
         eth0 = self.net_man.find_connection("wb-eth0")
         eth1 = self.net_man.find_connection("wb-eth1")
