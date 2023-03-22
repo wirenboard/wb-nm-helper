@@ -69,7 +69,7 @@ class FakeNMConnection(INMConnection):
         pass
 
     def get_property(self, property_name: str):
-        pass
+        raise Exception("Can't get property {}".format(property_name))
 
     def get_prop_iface(self):
         pass
@@ -160,7 +160,11 @@ class FakeNMDevice(INMDevice):
             return "/fake/Devices/{}/{}".format(self.name, self._data().get("index"))
         if property_name == "IpInterface":
             return self.net_man.fake_get_iface_for_device(self)
-        return None
+        if property_name == "Managed":
+            return self._data().get("managed")
+        if property_name == "Interface":
+            return self.name
+        raise Exception("Can't get property {}".format(property_name))
 
     def get_active_connection(self):
         con = self.net_man.fake_get_connection_for_device(self)
@@ -224,13 +228,21 @@ class FakeNetworkManager(INetworkManager):  # pylint: disable=too-many-public-me
             "device_name": device_name,
             "iface_name": iface_name,
         }
-        for kwarg, value in kwargs.items():
-            self.fake_set_connection_param(name, kwarg, value)
 
         if device_name not in self.devices:
             self.devices[device_name] = {"index": 1, "sim_slot": 1, "metric": -1}
+
         if iface_name not in self.ifaces:
             self.ifaces[iface_name] = {"metric": -1}
+
+        for kwarg, value in kwargs.items():
+            if kwarg in ("managed",):
+                self.devices[device_name]["managed"] = value
+            else:
+                self.fake_set_connection_param(name, kwarg, value)
+
+        if "managed" not in self.devices.get(device_name):
+            self.devices[device_name]["managed"] = True
 
     def fake_set_connection_param(self, name, param, value):
         self.connections[name][param] = value
@@ -249,6 +261,7 @@ class FakeNetworkManager(INetworkManager):  # pylint: disable=too-many-public-me
     def fake_add_ethernet(
         self, name, device_connected=False, connection_state=NM_ACTIVE_CONNECTION_STATE_UNKNOWN, **kwargs
     ):
+        logging.warning("fake_add_ethernet")
         self.fake_add_connection(
             name,
             device_type="802-3-ethernet",
@@ -342,7 +355,7 @@ class FakeNetworkManager(INetworkManager):  # pylint: disable=too-many-public-me
         pass
 
     def get_property(self, property_name: str):
-        pass
+        raise Exception("Can't get property {}".format(property_name))
 
     def get_prop_iface(self):
         pass

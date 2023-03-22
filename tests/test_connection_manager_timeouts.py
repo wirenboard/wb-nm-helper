@@ -23,7 +23,8 @@ TEST_NOW = datetime.datetime(year=2000, month=1, day=1)
 
 class TimeoutManagerTests(unittest.TestCase):
     def setUp(self) -> None:
-        config = ConnectionManagerConfigFile(normal_config)
+        config = ConnectionManagerConfigFile(network_manager=FakeNetworkManager())
+        config.load_config(normal_config)
         self.timeout_manager = TimeoutManager(config)
         self.network_manager = FakeNetworkManager()
 

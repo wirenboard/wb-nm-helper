@@ -60,29 +60,38 @@ class ConnectionTier:  # pylint: disable=R0903
 
 
 class ConnectionManagerConfigFile:
-    def __init__(self, cfg: Dict) -> None:
-        self.debug: bool = cfg.get("debug", False)
-        self.init_logging()
+    def __init__(self, network_manager: INetworkManager) -> None:
+        self.network_manager = network_manager
+        self.debug = False
+        self.tiers: List[ConnectionTier] = []
+        self.sticky_connection_period: Optional[datetime.timedelta] = None
+        self.connectivity_check_url = ""
+        self.connectivity_check_payload = ""
+
+    def load_config(self, cfg: Dict):
+        self.debug = cfg.get("debug", False)
         if cfg.get("tiers"):
-            self.tiers: List[ConnectionTier] = list(self.get_tiers(cfg))
+            self.tiers = list(self.get_tiers(cfg))
         else:
-            self.tiers: List[ConnectionTier] = self.get_default_tiers()
-        self.sticky_connection_period: datetime.timedelta = self.get_sticky_connection_period(cfg)
-        self.connectivity_check_url: str = self.get_connectivity_check_url(cfg)
-        self.connectivity_check_payload: str = self.get_connectivity_check_payload(cfg)
+            self.tiers = self.get_default_tiers()
+        self.sticky_connection_period = self.get_sticky_connection_period(cfg)
+        self.connectivity_check_url = self.get_connectivity_check_url(cfg)
+        self.connectivity_check_payload = self.get_connectivity_check_payload(cfg)
 
-    def init_logging(self):
-        log_level = logging.DEBUG if self.debug else logging.INFO
-        if log_level > logging.DEBUG:
-            logger = logging.getLogger()
-            logger.addFilter(ConnectionStateFilter())
-        logging.basicConfig(level=log_level, format=LOGGING_FORMAT)
-
-    @staticmethod
-    def get_tiers(cfg: Dict) -> List[ConnectionTier]:
+    def get_tiers(self, cfg: Dict) -> List[ConnectionTier]:
         tiers = []
         for name, level in (("high", 3), ("medium", 2), ("low", 1)):
-            tiers.append(ConnectionTier(name, level, cfg.get("tiers", {}).get(name, [])))
+            items = []
+            for cn_id in cfg.get("tiers", {}).get(name, []):
+                con = self.network_manager.find_connection(cn_id)
+                if not con:
+                    logging.warning("Connection %s not found, skipping", cn_id)
+                    continue
+                if self.is_connection_unmanaged(con):
+                    logging.warning("Connection %s is unmanaged, skipping", cn_id)
+                    continue
+                items.append(cn_id)
+            tiers.append(ConnectionTier(name, level, items))
         return tiers
 
     @staticmethod
@@ -120,17 +129,17 @@ class ConnectionManagerConfigFile:
         return False
 
     def get_default_tiers(self):
-        network_manager = self.get_network_manager()
         tiers = []
         for name, level in (("high", 3), ("medium", 2), ("low", 1)):
             tiers.append(ConnectionTier(name, level, []))
-        for item in network_manager.get_connections():
+        for item in self.network_manager.get_connections():
             autoconnect = item.get_settings().get("connection").get("autoconnect", True)
             never_default = item.get_settings().get("ipv4").get("never-default")
             connection_type = item.get_connection_type()
             device_type = connection_type_to_device_type(connection_type)
             connection_id = str(item.get_settings().get("connection").get("id"))
-            if not autoconnect or never_default:
+            unmanaged = self.is_connection_unmanaged(item)
+            if not autoconnect or never_default or unmanaged:
                 continue
             if device_type == NM_DEVICE_TYPE_MODEM:
                 tiers[2].connections.append(connection_id)
@@ -148,8 +157,20 @@ class ConnectionManagerConfigFile:
         )
         return tiers
 
-    def get_network_manager(self):
-        return NetworkManager()
+    def is_connection_unmanaged(self, con):
+        assert con, "Connection cannot be empty"
+        cn_id = con.get_settings().get("connection").get("id")
+        device = self.network_manager.find_device_for_connection(con)
+        if not device:
+            logging.warning("No device for connection %s found, assuming unmnaged", cn_id)
+            return True
+        managed = device.get_property("Managed")
+        iface_name = device.get_property("Interface")
+        if managed in (True, 1):
+            logging.debug("Device for connection %s (%s) is managed, will use it", cn_id, iface_name)
+            return False
+        logging.warning("Device for interface %s (%s) is unmanaged, not using it", cn_id, iface_name)
+        return True
 
 
 class TimeoutManager:
@@ -611,26 +632,42 @@ class ConnectionManager:
         return results
 
 
+def init_logging(debug: bool):
+    log_level = logging.DEBUG if debug else logging.INFO
+    if log_level > logging.DEBUG:
+        logger = logging.getLogger()
+        logger.addFilter(ConnectionStateFilter())
+    logging.basicConfig(level=log_level, format=LOGGING_FORMAT)
+
+
 def main():
+    network_manager = NetworkManager()
     try:
         with open(CONFIG_FILE, encoding="utf-8") as file:
             cfg_json = json.load(file)
-        config = ConnectionManagerConfigFile(cfg_json)
     except (
         FileNotFoundError,
         PermissionError,
         OSError,
         json.decoder.JSONDecodeError,
-        ImproperlyConfigured,
     ) as ex:
         logging.error("Loading %s failed: %s", CONFIG_FILE, ex)
+        sys.exit(EXIT_NOT_CONFIGURED)
+
+    init_logging(cfg_json.get("debug", False))  # must be initialized before ConnectionManagerConfigFile
+
+    try:
+        config = ConnectionManagerConfigFile(network_manager=network_manager)
+        config.load_config(cfg=cfg_json)
+    except ImproperlyConfigured as ex:
+        logging.error("Configuration error: %s", ex)
         sys.exit(EXIT_NOT_CONFIGURED)
 
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     if config.has_connections():
         manager = ConnectionManager(
-            network_manager=NetworkManager(), config=config, modem_manager=ModemManager()
+            network_manager=network_manager, config=config, modem_manager=ModemManager()
         )
         while True:
             manager.cycle_loop()
