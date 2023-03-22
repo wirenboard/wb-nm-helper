@@ -69,7 +69,7 @@ class FakeNMConnection(INMConnection):
         pass
 
     def get_property(self, property_name: str):
-        raise Exception("Can't get property {}".format(property_name))
+        raise RuntimeError("Can't get property {}".format(property_name))
 
     def get_prop_iface(self):
         pass
@@ -164,7 +164,7 @@ class FakeNMDevice(INMDevice):
             return self._data().get("managed")
         if property_name == "Interface":
             return self.name
-        raise Exception("Can't get property {}".format(property_name))
+        raise RuntimeError("Can't get property {}".format(property_name))
 
     def get_active_connection(self):
         con = self.net_man.fake_get_connection_for_device(self)
@@ -355,7 +355,7 @@ class FakeNetworkManager(INetworkManager):  # pylint: disable=too-many-public-me
         pass
 
     def get_property(self, property_name: str):
-        raise Exception("Can't get property {}".format(property_name))
+        raise RuntimeError("Can't get property {}".format(property_name))
 
     def get_prop_iface(self):
         pass
