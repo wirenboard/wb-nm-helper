@@ -673,10 +673,7 @@ def main():
             modem_manager = ModemManager()
         except DBusException as ex:
             modem_manager = None
-            logging.warning(
-                "Unable to initialize ModemManager, GSM connections most likely will be unavailable",
-                exc_info=ex,
-            )
+            logging.warning("Unable to initialize ModemManager, GSM connections will be unavailable (%s)", ex)
 
         manager = ConnectionManager(
             network_manager=network_manager, config=config, modem_manager=modem_manager
