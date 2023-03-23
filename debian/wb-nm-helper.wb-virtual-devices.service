@@ -1,0 +1,11 @@
+[Unit]
+Description=Virtual MQTT devices management service for Network Manager connections
+After=NetworkManager.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/wb-nm-virtual-devices
+
+[Install]
+WantedBy=multi-user.target

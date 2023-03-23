@@ -1,3 +1,10 @@
+wb-nm-helper (1.22.0) stable; urgency=medium
+
+  * Remove connections virtual devices from system wb-rules
+  * Add virtual devices package with dbus communication
+
+ -- Ekaterina Volkova <ekaterina.volkova@wirenboard.ru>  Thu, 23 Mar 2023 17:08:49 +0300
+
 wb-nm-helper (1.21.0) stable; urgency=medium
 
   * Wi-Fi connections are now also considered sticky
