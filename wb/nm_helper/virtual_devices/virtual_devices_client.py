@@ -3,10 +3,11 @@ import logging
 import signal
 import sys
 
-from connection import Connection
 from dbus_client import DbusClient
-from virtual_device import VirtualDevice
 from wb_common.mqtt_client import DEFAULT_BROKER_URL, MQTTClient
+
+from wb.nm_helper.virtual_devices.connection import Connection
+from wb.nm_helper.virtual_devices.virtual_device import VirtualDevice
 
 
 class VirtualDevicesClientException(Exception):

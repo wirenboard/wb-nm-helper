@@ -1,9 +1,7 @@
 import json
-import logging
 import struct
 
 import dbus
-from connection import Connection, ConnectionState
 
 from wb.nm_helper.connection_manager import (
     CONFIG_FILE,
@@ -11,6 +9,7 @@ from wb.nm_helper.connection_manager import (
     ConnectionManagerConfigFile,
 )
 from wb.nm_helper.network_manager import NetworkManager
+from wb.nm_helper.virtual_devices.connection import ConnectionState
 
 
 class ActiveConnection:
@@ -18,6 +17,8 @@ class ActiveConnection:
         self._logger = logger
         self._bus = bus
         self._path = active_connection_path
+        self._name = None
+        self._uuid = None
         self._state = None
         self._connection_path = None
         self._device = None
@@ -60,13 +61,13 @@ class ActiveConnection:
 
         return " ".join([x for x in ip4addresses])
 
-    def _enable_ip4config_properties_updating(self):
+    def _enable_ip4config_properties_updating(self, ip4config_path):
         self._ip4config_update_handler_match = self._bus.add_signal_receiver(
             self._ip4config_update_handler,
             "PropertiesChanged",
             "org.freedesktop.DBus.Properties",
             "org.freedesktop.NetworkManager",
-            self._ip4config_path,
+            ip4config_path,
             sender_keyword="sender",
             destination_keyword="destination",
             interface_keyword="interface",
@@ -99,7 +100,7 @@ class ActiveConnection:
             self._uuid = properties["Uuid"]
             self._state = ConnectionState(properties["State"])
             self._connection_path = properties["Connection"]
-            self._ip4config_path = properties["Ip4Config"]
+            ip4config_path = properties["Ip4Config"]
 
             device_path = properties["Devices"][0]
             device_proxy = self._bus.get_object("org.freedesktop.NetworkManager", device_path)
@@ -107,7 +108,7 @@ class ActiveConnection:
             self._device = device_interface.Get("org.freedesktop.NetworkManager.Device", "Interface")
 
             if self._state == ConnectionState.Activated:
-                ip4config_proxy = self._bus.get_object("org.freedesktop.NetworkManager", self._ip4config_path)
+                ip4config_proxy = self._bus.get_object("org.freedesktop.NetworkManager", ip4config_path)
                 ip4config_interface = dbus.Interface(ip4config_proxy, "org.freedesktop.DBus.Properties")
                 ip4addresses_list = ip4config_interface.Get(
                     "org.freedesktop.NetworkManager.IP4Config", "Addresses"
@@ -115,7 +116,7 @@ class ActiveConnection:
                 self._ip4addresses = self._format_ip4address_list(ip4addresses_list)
                 self._connectivity = self._read_connectivity_state()
 
-                self._enable_ip4config_properties_updating()
+                self._enable_ip4config_properties_updating(ip4config_path)
             else:
                 self._ip4addresses = None
                 self._connectivity = False

@@ -1,9 +1,10 @@
 import dbus
 import dbus.mainloop.glib
 import dbus.types
-from active_connection import ActiveConnection
-from connection import Connection
 from gi.repository import GLib
+
+from wb.nm_helper.virtual_devices.active_connection import ActiveConnection
+from wb.nm_helper.virtual_devices.connection import Connection
 
 
 class DbusClient:
