@@ -10,6 +10,7 @@ from typing import Dict, Iterator, List, Optional
 
 import dbus
 import pycurl
+from dbus import DBusException
 
 from wb.nm_helper.logging_filter import ConnectionStateFilter
 from wb.nm_helper.modem_manager import ModemManager
@@ -668,8 +669,17 @@ def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     if config.has_connections():
+        try:
+            modem_manager = ModemManager()
+        except DBusException as ex:
+            modem_manager = None
+            logging.warning(
+                "Unable to initialize ModemManager, GSM connections most likely will be unavailable",
+                exc_info=ex,
+            )
+
         manager = ConnectionManager(
-            network_manager=network_manager, config=config, modem_manager=ModemManager()
+            network_manager=network_manager, config=config, modem_manager=modem_manager
         )
         while True:
             manager.cycle_loop()
