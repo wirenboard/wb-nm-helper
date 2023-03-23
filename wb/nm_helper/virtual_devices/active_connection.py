@@ -9,7 +9,8 @@ from wb.nm_helper.connection_manager import (
     ConnectionManagerConfigFile,
 )
 from wb.nm_helper.network_manager import NetworkManager
-from wb.nm_helper.virtual_devices.connection import ConnectionState
+
+from .connection import ConnectionState
 
 
 class ActiveConnection:
@@ -83,11 +84,11 @@ class ActiveConnection:
         with open(CONFIG_FILE, encoding="utf-8") as file:
             config_json = json.load(file)
 
-        network_manager = NetworkManager()
-        config = ConnectionManagerConfigFile(network_manager=network_manager)
+        manager = NetworkManager()
+        config = ConnectionManagerConfigFile(network_manager=manager)
         config.load_config(config_json)
 
-        active_connection = network_manager.get_active_connections().get(self._name)
+        active_connection = manager.get_active_connections().get(self._name)
         return ConnectionManager.check_connectivity(active_connection, config)
 
     def _read_properties(self):
@@ -107,7 +108,7 @@ class ActiveConnection:
             device_interface = dbus.Interface(device_proxy, "org.freedesktop.DBus.Properties")
             self._device = device_interface.Get("org.freedesktop.NetworkManager.Device", "Interface")
 
-            if self._state == ConnectionState.Activated:
+            if self._state == ConnectionState.ACTIVATED:
                 ip4config_proxy = self._bus.get_object("org.freedesktop.NetworkManager", ip4config_path)
                 ip4config_interface = dbus.Interface(ip4config_proxy, "org.freedesktop.DBus.Properties")
                 ip4addresses_list = ip4config_interface.Get(
