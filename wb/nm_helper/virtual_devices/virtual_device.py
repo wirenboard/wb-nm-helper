@@ -1,8 +1,9 @@
 import json
 import logging
 
-from connection import Connection
 from wb_common.mqtt_client import MQTTClient
+
+from .connection import Connection
 
 
 class VirtualDevice:
@@ -75,7 +76,7 @@ class VirtualDevice:
             self._get_control_topic(self._connection.uuid, control_name) + "/meta", meta_json, retain=True
         )
 
-    def _updown_message_callback(self, client, userdata, message):
+    def _updown_message_callback(self, _, __, ___):
         self._up_down_meta["readonly"] = True
         self._publish_control_meta("UpDown", self._up_down_meta)
 

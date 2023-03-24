@@ -3,8 +3,8 @@ import dbus.mainloop.glib
 import dbus.types
 from gi.repository import GLib
 
-from wb.nm_helper.virtual_devices.active_connection import ActiveConnection
-from wb.nm_helper.virtual_devices.connection import Connection
+from .active_connection import ActiveConnection
+from .connection import Connection
 
 
 class DbusClient:
@@ -140,12 +140,12 @@ class DbusClient:
             self._new_connection_callback(self._create_connection(connection_path))
         return
 
-    def _connection_removed_handler(self, *args, **kwargs):
+    def _connection_removed_handler(self, *_, **kwargs):
         connection_path = kwargs["path"]
         if connection_path in self._connections:
             self._connection_removed_callback(self._remove_connection(connection_path))
 
-    def _active_connection_list_update_handler(self, *args, **kwargs):
+    def _active_connection_list_update_handler(self, *args, **_):
         updated_properties = args[1]
         if "ActiveConnections" in updated_properties:
             active_connections_paths = updated_properties["ActiveConnections"]

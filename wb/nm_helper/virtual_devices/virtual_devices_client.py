@@ -3,11 +3,11 @@ import logging
 import signal
 import sys
 
-from dbus_client import DbusClient
 from wb_common.mqtt_client import DEFAULT_BROKER_URL, MQTTClient
 
-from wb.nm_helper.virtual_devices.connection import Connection
-from wb.nm_helper.virtual_devices.virtual_device import VirtualDevice
+from .connection import Connection
+from .dbus_client import DbusClient
+from .virtual_device import VirtualDevice
 
 
 class VirtualDevicesClientException(Exception):
@@ -46,7 +46,7 @@ class VirtualDevicesClient:
         self._dbus_client.stop_event_loop()
         self._mqtt_client.stop()
 
-    def _on_mqtt_device_uuid_topic_message(self, client, userdata, message):
+    def _on_mqtt_device_uuid_topic_message(self, _, __, message):
         uuid = message.payload.decode("utf-8")
 
         if uuid == "":
@@ -83,7 +83,6 @@ class VirtualDevicesClient:
     def _remove_connection_callback(self, connection: Connection):
         self._virtual_devices[connection].remove()
         self._virtual_devices.pop(connection)
-        return
 
     def _update_connection_callback(self, connection: Connection):
         self._virtual_devices[connection].update()
@@ -92,7 +91,7 @@ class VirtualDevicesClient:
         self._dbus_client.connection_activity_switch(connection, enable)
 
 
-def main(argv=sys.argv):
+def main():
     parser = argparse.ArgumentParser(description="Service for creating virtual connection devices")
     parser.add_argument(
         "--debug",
@@ -102,7 +101,7 @@ def main(argv=sys.argv):
         required=False,
         action="store_true",
     )
-    options = parser.parse_args(argv[1:])
+    options = parser.parse_args()
 
     if options.debug:
         logger_level = logging.DEBUG
@@ -117,7 +116,7 @@ def main(argv=sys.argv):
 
     virtual_connections_client = VirtualDevicesClient(logger)
 
-    def stop_virtual_connections_client(signum, msg):
+    def stop_virtual_connections_client(_, __):
         virtual_connections_client.stop()
 
     signal.signal(signal.SIGINT, stop_virtual_connections_client)
@@ -133,4 +132,4 @@ def main(argv=sys.argv):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    sys.exit(main())

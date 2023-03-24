@@ -168,7 +168,7 @@ class ActiveConnection:
                 self._logger.error("Update active connection %s failed", self._path)
                 raise error
 
-    def _update_handler(self, *args, **kwargs):
+    def _update_handler(self, *args, **_):
         updated_properties = args[1]
 
         if "State" in updated_properties:
@@ -177,7 +177,7 @@ class ActiveConnection:
             except dbus.exceptions.DBusException:
                 self._logger.error("Update active connection properties skipped due to errors %s", self._path)
 
-    def _ip4config_update_handler(self, *args, **kwargs):
+    def _ip4config_update_handler(self, *args, **_):
         updated_properties = args[1]
 
         if "Addresses" in updated_properties:

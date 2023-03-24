@@ -3,11 +3,11 @@ import logging
 
 
 class ConnectionState(enum.Enum):
-    Unknown = 0
-    Activating = 1
-    Activated = 2
-    Deactivating = 3
-    Deactivated = 4
+    UNKNOWN = 0
+    ACTIVATING = 1
+    ACTIVATED = 2
+    DEACTIVATING = 3
+    DEACTIVATED = 4
 
 
 class Connection:
