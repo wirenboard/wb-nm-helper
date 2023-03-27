@@ -125,7 +125,7 @@
         "method": "dhcp",
         "options": {
           "hostname": "WirenBoard",
-          "pre-up": "wb-set-mac"
+          "pre-up": ["wb-set-mac # comment1", "sleep 10   # comment2"]
         },
         "allow-hotplug": true,
         "type": "dhcp"
