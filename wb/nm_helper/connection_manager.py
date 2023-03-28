@@ -195,8 +195,8 @@ class NetworkAwareConfigFile(ConfigFile):
 
 
 class TimeoutManager:
-    def __init__(self, config: ConfigFile or NetworkAwareConfigFile) -> None:
-        self.config: ConfigFile or NetworkAwareConfigFile = config
+    def __init__(self, config: ConfigFile) -> None:
+        self.config: ConfigFile = config
         self.connection_retry_timeouts = {}
         self.keep_sticky_connections_until: Optional[datetime.datetime] = None
         self.connection_activation_timeout = CONNECTION_ACTIVATION_TIMEOUT
@@ -270,9 +270,7 @@ def curl_get(iface: str, url: str) -> str:
     # Use NM's implementation after fixing the bug
 
 
-def check_connectivity(
-    active_cn: NMActiveConnection, config: ConfigFile or NetworkAwareConfigFile = None
-) -> bool:
+def check_connectivity(active_cn: NMActiveConnection, config: ConfigFile = None) -> bool:
     if not config:
         config = ConfigFile()
         config.load_config(read_config_json())
@@ -685,7 +683,7 @@ def main():
         logging.error("Loading %s failed: %s", CONFIG_FILE, ex)
         sys.exit(EXIT_NOT_CONFIGURED)
 
-    init_logging(cfg_json.get("debug", False))  # must be initialized before ConnectionManagerConfigFile
+    init_logging(cfg_json.get("debug", False))  # must be initialized before NetworkAwareConfigFile
 
     try:
         config = NetworkAwareConfigFile(network_manager=network_manager)

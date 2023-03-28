@@ -236,7 +236,7 @@ class FakeNetworkManager(INetworkManager):  # pylint: disable=too-many-public-me
             self.ifaces[iface_name] = {"metric": -1}
 
         for kwarg, value in kwargs.items():
-            if kwarg in ("managed",):
+            if kwarg == "managed":
                 self.devices[device_name][kwarg] = value
             else:
                 self.fake_set_connection_param(name, kwarg, value)
