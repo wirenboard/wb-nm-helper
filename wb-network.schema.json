@@ -129,40 +129,6 @@
                     "propertyOrder": 3
                 }
             },
-            "_properties_that_are_not_used_for_now": {
-                "pre-up": {
-                    "title": "Pre-up command",
-                    "type": ["array", "string"],
-                    "propertyOrder": 100
-                },
-                "up": {
-                    "title": "Up command",
-                    "type": ["array", "string"],
-                    "propertyOrder": 101
-                },
-                "post-up": {
-                    "title": "Post-up command",
-                    "description": "Same as 'Up command'",
-                    "type": ["array", "string"],
-                    "propertyOrder": 102
-                },
-                "down": {
-                    "title": "Down command",
-                    "type": ["array", "string"],
-                    "propertyOrder": 103
-                },
-                "pre-down": {
-                    "title": "Pre-down command",
-                    "description": "Same as 'Down command'",
-                    "type": ["array", "string"],
-                    "propertyOrder": 104
-                },
-                "post-down": {
-                    "title": "Post-down command",
-                    "type": ["array", "string"],
-                    "propertyOrder": 105
-                }
-            },
             "options": {
                 "wb": {
                     "disable_panel": true
