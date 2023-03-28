@@ -44,7 +44,6 @@ from pyparsing import (
     Word,
     ZeroOrMore,
     alphanums,
-    pythonStyleComment,
 )
 
 NETWORK_INTERFACES_CONFIG = "/etc/network/interfaces"
@@ -77,7 +76,6 @@ class NetworkInterfacesAdapter:
     space = White().suppress()
     value = CharsNotIn("{}\n#")
     line = Regex("^.*$")
-    comment = "#"
     method = Regex("loopback|manual|dhcp|static|ppp|bootp|tunnel|wvdial|ipv4ll")
     stanza = Regex("auto|iface|mapping|allow-hotplug")
     option_key = Regex(
@@ -96,7 +94,7 @@ class NetworkInterfacesAdapter:
         stanza + space + interface + Optional(space + Regex("inet|can") + method + Group(ZeroOrMore(option)))
     )
 
-    interface_file = ZeroOrMore(interface_block).ignore(pythonStyleComment)
+    interface_file = ZeroOrMore(interface_block)
 
     def __init__(self, input_file_name=None):
         self.filename = None
@@ -107,12 +105,21 @@ class NetworkInterfacesAdapter:
         if self.content is not None:
             self.interfaces = self.get_interfaces()
 
+    def _remove_comments(self, content):
+        """
+        Lines starting with # are ignored. Note that end-of-line comments are NOT supported,
+        comments must be on a line of their own.
+        See https://manpages.debian.org/bullseye/ifupdown/interfaces.5.en.html#FILE_FORMAT
+        """
+        return "\n".join([line for line in content.splitlines() if not line.startswith("#")])
+
     def _read(self):
         """
         Reread the contents from the disk
         """
         with open(self.filename, "r", encoding="utf-8") as file:
-            self.content = file.read()
+            self.content = self._remove_comments(file.read())
+
         if not self.content.endswith("\n"):
             self.content = self.content + "\n"
 

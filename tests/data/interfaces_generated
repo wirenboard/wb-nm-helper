@@ -15,6 +15,7 @@ iface eth1 inet dhcp
   hostname WirenBoard
   pre-up wb-set-mac # comment1
   pre-up sleep 10   # comment2
+  pre-up #test
 
 auto wlan0
 allow-hotplug wlan0

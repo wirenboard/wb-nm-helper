@@ -272,6 +272,7 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
         assert res["ui"]["connections"][7]["options"]["pre-up"] == [
             "wb-set-mac # comment1",
             "sleep 10   # comment2",
+            "#test",
         ]
         assert res["ui"]["connections"][7]["type"] == "dhcp"
         assert res["ui"]["connections"][8]["allow-hotplug"] is True
