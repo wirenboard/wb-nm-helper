@@ -1,6 +1,7 @@
 bin/wb-nm-helper /usr/bin
 wb-network.schema.json /usr/share/wb-mqtt-confed/schemas
 bin/wb-connection-manager /usr/lib/wb-connection-manager
+bin/wb-hide-connection /usr/lib/wb-nm-helper
 wb-connection-manager.conf /etc
 bin/disable-if-not-configured.sh /usr/lib/wb-nm-helper
 bin/update-motd.d/50-wb-old-connections /etc/update-motd.d

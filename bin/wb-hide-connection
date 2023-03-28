@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+
+import sys
+import dbus
+
+from wb.nm_helper.network_manager import NetworkManager
+from wb.nm_helper.network_manager_adapter import DBUSSettings
+
+if len(sys.argv) != 3:
+    sys.exit("Usage:\n%s connection_id wb.read-only_param_value" % sys.argv[0])
+
+con_id, hide_param = sys.argv[1], sys.argv[2]
+
+network_manager = NetworkManager()
+con = network_manager.find_connection(con_id)
+if con:
+    con_settings = DBUSSettings(con.get_settings())
+    con_settings.set_value("user.data", dbus.Dictionary({"wb.read-only" : hide_param}, signature="ss"))
+    con.update_settings(con_settings.params)
+else:
+    sys.exit(1)

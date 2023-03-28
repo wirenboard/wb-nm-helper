@@ -141,6 +141,7 @@ successfully requested primary SIM switch in mode
 [user]
 wb.read-only=true
 ```
+Чтобы скрывать соединения в рантайме, можно использовать ```/usr/lib/wb-nm-helper/wb-hide-connection```
 
 ### Доступ в Internet через Wi-Fi AP
 
