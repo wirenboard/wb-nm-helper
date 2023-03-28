@@ -8,9 +8,9 @@ from wb.nm_helper.connection_manager import (
     DEFAULT_CONNECTIVITY_CHECK_PAYLOAD,
     DEFAULT_CONNECTIVITY_CHECK_URL,
     DEFAULT_STICKY_CONNECTION_PERIOD,
-    ConnectionManagerConfigFile,
     ConnectionTier,
     ImproperlyConfigured,
+    NetworkAwareConfigFile,
 )
 
 
@@ -22,6 +22,16 @@ class ConManConfigFileTestCase(unittest.TestCase):
         tier = ConnectionTier("high", 3, ["wb-eth0", "wb-eth1"])
         assert tier.name == "high"
         assert tier.priority == 3
+        assert len(tier.connections) == 2
+        assert "wb-eth0" in tier.connections
+        assert "wb-eth1" in tier.connections
+
+    def test_01_connection_tier_update_connections(self):
+        tier = ConnectionTier("high", 3, [])
+        assert tier.name == "high"
+        assert tier.priority == 3
+        assert len(tier.connections) == 0
+        tier.update_connections(["wb-eth0", "wb-eth1"])
         assert len(tier.connections) == 2
         assert "wb-eth0" in tier.connections
         assert "wb-eth1" in tier.connections
@@ -43,7 +53,7 @@ class ConManConfigFileTestCase(unittest.TestCase):
         self.net_man.fake_add_ethernet("wb-eth0", device_connected=True)
         self.net_man.fake_add_ethernet("wb-eth1", autoconnect="true", device_connected=True)
         cfg = {}
-        conffile = ConnectionManagerConfigFile(network_manager=self.net_man)
+        conffile = NetworkAwareConfigFile(network_manager=self.net_man)
         conffile.load_config(cfg=cfg)
         assert conffile.debug is False
         assert conffile.connectivity_check_url == DEFAULT_CONNECTIVITY_CHECK_URL
@@ -77,7 +87,7 @@ class ConManConfigFileTestCase(unittest.TestCase):
                 "low": ["wb-gsm-sim1", "wb-gsm-sim2"],
             },
         }
-        conffile = ConnectionManagerConfigFile(network_manager=self.net_man)
+        conffile = NetworkAwareConfigFile(network_manager=self.net_man)
         conffile.load_config(cfg=cfg)
         assert conffile.debug is True
         assert conffile.connectivity_check_url == "http://test-server/test-url"
@@ -107,7 +117,7 @@ class ConManConfigFileTestCase(unittest.TestCase):
             },
         }
         with pytest.raises(ImproperlyConfigured):
-            obj = ConnectionManagerConfigFile(network_manager=self.net_man)
+            obj = NetworkAwareConfigFile(network_manager=self.net_man)
             obj.load_config(cfg=cfg)
 
     def test_config_file_bad_cc_payload(self):
@@ -123,13 +133,13 @@ class ConManConfigFileTestCase(unittest.TestCase):
             },
         }
         with pytest.raises(ImproperlyConfigured):
-            obj = ConnectionManagerConfigFile(network_manager=self.net_man)
+            obj = NetworkAwareConfigFile(network_manager=self.net_man)
             obj.load_config(cfg=cfg)
 
     def test_config_file_is_connection_managed(self):
         self.net_man.fake_add_ethernet("wb-eth0", device_connected=True)
         self.net_man.fake_add_ethernet("wb-eth1", device_connected=True, managed=False)
-        conffile = ConnectionManagerConfigFile(network_manager=self.net_man)
+        conffile = NetworkAwareConfigFile(network_manager=self.net_man)
         eth0 = self.net_man.find_connection("wb-eth0")
         eth1 = self.net_man.find_connection("wb-eth1")
         assert conffile.is_connection_unmanaged(eth0) is False

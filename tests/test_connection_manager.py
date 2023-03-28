@@ -9,10 +9,12 @@ from tests.mm_mock import (
     FakeNMActiveConnection,
     FakeNMConnection,
 )
+from wb.nm_helper import connection_manager
 from wb.nm_helper.connection_manager import (
     CONNECTION_ACTIVATION_RETRY_TIMEOUT,
     ConnectionManager,
-    ConnectionManagerConfigFile,
+    NetworkAwareConfigFile,
+    check_connectivity,
 )
 from wb.nm_helper.network_manager import (
     NM_ACTIVE_CONNECTION_STATE_ACTIVATED,
@@ -38,7 +40,7 @@ SHORT_TIMEOUT = datetime.timedelta(seconds=5)
 
 
 class AbsConManTests(unittest.TestCase):
-    config: ConnectionManagerConfigFile = None
+    config: NetworkAwareConfigFile = None
     net_man: FakeNetworkManager = None
     mod_man = FakeModemManager = None
     con_man = ConnectionManager = None
@@ -46,10 +48,10 @@ class AbsConManTests(unittest.TestCase):
     def setUp(self) -> None:
         self.net_man = FakeNetworkManager()
         self.mod_man = FakeModemManager(self.net_man)
-        ConnectionManager.curl_get = MagicMock()
+        connection_manager.curl_get = MagicMock()
 
     def _init_con_man(self, config_data):
-        self.config = ConnectionManagerConfigFile(network_manager=self.net_man)
+        self.config = NetworkAwareConfigFile(network_manager=self.net_man)
         self.config.load_config(cfg=config_data)
         self.con_man = ConnectionManager(self.net_man, self.config, modem_manager=self.mod_man)
         self.con_man.timeouts.connection_activation_timeout = SHORT_TIMEOUT
@@ -183,7 +185,7 @@ class CheckTests(AbsConManTests):
         }
         self._init_con_man(local_config)
 
-        ConnectionManager.curl_get.side_effect = [self.con_man.config.connectivity_check_payload]
+        connection_manager.curl_get.side_effect = [self.con_man.config.connectivity_check_payload]
         assert self.con_man.current_connection is None
         assert self.con_man.current_tier is None
         assert len(self.con_man.network_manager.get_active_connections()) == 0
@@ -204,7 +206,7 @@ class CheckTests(AbsConManTests):
             }
         }
         self._init_con_man(local_config)
-        ConnectionManager.curl_get.side_effect = [self.con_man.config.connectivity_check_payload]
+        connection_manager.curl_get.side_effect = [self.con_man.config.connectivity_check_payload]
         assert self.con_man.current_connection is None
         assert self.con_man.current_tier is None
         assert len(self.con_man.network_manager.get_active_connections()) == 0
@@ -225,7 +227,7 @@ class CheckTests(AbsConManTests):
             }
         }
         self._init_con_man(local_config)
-        ConnectionManager.curl_get.side_effect = ["", self.con_man.config.connectivity_check_payload]
+        connection_manager.curl_get.side_effect = ["", self.con_man.config.connectivity_check_payload]
         assert self.con_man.current_connection is None
         assert self.con_man.current_tier is None
         assert len(self.con_man.network_manager.get_active_connections()) == 0
@@ -246,7 +248,7 @@ class CheckTests(AbsConManTests):
             }
         }
         self._init_con_man(local_config)
-        ConnectionManager.curl_get.side_effect = ["", self.con_man.config.connectivity_check_payload]
+        connection_manager.curl_get.side_effect = ["", self.con_man.config.connectivity_check_payload]
         assert self.con_man.current_connection is None
         assert self.con_man.current_tier is None
         assert len(self.con_man.network_manager.get_active_connections()) == 0
@@ -270,7 +272,7 @@ class CheckTests(AbsConManTests):
             }
         }
         self._init_con_man(local_config)
-        ConnectionManager.curl_get.side_effect = ["", self.con_man.config.connectivity_check_payload]
+        connection_manager.curl_get.side_effect = ["", self.con_man.config.connectivity_check_payload]
         assert self.con_man.current_connection is None
         assert self.con_man.current_tier is None
         assert len(self.con_man.network_manager.get_active_connections()) == 0
@@ -293,7 +295,7 @@ class CheckTests(AbsConManTests):
             }
         }
         self._init_con_man(local_config)
-        ConnectionManager.curl_get.side_effect = ["", "", self.con_man.config.connectivity_check_payload]
+        connection_manager.curl_get.side_effect = ["", "", self.con_man.config.connectivity_check_payload]
         assert self.con_man.current_connection is None
         assert self.con_man.current_tier is None
         assert len(self.con_man.network_manager.get_active_connections()) == 0
@@ -317,7 +319,7 @@ class CheckTests(AbsConManTests):
             }
         }
         self._init_con_man(local_config)
-        ConnectionManager.curl_get.side_effect = ["", "", self.con_man.config.connectivity_check_payload]
+        connection_manager.curl_get.side_effect = ["", "", self.con_man.config.connectivity_check_payload]
         assert self.con_man.current_connection is None
         assert self.con_man.current_tier is None
         assert len(self.con_man.network_manager.get_active_connections()) == 0
@@ -346,7 +348,7 @@ class CheckTests(AbsConManTests):
             }
         }
         self._init_con_man(local_config)
-        ConnectionManager.curl_get.side_effect = ["", "", self.con_man.config.connectivity_check_payload]
+        connection_manager.curl_get.side_effect = ["", "", self.con_man.config.connectivity_check_payload]
         self.con_man.current_connection = "wb-gsm-sim1"
         self.con_man.current_tier = self.config.tiers[2]
         assert len(self.con_man.network_manager.get_active_connections()) == 1
@@ -468,7 +470,7 @@ class CheckConnectivityTests(AbsConManTests):
             }
         }
         self._init_con_man(local_config)
-        ConnectionManager.curl_get = MagicMock(
+        connection_manager.curl_get = MagicMock(
             side_effect=[
                 self.config.connectivity_check_payload,
                 "yyy " + self.config.connectivity_check_payload + " xxx",
@@ -476,15 +478,9 @@ class CheckConnectivityTests(AbsConManTests):
             ]
         )
 
-        result1 = self.con_man.check_connectivity(
-            self.net_man.get_active_connections().get("wb-gsm-sim1"), self.config
-        )
-        result2 = self.con_man.check_connectivity(
-            self.net_man.get_active_connections().get("wb-eth0"), self.config
-        )
-        result3 = self.con_man.check_connectivity(
-            self.net_man.get_active_connections().get("wb-eth1"), self.config
-        )
+        result1 = check_connectivity(self.net_man.get_active_connections().get("wb-gsm-sim1"), self.config)
+        result2 = check_connectivity(self.net_man.get_active_connections().get("wb-eth0"), self.config)
+        result3 = check_connectivity(self.net_man.get_active_connections().get("wb-eth1"), self.config)
 
         assert result1 is True
         assert result2 is True
@@ -520,7 +516,7 @@ class IntegratedTests(AbsConManTests):
             }
         }
         self._init_con_man(local_config)
-        ConnectionManager.curl_get.side_effect = [self.con_man.config.connectivity_check_payload]
+        connection_manager.curl_get.side_effect = [self.con_man.config.connectivity_check_payload]
         self.con_man.current_connection = "wb-gsm2-sim1"
         self.con_man.current_tier = self.config.tiers[2]
         assert len(self.con_man.network_manager.get_active_connections()) == 2
@@ -530,7 +526,7 @@ class IntegratedTests(AbsConManTests):
         curl_calls = [
             call("ppp0", self.con_man.config.connectivity_check_url),
         ]
-        assert self.con_man.curl_get.mock_calls == curl_calls
+        assert connection_manager.curl_get.mock_calls == curl_calls
         assert self.con_man.call_ifmetric.mock_calls == [
             call("ppp0", 55),
         ]
@@ -582,7 +578,7 @@ class IntegratedTests(AbsConManTests):
             }
         }
         self._init_con_man(local_config)
-        ConnectionManager.curl_get.side_effect = ["", "", "", self.con_man.config.connectivity_check_payload]
+        connection_manager.curl_get.side_effect = ["", "", "", self.con_man.config.connectivity_check_payload]
         self.con_man.current_connection = "wb-gsm1-sim1"
         self.con_man.current_tier = self.config.tiers[0]
         assert len(self.con_man.network_manager.get_active_connections()) == 6
@@ -601,7 +597,7 @@ class IntegratedTests(AbsConManTests):
             call("if_wb-wifi-client", self.con_man.config.connectivity_check_url),
             call("ppp1", self.con_man.config.connectivity_check_url),
         ]
-        assert self.con_man.curl_get.mock_calls == curl_calls
+        assert connection_manager.curl_get.mock_calls == curl_calls
         assert self.con_man.call_ifmetric.mock_calls == [call("ppp0", 106), call("ppp1", 55)]
         assert (
             self.net_man.connections.get("wb-gsm1-sim1").get("connection_state")
