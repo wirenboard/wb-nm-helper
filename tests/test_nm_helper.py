@@ -200,7 +200,7 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
             )
         )
 
-        with open("wb-network.schema.json", "r", encoding="utf-8") as f:
+        with open("../../../wb-network.schema.json", "r", encoding="utf-8") as f:
             schema = json.load(f)
 
         assert jsonschema.Draft4Validator(schema).is_valid(res)
