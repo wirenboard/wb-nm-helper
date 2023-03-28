@@ -58,7 +58,7 @@ def test_apply_changes():
     assert res.managed_interfaces == ["can0", "eth0", "eth1", "wlan0"]
     assert not res.released_interfaces
     assert res.is_changed is True
-    assert adapter.format().replace("\n", "") == generated.replace("\n", "")
+    assert adapter.format() == generated
 
 
 def test_apply_remove_iface():
