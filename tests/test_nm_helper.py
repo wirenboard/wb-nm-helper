@@ -4,6 +4,7 @@ import subprocess
 
 import dbus
 import dbusmock
+import jsonschema
 from dbusmock.templates.networkmanager import (
     MANAGER_IFACE,
     SETTINGS_IFACE,
@@ -199,6 +200,10 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
             )
         )
 
+        with open("wb-network.schema.json", "r", encoding="utf-8") as f:
+            schema = json.load(f)
+
+        assert jsonschema.Draft4Validator(schema).is_valid(res)
         assert len(res["data"]["devices"]) == 4
         assert res["data"]["devices"][0]["iface"] == "eth0"
         assert res["data"]["devices"][0]["type"] == "ethernet"
