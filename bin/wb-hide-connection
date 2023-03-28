@@ -15,7 +15,7 @@ network_manager = NetworkManager()
 con = network_manager.find_connection(con_id)
 if con:
     con_settings = DBUSSettings(con.get_settings())
-    con_settings.set_value("user.data", dbus.Dictionary({"wb.read-only" : hide_param}, signature="ss"))
+    con_settings.set_value("user.data", dbus.Dictionary({"wb.read-only": hide_param}, signature="ss"))
     con.update_settings(con_settings.params)
 else:
     sys.exit(1)
