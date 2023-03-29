@@ -1,6 +1,7 @@
 import argparse
 import json
 import subprocess
+from unittest.mock import Mock
 
 import dbus
 import dbusmock
@@ -12,7 +13,7 @@ from dbusmock.templates.networkmanager import (
     DeviceState,
 )
 
-from wb.nm_helper.nm_helper import from_json, to_json
+from wb.nm_helper import nm_helper
 
 
 class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
@@ -181,6 +182,8 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
     def test_to_json(self):
         # pylint: disable=R0915
 
+        nm_helper.is_modem_enabled = Mock(return_value=True)
+
         self.networkmanager_mock.AddEthernetDevice("mock_eth0", "eth0", DeviceState.ACTIVATED)
         self.networkmanager_mock.AddEthernetDevice("mock_eth1", "eth1", DeviceState.ACTIVATED)
         self.networkmanager_mock.AddWiFiDevice("mock_wlan0", "wlan0", DeviceState.ACTIVATED)
@@ -192,7 +195,7 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
         self.add_wb_gsm_sim2()
         self.add_wb_ap()
 
-        res = to_json(
+        res = nm_helper.to_json(
             args=argparse.Namespace(
                 config="tests/data/wb-connection-manager.conf",
                 interfaces_conf="tests/data/interfaces",
@@ -293,7 +296,7 @@ def test_from_json():
     with open("tests/data/ui.json", "r", encoding="utf-8") as f:
         cfg = json.load(f)
 
-    res = from_json(
+    res = nm_helper.from_json(
         cfg,
         args=argparse.Namespace(
             interfaces_conf="tests/data/interfaces",
