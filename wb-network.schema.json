@@ -137,8 +137,14 @@
                             "type": "array",
                             "_format": "table",
                             "items": {
+                                "title": "Command",
                                 "type": "string",
                                 "minLength": 1
+                            },
+                            "options": {
+                                "disable_array_delete_all_rows": true,
+                                "disable_array_delete_last_row": true,
+                                "disable_collapse": true
                             }
                         },
                         "up": {
@@ -146,28 +152,44 @@
                             "type": "array",
                             "_format": "table",
                             "items": {
+                                "title": "Command",
                                 "type": "string",
                                 "minLength": 1
+                            },
+                            "options": {
+                                "disable_array_delete_all_rows": true,
+                                "disable_array_delete_last_row": true,
+                                "disable_collapse": true
                             }
                         },
                         "post-up": {
                             "title": "Post-up commands",
-                            "description": "Same as 'Up commands'",
                             "type": "array",
                             "_format": "table",
                             "items": {
+                                "title": "Command",
                                 "type": "string",
                                 "minLength": 1
+                            },
+                            "options": {
+                                "disable_array_delete_all_rows": true,
+                                "disable_array_delete_last_row": true,
+                                "disable_collapse": true
                             }
                         },
                         "pre-down": {
                             "title": "Pre-down commands",
-                            "description": "Same as 'Down commands'",
                             "type": "array",
                             "_format": "table",
                             "items": {
+                                "title": "Command",
                                 "type": "string",
                                 "minLength": 1
+                            },
+                            "options": {
+                                "disable_array_delete_all_rows": true,
+                                "disable_array_delete_last_row": true,
+                                "disable_collapse": true
                             }
                         },
                         "down": {
@@ -175,8 +197,14 @@
                             "type": "array",
                             "_format": "table",
                             "items": {
+                                "title": "Command",
                                 "type": "string",
                                 "minLength": 1
+                            },
+                            "options": {
+                                "disable_array_delete_all_rows": true,
+                                "disable_array_delete_last_row": true,
+                                "disable_collapse": true
                             }
                         },
                         "post-down": {
@@ -184,8 +212,14 @@
                             "type": "array",
                             "_format": "table",
                             "items": {
+                                "title": "Command",
                                 "type": "string",
                                 "minLength": 1
+                            },
+                            "options": {
+                                "disable_array_delete_all_rows": true,
+                                "disable_array_delete_last_row": true,
+                                "disable_collapse": true
                             }
                         }
                     }
@@ -1467,12 +1501,13 @@
             "Auto": "Включать автоматически",
             "Name": "Имя интерфейса",
             "Allow hotplug": "Разрешить горячее подключение",
-            "Pre-up command": "Команды перед включением интерфейса",
-            "Up command": "Команда включения интерфейса",
-            "Post-up command": "Команда после включения интерфейса",
-            "Down command": "Команда выключения интерфейса",
-            "Pre-down command": "Команда перед выключением интерфейса",
-            "Post-down command": "Команда после выключения интерфейса",
+            "Pre-up commands": "Команды перед включением интерфейса",
+            "Up commands": "Команда включения интерфейса",
+            "Post-up commands": "Команда после включения интерфейса",
+            "Down commands": "Команда выключения интерфейса",
+            "Pre-down commands": "Команда перед выключением интерфейса",
+            "Post-down commands": "Команда после выключения интерфейса",
+            "Command": "Команда",
             "Loopback interface": "Loopback-интерфейс",
             "name": "имя",
             "Static IP": "Статический IP-адрес",
