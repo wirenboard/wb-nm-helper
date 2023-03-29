@@ -1,3 +1,9 @@
+wb-nm-helper (1.22.0) stable; urgency=medium
+
+  * Add support for multiple iface options
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Thu, 28 Mar 2023 15:25:00 +0400
+
 wb-nm-helper (1.21.0) stable; urgency=medium
 
   * Wi-Fi connections are now also considered sticky

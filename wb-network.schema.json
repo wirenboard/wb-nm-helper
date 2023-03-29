@@ -105,6 +105,20 @@
                 }
             }
         },
+        "commands_list": {
+            "type": "array",
+            "_format": "table",
+            "items": {
+                "title": "Command",
+                "type": "string",
+                "minLength": 1
+            },
+            "options": {
+                "disable_array_delete_all_rows": true,
+                "disable_array_delete_last_row": true,
+                "disable_collapse": true
+            }
+        },
         "iface_common": {
             "type": "object",
             "properties": {
@@ -127,40 +141,48 @@
                     "title": "Allow hotplug",
                     "_format": "checkbox",
                     "propertyOrder": 3
-                }
-            },
-            "_properties_that_are_not_used_for_now": {
-                "pre-up": {
-                    "title": "Pre-up command",
-                    "type": "string",
-                    "propertyOrder": 100
                 },
-                "up": {
-                    "title": "Up command",
-                    "type": "string",
-                    "propertyOrder": 101
-                },
-                "post-up": {
-                    "title": "Post-up command",
-                    "description": "Same as 'Up command'",
-                    "type": "string",
-                    "propertyOrder": 102
-                },
-                "down": {
-                    "title": "Down command",
-                    "type": "string",
-                    "propertyOrder": 103
-                },
-                "pre-down": {
-                    "title": "Pre-down command",
-                    "description": "Same as 'Down command'",
-                    "type": "string",
-                    "propertyOrder": 104
-                },
-                "post-down": {
-                    "title": "Post-down command",
-                    "type": "string",
-                    "propertyOrder": 105
+                "options": {
+                    "type": "object",
+                    "title": "Options",
+                    "properties": {
+                        "pre-up": {
+                            "title": "Pre-up commands",
+                            "allOf": [
+                                { "$ref": "#/definitions/commands_list" }
+                            ]
+                        },
+                        "up": {
+                            "title": "Up commands",
+                            "allOf": [
+                                { "$ref": "#/definitions/commands_list" }
+                            ]
+                        },
+                        "post-up": {
+                            "title": "Post-up commands",
+                            "allOf": [
+                                { "$ref": "#/definitions/commands_list" }
+                            ]
+                        },
+                        "pre-down": {
+                            "title": "Pre-down commands",
+                            "allOf": [
+                                { "$ref": "#/definitions/commands_list" }
+                            ]
+                        },
+                        "down": {
+                            "title": "Down commands",
+                            "allOf": [
+                                { "$ref": "#/definitions/commands_list" }
+                            ]
+                        },
+                        "post-down": {
+                            "title": "Post-down commands",
+                            "allOf": [
+                                { "$ref": "#/definitions/commands_list" }
+                            ]
+                        }
+                    }
                 }
             },
             "options": {
@@ -1439,12 +1461,13 @@
             "Auto": "Включать автоматически",
             "Name": "Имя интерфейса",
             "Allow hotplug": "Разрешить горячее подключение",
-            "Pre-up command": "Команды перед включением интерфейса",
-            "Up command": "Команда включения интерфейса",
-            "Post-up command": "Команда после включения интерфейса",
-            "Down command": "Команда выключения интерфейса",
-            "Pre-down command": "Команда перед выключением интерфейса",
-            "Post-down command": "Команда после выключения интерфейса",
+            "Pre-up commands": "Команды перед включением интерфейса",
+            "Up commands": "Команды включения интерфейса",
+            "Post-up commands": "Команды после включения интерфейса",
+            "Down commands": "Команды выключения интерфейса",
+            "Pre-down commands": "Команды перед выключением интерфейса",
+            "Post-down commands": "Команды после выключения интерфейса",
+            "Command": "Команда",
             "Loopback interface": "Loopback-интерфейс",
             "name": "имя",
             "Static IP": "Статический IP-адрес",

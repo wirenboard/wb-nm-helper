@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 
@@ -47,6 +48,8 @@ def test_apply_changes():
     with open("tests/data/ui.json", "r", encoding="utf-8") as f:
         cfg = json.load(f)
 
+    generated = Path("tests/data/interfaces_generated").read_text(encoding="utf-8")
+
     adapter = NetworkInterfacesAdapter("tests/data/interfaces")
 
     cfg["ui"]["connections"][8]["auto"] = True
@@ -55,6 +58,7 @@ def test_apply_changes():
     assert res.managed_interfaces == ["can0", "eth0", "eth1", "wlan0"]
     assert not res.released_interfaces
     assert res.is_changed is True
+    assert adapter.format() == generated
 
 
 def test_apply_remove_iface():
