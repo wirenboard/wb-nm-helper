@@ -227,10 +227,11 @@ class NetworkInterfacesAdapter:
                 options = defaultdict(list)
                 for key, value in iface_definition[4]:
                     options[key].append(value)
-                for key, value in options.items():
-                    options[key] = value[0] if len(value) == 1 else value
                 iface["options"] = options
         for iface in res:
+            for key, value in iface["options"].items():
+                if key not in ("pre-up", "up", "post-up", "pre-down", "down", "post-down"):
+                    iface["options"][key] = value[0] if len(value) == 1 else value
             method = iface.get("method")
             iface["type"] = method
             if method == "static" and iface.get("mode") == "can":

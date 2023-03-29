@@ -266,7 +266,7 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
         assert res["ui"]["connections"][6]["mode"] == "inet"
         assert res["ui"]["connections"][6]["name"] == "eth0"
         assert res["ui"]["connections"][6]["options"]["hostname"] == "WirenBoard"
-        assert res["ui"]["connections"][6]["options"]["pre-up"] == "wb-set-mac"
+        assert res["ui"]["connections"][6]["options"]["pre-up"] == ["wb-set-mac"]
         assert res["ui"]["connections"][6]["type"] == "dhcp"
         assert res["ui"]["connections"][7]["allow-hotplug"] is True
         assert res["ui"]["connections"][7]["auto"] is False
