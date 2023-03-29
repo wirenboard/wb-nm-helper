@@ -180,6 +180,20 @@ class NetworkInterfacesAdapter:
             output += "\n"
         return output
 
+    def convert_iface_options(self, iface):
+        """
+        Convert iface options according to schema
+        """
+        for key, value in iface["options"].items():
+            if key not in ("pre-up", "up", "post-up", "pre-down", "down", "post-down"):
+                iface["options"][key] = value[0] if len(value) == 1 else value
+        method = iface.get("method")
+        iface["type"] = method
+        if method == "static" and iface.get("mode") == "can":
+            iface["type"] = "can"
+            if "options" in iface and "bitrate" in iface["options"]:
+                iface["options"]["bitrate"] = int(iface["options"]["bitrate"])
+
     def get_interfaces(self):
         """
         return the configuration using the following structure
@@ -229,15 +243,7 @@ class NetworkInterfacesAdapter:
                     options[key].append(value)
                 iface["options"] = options
         for iface in res:
-            for key, value in iface["options"].items():
-                if key not in ("pre-up", "up", "post-up", "pre-down", "down", "post-down"):
-                    iface["options"][key] = value[0] if len(value) == 1 else value
-            method = iface.get("method")
-            iface["type"] = method
-            if method == "static" and iface.get("mode") == "can":
-                iface["type"] = "can"
-                if "options" in iface and "bitrate" in iface["options"]:
-                    iface["options"]["bitrate"] = int(iface["options"]["bitrate"])
+            self.convert_iface_options(iface)
 
         # do not show default configured loopback
         # it is managed by systemd and doesn't need to be mentioned in config
