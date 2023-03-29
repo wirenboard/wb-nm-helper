@@ -1,6 +1,7 @@
 wb-nm-helper (1.22.0) stable; urgency=medium
 
   * Add "wb-hide-connection" tool to hide and reveal nm-connections in runtime
+  * wb-nm-helper: wait for wb-hwconf-manager.service to become active
 
  -- Vladimir Romanov <v.romanov@wirenboard.com>  Tue, 28 Mar 2023 17:36:12 +0600
 

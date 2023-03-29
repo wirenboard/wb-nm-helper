@@ -1,8 +1,22 @@
 #!/usr/bin/env python3
-# pylint: disable=C0103
+# pylint: disable=C0103, W0105
 
+import subprocess
 import sys
+import time
 
 from wb.nm_helper.nm_helper import main
 
-sys.exit(main())
+"""
+wb-hwconf-manager could perform hiding/revealing NM-connections (by modifying their params)
+=> should be active already
+"""
+service_name = "wb-hwconf-manager"
+tries = 30
+
+for _ in range(tries):
+    if subprocess.call("systemctl -q is-active %s" % service_name, shell=True) == 0:
+        sys.exit(main())
+    time.sleep(1)
+
+sys.exit("Service %s is not active after %d queries" % (service_name, tries))
