@@ -105,6 +105,20 @@
                 }
             }
         },
+        "commands_list": {
+            "type": "array",
+            "_format": "table",
+            "items": {
+                "title": "Command",
+                "type": "string",
+                "minLength": 1
+            },
+            "options": {
+                "disable_array_delete_all_rows": true,
+                "disable_array_delete_last_row": true,
+                "disable_collapse": true
+            }
+        },
         "iface_common": {
             "type": "object",
             "properties": {
@@ -134,93 +148,39 @@
                     "properties": {
                         "pre-up": {
                             "title": "Pre-up commands",
-                            "type": "array",
-                            "_format": "table",
-                            "items": {
-                                "title": "Command",
-                                "type": "string",
-                                "minLength": 1
-                            },
-                            "options": {
-                                "disable_array_delete_all_rows": true,
-                                "disable_array_delete_last_row": true,
-                                "disable_collapse": true
-                            }
+                            "allOf": [
+                                { "$ref": "#/definitions/commands_list" }
+                            ]
                         },
                         "up": {
                             "title": "Up commands",
-                            "type": "array",
-                            "_format": "table",
-                            "items": {
-                                "title": "Command",
-                                "type": "string",
-                                "minLength": 1
-                            },
-                            "options": {
-                                "disable_array_delete_all_rows": true,
-                                "disable_array_delete_last_row": true,
-                                "disable_collapse": true
-                            }
+                            "allOf": [
+                                { "$ref": "#/definitions/commands_list" }
+                            ]
                         },
                         "post-up": {
                             "title": "Post-up commands",
-                            "type": "array",
-                            "_format": "table",
-                            "items": {
-                                "title": "Command",
-                                "type": "string",
-                                "minLength": 1
-                            },
-                            "options": {
-                                "disable_array_delete_all_rows": true,
-                                "disable_array_delete_last_row": true,
-                                "disable_collapse": true
-                            }
+                            "allOf": [
+                                { "$ref": "#/definitions/commands_list" }
+                            ]
                         },
                         "pre-down": {
                             "title": "Pre-down commands",
-                            "type": "array",
-                            "_format": "table",
-                            "items": {
-                                "title": "Command",
-                                "type": "string",
-                                "minLength": 1
-                            },
-                            "options": {
-                                "disable_array_delete_all_rows": true,
-                                "disable_array_delete_last_row": true,
-                                "disable_collapse": true
-                            }
+                            "allOf": [
+                                { "$ref": "#/definitions/commands_list" }
+                            ]
                         },
                         "down": {
                             "title": "Down commands",
-                            "type": "array",
-                            "_format": "table",
-                            "items": {
-                                "title": "Command",
-                                "type": "string",
-                                "minLength": 1
-                            },
-                            "options": {
-                                "disable_array_delete_all_rows": true,
-                                "disable_array_delete_last_row": true,
-                                "disable_collapse": true
-                            }
+                            "allOf": [
+                                { "$ref": "#/definitions/commands_list" }
+                            ]
                         },
                         "post-down": {
                             "title": "Post-down commands",
-                            "type": "array",
-                            "_format": "table",
-                            "items": {
-                                "title": "Command",
-                                "type": "string",
-                                "minLength": 1
-                            },
-                            "options": {
-                                "disable_array_delete_all_rows": true,
-                                "disable_array_delete_last_row": true,
-                                "disable_collapse": true
-                            }
+                            "allOf": [
+                                { "$ref": "#/definitions/commands_list" }
+                            ]
                         }
                     }
                 }
