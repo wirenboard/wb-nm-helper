@@ -330,11 +330,32 @@ class CommonConnection(Connection):
         "order": 8,
         "readonly": True,
     }
+    OPERATOR_CONTROL_META = {
+        "name": "Operator",
+        "title": {"en": "Operator"},
+        "type": "text",
+        "order": 9,
+        "readonly": True,
+    }
+    SIGNAL_QUALITY_CONTROL_META = {
+        "name": "SignalQuality",
+        "title": {"en": "Signal Quality"},
+        "type": "text",
+        "order": 10,
+        "readonly": True,
+    }
+    ACCESS_TECH_CONTROL_META = {
+        "name": "AccessTechnologies",
+        "title": {"en": "Access Technologies"},
+        "type": "text",
+        "order": 11,
+        "readonly": True,
+    }
     UPDOWN_CONTROL_META = {
         "name": "UpDown",
         "title": {"en": "Up"},
         "type": "pushbutton",
-        "order": 9,
+        "order": 12,
         "readonly": False,
     }
 
@@ -465,6 +486,11 @@ class CommonConnection(Connection):
         self._create_control(self._updown_control_meta, None)
         self._add_control_message_callback(self._updown_control_meta)
 
+        if self._properties.get("type") == "gsm":
+            self._create_control(self.OPERATOR_CONTROL_META, None)
+            self._create_control(self.SIGNAL_QUALITY_CONTROL_META, None)
+            self._create_control(self.ACCESS_TECH_CONTROL_META, None)
+
         self._logger.info(
             "New virtual device %s %s %s",
             self._properties.get("name"),
@@ -473,6 +499,9 @@ class CommonConnection(Connection):
         )
 
     def _remove_virtual_device(self):
+        self._remove_control(self.ACCESS_TECH_CONTROL_META)
+        self._remove_control(self.SIGNAL_QUALITY_CONTROL_META)
+        self._remove_control(self.OPERATOR_CONTROL_META)
         self._remove_control(self._updown_control_meta)
         self._remove_control(self.CONNECTIVITY_CONTROL_META)
         self._remove_control(self.ADDRESS_CONTROL_META)
@@ -505,6 +534,17 @@ class CommonConnection(Connection):
             self._publish_control_data(
                 self.CONNECTIVITY_CONTROL_META, "1" if properties["connectivity"] else "0"
             )
+        if "operator_name" in properties:
+            self._publish_control_data(self.OPERATOR_CONTROL_META, properties["operator_name"])
+        if "signal_quality" in properties:
+            self._publish_control_data(self.SIGNAL_QUALITY_CONTROL_META, properties["signal_quality"])
+        if "access_tech" in properties:
+            self._publish_control_data(
+                self.ACCESS_TECH_CONTROL_META,
+                properties["access_tech"].name.replace("MM_MODEM_ACCESS_TECHNOLOGY_", "").lower()
+                if properties["access_tech"] is not None
+                else None,
+            )
         self._logger.debug(
             "Update virtual device settings for %s %s",
             self._properties.get("name"),
@@ -523,7 +563,32 @@ class ConnectionState(enum.Enum):
     DEACTIVATED = 4
 
 
+class ModemAccessTechnology(enum.Enum):
+    MM_MODEM_ACCESS_TECHNOLOGY_UNKNOWN = 0
+    MM_MODEM_ACCESS_TECHNOLOGY_POTS = 1 << 0
+    MM_MODEM_ACCESS_TECHNOLOGY_GSM = 1 << 1
+    MM_MODEM_ACCESS_TECHNOLOGY_GSM_COMPACT = 1 << 2
+    MM_MODEM_ACCESS_TECHNOLOGY_GPRS = 1 << 3
+    MM_MODEM_ACCESS_TECHNOLOGY_EDGE = 1 << 4
+    MM_MODEM_ACCESS_TECHNOLOGY_UMTS = 1 << 5
+    MM_MODEM_ACCESS_TECHNOLOGY_HSDPA = 1 << 6
+    MM_MODEM_ACCESS_TECHNOLOGY_HSUPA = 1 << 7
+    MM_MODEM_ACCESS_TECHNOLOGY_HSPA = 1 << 8
+    MM_MODEM_ACCESS_TECHNOLOGY_HSPA_PLUS = 1 << 9
+    MM_MODEM_ACCESS_TECHNOLOGY_1XRTT = 1 << 10
+    MM_MODEM_ACCESS_TECHNOLOGY_EVDO0 = 1 << 11
+    MM_MODEM_ACCESS_TECHNOLOGY_EVDOA = 1 << 12
+    MM_MODEM_ACCESS_TECHNOLOGY_EVDOB = 1 << 13
+    MM_MODEM_ACCESS_TECHNOLOGY_LTE = 1 << 14
+    MM_MODEM_ACCESS_TECHNOLOGY_5GNR = 1 << 15
+    MM_MODEM_ACCESS_TECHNOLOGY_LTE_CAT_M = 1 << 16
+    MM_MODEM_ACCESS_TECHNOLOGY_LTE_NB_IOT = 1 << 17
+    MM_MODEM_ACCESS_TECHNOLOGY_ANY = 0xFFFFFFFF
+
+
 class ActiveConnection(Connection):
+    MM_MODEM_STATE_REGISTERED = 11
+
     def __init__(self, mediator: Mediator, dbus_bus: dbus.Bus, dbus_path, logger: logging.Logger):
         super().__init__()
         self._mediator = mediator
@@ -547,6 +612,10 @@ class ActiveConnection(Connection):
         result = {"path": self._path}
         for key in ["connection_path", "state", "device", "ip4addresses", "connectivity"]:
             result[key] = self._properties.get(key)
+
+        if self._properties.get("type") == "gsm":
+            for key in ["operator_name", "signal_quality", "access_tech"]:
+                result[key] = self._properties.get(key)
         return result
 
     def run(self):
@@ -602,31 +671,57 @@ class ActiveConnection(Connection):
             result = {}
             result["name"] = properties["Id"]
             result["uuid"] = properties["Uuid"]
+            result["type"] = properties["Type"]
             result["state"] = ConnectionState(properties["State"])
             result["connection_path"] = properties["Connection"]
             result["ip4config_path"] = properties["Ip4Config"]
 
+            result["device"] = None
             if len(properties["Devices"]) > 0:
                 device_path = properties["Devices"][0]
                 device_proxy = self._bus.get_object("org.freedesktop.NetworkManager", device_path)
                 device_interface = dbus.Interface(device_proxy, "org.freedesktop.DBus.Properties")
                 result["device"] = device_interface.Get("org.freedesktop.NetworkManager.Device", "Interface")
-            else:
-                result["device"] = None
 
+            result["ip4addresses"] = None
+            result["connectivity"] = False
             if result["state"] == ConnectionState.ACTIVATED:
-                ip4config_proxy = self._bus.get_object(
-                    "org.freedesktop.NetworkManager", result["ip4config_path"]
-                )
-                ip4config_interface = dbus.Interface(ip4config_proxy, "org.freedesktop.DBus.Properties")
-                ip4addresses_list = ip4config_interface.Get(
-                    "org.freedesktop.NetworkManager.IP4Config", "Addresses"
-                )
+                proxy = self._bus.get_object("org.freedesktop.NetworkManager", result["ip4config_path"])
+                interface = dbus.Interface(proxy, "org.freedesktop.DBus.Properties")
+                ip4addresses_list = interface.Get("org.freedesktop.NetworkManager.IP4Config", "Addresses")
+
                 result["ip4addresses"] = self._format_ip4address_list(ip4addresses_list)
                 result["connectivity"] = self._read_connectivity_state(result["name"])
-            else:
-                result["ip4addresses"] = None
-                result["connectivity"] = False
+
+            if result["type"] == "gsm":
+                result["operator_name"] = None
+                result["signal_quality"] = None
+                result["access_tech"] = None
+
+                proxy = self._bus.get_object(
+                    "org.freedesktop.ModemManager1", "/org/freedesktop/ModemManager1"
+                )
+                interface = dbus.Interface(proxy, "org.freedesktop.DBus.ObjectManager")
+                modem_manager_objects = interface.GetManagedObjects()
+                modem_paths = modem_manager_objects.keys()
+
+                for modem_path in modem_paths:
+                    proxy = self._bus.get_object("org.freedesktop.ModemManager1", modem_path)
+                    interface = dbus.Interface(proxy, "org.freedesktop.DBus.Properties")
+                    modem_properties = interface.GetAll("org.freedesktop.ModemManager1.Modem")
+
+                    if (
+                        modem_properties.get("PrimaryPort") == result["device"]
+                        and modem_properties.get("State") == self.MM_MODEM_STATE_REGISTERED
+                    ):
+                        interface = dbus.Interface(proxy, "org.freedesktop.ModemManager1.Modem.Simple")
+                        status = interface.GetStatus()
+
+                        result["operator_name"] = status.get("m3gpp-operator-name")
+                        result["signal_quality"] = status.get("signal-quality")[0]
+                        result["access_tech"] = ModemAccessTechnology(status.get("access-technologies"))
+
+                        break
 
             return result
         except dbus.exceptions.DBusException:
@@ -667,6 +762,13 @@ class ActiveConnection(Connection):
         self._properties["state"] = None
         self._properties["device"] = None
         self._properties["ip4addresses"] = None
+        self._properties["connectivity"] = False
+
+        if self._properties["type"] == "gsm":
+            self._properties["operator_name"] = None
+            self._properties["signal_quality"] = None
+            self._properties["access_tech"] = None
+
         self._mediator.notify(self, Event.Active.DEINIT)
 
 
