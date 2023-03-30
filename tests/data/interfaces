@@ -24,7 +24,9 @@ iface eth0 inet dhcp
 
 allow-hotplug eth1
 iface eth1 inet dhcp
-   pre-up wb-set-mac
+   pre-up wb-set-mac # comment1
+   pre-up sleep 10   # comment2
+   pre-up #test
    hostname WirenBoard
 
 allow-hotplug can0

@@ -11,6 +11,7 @@ Build-Depends: debhelper (>= 10),
                python3-pytest,
                python3-dbus,
                python3-dbusmock,
+               python3-jsonschema,
                python3-pyparsing,
                python3-pycurl
 Standards-Version: 4.5.0

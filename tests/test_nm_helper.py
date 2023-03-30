@@ -4,6 +4,7 @@ import subprocess
 
 import dbus
 import dbusmock
+import jsonschema
 from dbusmock.templates.networkmanager import (
     MANAGER_IFACE,
     SETTINGS_IFACE,
@@ -199,6 +200,10 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
             )
         )
 
+        with open("../../../wb-network.schema.json", "r", encoding="utf-8") as f:
+            schema = json.load(f)
+
+        assert jsonschema.Draft4Validator(schema).is_valid(res)
         assert len(res["data"]["devices"]) == 4
         assert res["data"]["devices"][0]["iface"] == "eth0"
         assert res["data"]["devices"][0]["type"] == "ethernet"
@@ -261,7 +266,7 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
         assert res["ui"]["connections"][6]["mode"] == "inet"
         assert res["ui"]["connections"][6]["name"] == "eth0"
         assert res["ui"]["connections"][6]["options"]["hostname"] == "WirenBoard"
-        assert res["ui"]["connections"][6]["options"]["pre-up"] == "wb-set-mac"
+        assert res["ui"]["connections"][6]["options"]["pre-up"] == ["wb-set-mac"]
         assert res["ui"]["connections"][6]["type"] == "dhcp"
         assert res["ui"]["connections"][7]["allow-hotplug"] is True
         assert res["ui"]["connections"][7]["auto"] is False
@@ -269,7 +274,11 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
         assert res["ui"]["connections"][7]["mode"] == "inet"
         assert res["ui"]["connections"][7]["name"] == "eth1"
         assert res["ui"]["connections"][7]["options"]["hostname"] == "WirenBoard"
-        assert res["ui"]["connections"][7]["options"]["pre-up"] == "wb-set-mac"
+        assert res["ui"]["connections"][7]["options"]["pre-up"] == [
+            "wb-set-mac # comment1",
+            "sleep 10   # comment2",
+            "#test",
+        ]
         assert res["ui"]["connections"][7]["type"] == "dhcp"
         assert res["ui"]["connections"][8]["allow-hotplug"] is True
         assert res["ui"]["connections"][8]["auto"] is False

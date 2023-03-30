@@ -1,9 +1,22 @@
-wb-nm-helper (1.22.0) stable; urgency=medium
+wb-nm-helper (1.23.0) stable; urgency=medium
 
   * Remove connections virtual devices from system wb-rules
   * Add virtual devices service with dbus communication
 
  -- Ekaterina Volkova <ekaterina.volkova@wirenboard.ru>  Thu, 23 Mar 2023 17:08:49 +0300
+
+wb-nm-helper (1.22.1) stable; urgency=medium
+
+  * Unmanaged connections are excluded from both automatic and manually configured connection switching
+  * Don't fail with error when ModemManager is unavailable
+
+ -- Aleksandr Kazadaev <aleksandr.kazadaev@wirenboard.com>  Tue, 30 Mar 2023 13:14:00 +0600
+
+wb-nm-helper (1.22.0) stable; urgency=medium
+
+  * Add support for multiple iface options
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Thu, 28 Mar 2023 15:25:00 +0400
 
 wb-nm-helper (1.21.0) stable; urgency=medium
 
