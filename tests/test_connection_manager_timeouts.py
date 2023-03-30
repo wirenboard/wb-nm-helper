@@ -5,7 +5,7 @@ from unittest.mock import patch
 from tests.mm_mock import FakeNetworkManager
 from wb.nm_helper.connection_manager import (
     CONNECTION_ACTIVATION_RETRY_TIMEOUT,
-    ConnectionManagerConfigFile,
+    ConfigFile,
     TimeoutManager,
 )
 from wb.nm_helper.network_manager import NM_ACTIVE_CONNECTION_STATE_ACTIVATED
@@ -23,7 +23,8 @@ TEST_NOW = datetime.datetime(year=2000, month=1, day=1)
 
 class TimeoutManagerTests(unittest.TestCase):
     def setUp(self) -> None:
-        config = ConnectionManagerConfigFile(normal_config)
+        config = ConfigFile()
+        config.load_config(normal_config)
         self.timeout_manager = TimeoutManager(config)
         self.network_manager = FakeNetworkManager()
 

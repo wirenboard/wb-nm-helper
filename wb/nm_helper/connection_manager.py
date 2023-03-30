@@ -10,6 +10,7 @@ from typing import Dict, Iterator, List, Optional
 
 import dbus
 import pycurl
+from dbus import DBusException
 
 from wb.nm_helper.logging_filter import ConnectionStateFilter
 from wb.nm_helper.modem_manager import ModemManager
@@ -58,31 +59,33 @@ class ConnectionTier:  # pylint: disable=R0903
     def get_base_route_metric(self):
         return (100 * (4 - self.priority)) + 5
 
+    def update_connections(self, new_connections: List[str]):
+        self.connections = new_connections
 
-class ConnectionManagerConfigFile:
-    def __init__(self, cfg: Dict) -> None:
-        self.debug: bool = cfg.get("debug", False)
-        self.init_logging()
+
+class ConfigFile:
+    def __init__(self) -> None:
+        self.debug = False
+        self.tiers: List[ConnectionTier] = []
+        self.sticky_connection_period: Optional[datetime.timedelta] = None
+        self.connectivity_check_url = ""
+        self.connectivity_check_payload = ""
+
+    def load_config(self, cfg: Dict):
+        self.debug = cfg.get("debug", False)
         if cfg.get("tiers"):
-            self.tiers: List[ConnectionTier] = list(self.get_tiers(cfg))
-        else:
-            self.tiers: List[ConnectionTier] = self.get_default_tiers()
-        self.sticky_connection_period: datetime.timedelta = self.get_sticky_connection_period(cfg)
-        self.connectivity_check_url: str = self.get_connectivity_check_url(cfg)
-        self.connectivity_check_payload: str = self.get_connectivity_check_payload(cfg)
+            self.tiers = list(self.get_tiers(cfg))
+        self.sticky_connection_period = self.get_sticky_connection_period(cfg)
+        self.connectivity_check_url = self.get_connectivity_check_url(cfg)
+        self.connectivity_check_payload = self.get_connectivity_check_payload(cfg)
 
-    def init_logging(self):
-        log_level = logging.DEBUG if self.debug else logging.INFO
-        if log_level > logging.DEBUG:
-            logger = logging.getLogger()
-            logger.addFilter(ConnectionStateFilter())
-        logging.basicConfig(level=log_level, format=LOGGING_FORMAT)
-
-    @staticmethod
-    def get_tiers(cfg: Dict) -> List[ConnectionTier]:
+    def get_tiers(self, cfg: Dict) -> List[ConnectionTier]:
         tiers = []
         for name, level in (("high", 3), ("medium", 2), ("low", 1)):
-            tiers.append(ConnectionTier(name, level, cfg.get("tiers", {}).get(name, [])))
+            items = []
+            for cn_id in cfg.get("tiers", {}).get(name, []):
+                items.append(cn_id)
+            tiers.append(ConnectionTier(name, level, items))
         return tiers
 
     @staticmethod
@@ -119,18 +122,45 @@ class ConnectionManagerConfigFile:
                 return True
         return False
 
+
+class NetworkAwareConfigFile(ConfigFile):
+    def __init__(self, network_manager: INetworkManager) -> None:
+        super().__init__()
+        self.network_manager = network_manager
+
+    def load_config(self, cfg: Dict):
+        super().load_config(cfg)
+        if not self.tiers:
+            self.tiers = self.get_default_tiers()
+        self.filter_out_unmanaged_connections()
+
+    def filter_out_unmanaged_connections(self):
+        for tier in self.tiers:
+            new_items = []
+            for cn_id in tier.connections:
+                con = self.network_manager.find_connection(cn_id)
+                if not con:
+                    logging.warning("Connection %s not found, skipping", cn_id)
+                    continue
+                if self.is_connection_unmanaged(con):
+                    logging.warning("Connection %s is unmanaged, skipping", cn_id)
+                    continue
+                new_items.append(cn_id)
+            if new_items != tier.connections:
+                tier.update_connections(new_items)
+
     def get_default_tiers(self):
-        network_manager = self.get_network_manager()
         tiers = []
         for name, level in (("high", 3), ("medium", 2), ("low", 1)):
             tiers.append(ConnectionTier(name, level, []))
-        for item in network_manager.get_connections():
+        for item in self.network_manager.get_connections():
             autoconnect = item.get_settings().get("connection").get("autoconnect", True)
             never_default = item.get_settings().get("ipv4").get("never-default")
             connection_type = item.get_connection_type()
             device_type = connection_type_to_device_type(connection_type)
             connection_id = str(item.get_settings().get("connection").get("id"))
-            if not autoconnect or never_default:
+            unmanaged = self.is_connection_unmanaged(item)
+            if not autoconnect or never_default or unmanaged:
                 continue
             if device_type == NM_DEVICE_TYPE_MODEM:
                 tiers[2].connections.append(connection_id)
@@ -148,13 +178,25 @@ class ConnectionManagerConfigFile:
         )
         return tiers
 
-    def get_network_manager(self):
-        return NetworkManager()
+    def is_connection_unmanaged(self, con):
+        assert con, "Connection cannot be empty"
+        cn_id = con.get_settings().get("connection").get("id")
+        device = self.network_manager.find_device_for_connection(con)
+        if not device:
+            logging.warning("No device for connection %s found, assuming unmnaged", cn_id)
+            return True
+        managed = device.get_property("Managed")
+        iface_name = device.get_property("Interface")
+        if managed in (True, 1):
+            logging.debug("Device for connection %s (%s) is managed, will use it", cn_id, iface_name)
+            return False
+        logging.warning("Device for interface %s (%s) is unmanaged, not using it", cn_id, iface_name)
+        return True
 
 
 class TimeoutManager:
-    def __init__(self, config: ConnectionManagerConfigFile) -> None:
-        self.config: ConnectionManagerConfigFile = config
+    def __init__(self, config: ConfigFile) -> None:
+        self.config: ConfigFile = config
         self.connection_retry_timeouts = {}
         self.keep_sticky_connections_until: Optional[datetime.datetime] = None
         self.connection_activation_timeout = CONNECTION_ACTIVATION_TIMEOUT
@@ -205,17 +247,59 @@ class TimeoutManager:
         return False
 
 
-# pylint: disable=too-many-instance-attributes
-class ConnectionManager:
+def read_config_json():
+    with open(CONFIG_FILE, encoding="utf-8") as file:
+        return json.load(file)
+
+
+def curl_get(iface: str, url: str) -> str:
+    buffer = BytesIO()
+    curl = pycurl.Curl()
+    curl.setopt(curl.URL, url)
+    curl.setopt(curl.WRITEDATA, buffer)
+    curl.setopt(curl.INTERFACE, iface)
+    curl.setopt(pycurl.CONNECTTIMEOUT, CONNECTIVITY_CHECK_TIMEOUT)
+    curl.setopt(pycurl.TIMEOUT, CONNECTIVITY_CHECK_TIMEOUT)
+    curl.perform()
+    curl.close()
+    return buffer.getvalue().decode("UTF-8")
+
+    # Simple implementation that mimics NM behavior
+    # NM reports limited connectivity for all gsm ppp connections
+    # https://wirenboard.bitrix24.ru/workgroups/group/218/tasks/task/view/53068/
+    # Use NM's implementation after fixing the bug
+
+
+def check_connectivity(active_cn: NMActiveConnection, config: ConfigFile = None) -> bool:
+    if not config:
+        config = ConfigFile()
+        config.load_config(read_config_json())
+    ifaces = active_cn.get_ifaces()
+    logging.debug("interfaces for %s: %s", active_cn.get_connection_id(), ifaces)
+    if ifaces and ifaces[0]:
+        try:
+            payload = curl_get(ifaces[0], config.connectivity_check_url)
+            logging.debug("Payload is %s", payload)
+            answer_is_ok = config.connectivity_check_payload in payload
+            logging.debug("Connectivity via %s is %s", ifaces[0], answer_is_ok)
+            return answer_is_ok
+        except pycurl.error as ex:
+            logging.debug("Error during %s connectivity check: %s", ifaces[0], ex)
+    else:
+        logging.debug("Connection %s seems to have no interfaces", active_cn.get_connection_id())
+    return False
+
+
+class ConnectionManager:  # pylint: disable=too-many-instance-attributes
     def __init__(
         self,
         network_manager: INetworkManager,
-        config: ConnectionManagerConfigFile,
+        config: NetworkAwareConfigFile,
         modem_manager: IModemManager,
     ) -> None:
         self.network_manager: INetworkManager = network_manager
         self.modem_manager: IModemManager = modem_manager
-        self.config: ConnectionManagerConfigFile = config
+        self.config: NetworkAwareConfigFile = config
         self.timeouts: TimeoutManager = TimeoutManager(config)
         self.current_tier: Optional[ConnectionTier] = None
         self.current_connection: Optional[str] = None
@@ -241,7 +325,7 @@ class ConnectionManager:
                 logging.debug("checking currently active connection %s", self.current_connection)
                 try:
                     active_cn = self.find_activated_connection(self.current_connection)
-                    if active_cn and self.check_connectivity(active_cn):
+                    if active_cn and check_connectivity(active_cn, self.config):
                         logging.debug(
                             "Current connection %s is most preferred and has connectivity",
                             self.current_connection,
@@ -264,7 +348,7 @@ class ConnectionManager:
                     if not active_cn and self.ok_to_activate_connection(cn_id):
                         active_cn = self.activate_connection(cn_id)
                         self.timeouts.touch_connection_retry_timeout(cn_id)
-                    if active_cn and self.check_connectivity(active_cn):
+                    if active_cn and check_connectivity(active_cn, self.config):
                         return tier, cn_id
                 except dbus.exceptions.DBusException as ex:
                     self._log_connection_check_error(cn_id, ex)
@@ -538,39 +622,6 @@ class ConnectionManager:
                 if active_cn:
                     yield active_cn
 
-    @staticmethod
-    def curl_get(iface: str, url: str) -> str:
-        buffer = BytesIO()
-        curl = pycurl.Curl()
-        curl.setopt(curl.URL, url)
-        curl.setopt(curl.WRITEDATA, buffer)
-        curl.setopt(curl.INTERFACE, iface)
-        curl.setopt(pycurl.CONNECTTIMEOUT, CONNECTIVITY_CHECK_TIMEOUT)
-        curl.setopt(pycurl.TIMEOUT, CONNECTIVITY_CHECK_TIMEOUT)
-        curl.perform()
-        curl.close()
-        return buffer.getvalue().decode("UTF-8")
-
-    # Simple implementation that mimics NM behavior
-    # NM reports limited connectivity for all gsm ppp connections
-    # https://wirenboard.bitrix24.ru/workgroups/group/218/tasks/task/view/53068/
-    # Use NM's implementation after fixing the bug
-    def check_connectivity(self, active_cn: NMActiveConnection) -> bool:
-        ifaces = active_cn.get_ifaces()
-        logging.debug("interfaces for %s: %s", active_cn.get_connection_id(), ifaces)
-        if ifaces and ifaces[0]:
-            try:
-                payload = self.curl_get(ifaces[0], self.config.connectivity_check_url)
-                logging.debug("Payload is %s", payload)
-                answer_is_ok = self.config.connectivity_check_payload in payload
-                logging.debug("Connectivity via %s is %s", ifaces[0], answer_is_ok)
-                return answer_is_ok
-            except pycurl.error as ex:
-                logging.debug("Error during %s connectivity check: %s", ifaces[0], ex)
-        else:
-            logging.debug("Connection %s seems to have no interfaces", active_cn.get_connection_id())
-        return False
-
     def apply_metrics(self):
         active_connections = self.network_manager.get_active_connections()
         for tier in self.config.tiers:
@@ -611,26 +662,47 @@ class ConnectionManager:
         return results
 
 
+def init_logging(debug: bool):
+    log_level = logging.DEBUG if debug else logging.INFO
+    if log_level > logging.DEBUG:
+        logger = logging.getLogger()
+        logger.addFilter(ConnectionStateFilter())
+    logging.basicConfig(level=log_level, format=LOGGING_FORMAT)
+
+
 def main():
+    network_manager = NetworkManager()
     try:
-        with open(CONFIG_FILE, encoding="utf-8") as file:
-            cfg_json = json.load(file)
-        config = ConnectionManagerConfigFile(cfg_json)
+        cfg_json = read_config_json()
     except (
         FileNotFoundError,
         PermissionError,
         OSError,
         json.decoder.JSONDecodeError,
-        ImproperlyConfigured,
     ) as ex:
         logging.error("Loading %s failed: %s", CONFIG_FILE, ex)
+        sys.exit(EXIT_NOT_CONFIGURED)
+
+    init_logging(cfg_json.get("debug", False))  # must be initialized before NetworkAwareConfigFile
+
+    try:
+        config = NetworkAwareConfigFile(network_manager=network_manager)
+        config.load_config(cfg=cfg_json)
+    except ImproperlyConfigured as ex:
+        logging.error("Configuration error: %s", ex)
         sys.exit(EXIT_NOT_CONFIGURED)
 
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     if config.has_connections():
+        try:
+            modem_manager = ModemManager()
+        except DBusException as ex:
+            modem_manager = None
+            logging.warning("Unable to initialize ModemManager, GSM connections will be unavailable (%s)", ex)
+
         manager = ConnectionManager(
-            network_manager=NetworkManager(), config=config, modem_manager=ModemManager()
+            network_manager=network_manager, config=config, modem_manager=modem_manager
         )
         while True:
             manager.cycle_loop()
