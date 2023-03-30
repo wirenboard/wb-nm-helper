@@ -777,11 +777,6 @@ def main():
     else:
         logger_level = logging.INFO
 
-    # logger = logging.getLogger("virtual-connections_client")
-    # logger.setLevel(logger_level)
-    # stream = logging.StreamHandler()
-    # stream.setLevel(logger_level)
-    # logger.addHandler(stream)
     logging.basicConfig(level=logger_level)
 
     connections_mediator = ConnectionsMediator(logging)
