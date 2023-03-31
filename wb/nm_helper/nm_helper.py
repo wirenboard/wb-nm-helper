@@ -14,6 +14,17 @@ from .network_interfaces_adapter import NetworkInterfacesAdapter
 from .network_manager_adapter import NetworkManagerAdapter
 
 
+def is_modem_enabled(modem_dt_alias: str) -> bool:
+    dt_base = "/sys/firmware/devicetree/base"
+    try:
+        with open("%s/aliases/%s" % (dt_base, modem_dt_alias), encoding="ascii") as dt_file:
+            nodepath = dt_file.read().rstrip("\x00")
+            with open("%s%s/status" % (dt_base, nodepath), encoding="ascii") as dt_file:
+                return dt_file.read().rstrip("\x00") == "okay"
+    except FileNotFoundError:
+        return False
+
+
 def find_interface_strings(file_name: str) -> List[str]:
     res = []
     pattern = re.compile(r"^\s*interface\s*=\s*(.*)")
@@ -47,6 +58,9 @@ def to_json(args) -> Dict:
     network_interfaces = NetworkInterfacesAdapter.probe(args.interfaces_conf)
     if network_interfaces is not None:
         connections = connections + network_interfaces.get_connections()
+
+    if not is_modem_enabled(modem_dt_alias="wbc_modem"):
+        connections = [c for c in connections if not c.get("connection_id", "").startswith("wb-gsm-sim")]
 
     devices.sort(key=lambda v: v["type"])
 

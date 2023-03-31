@@ -290,7 +290,7 @@ def check_connectivity(active_cn: NMActiveConnection, config: ConfigFile = None)
     return False
 
 
-class ConnectionManager:
+class ConnectionManager:  # pylint: disable=too-many-instance-attributes
     def __init__(
         self,
         network_manager: INetworkManager,
