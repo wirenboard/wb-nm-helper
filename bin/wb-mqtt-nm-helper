@@ -3,6 +3,6 @@
 
 import sys
 
-from wb.nm_helper.virtual_devices.virtual_devices import main
+from wb.nm_helper.virtual_devices import main
 
 sys.exit(main())
