@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import copy
 import enum
 import json
@@ -6,8 +7,8 @@ import logging
 import signal
 import struct
 import sys
+import threading
 from abc import ABC, abstractmethod
-from threading import Lock
 
 import dbus
 import dbus.mainloop.glib
@@ -15,8 +16,8 @@ import dbus.types
 from gi.repository import GLib
 from wb_common.mqtt_client import DEFAULT_BROKER_URL, MQTTClient
 
-from wb.nm_helper.connection_manager import check_connectivity
-from wb.nm_helper.network_manager import NetworkManager
+from .connection_manager import check_connectivity
+from .network_manager import NetworkManager
 
 
 class Connection(ABC):
@@ -31,8 +32,13 @@ class Event(enum.Enum):
     ACTIVE_UPDATE = 2
     ACTIVE_DEINIT = 3
 
-    COMMON_ACTIVATE = 4
-    COMMON_DEACTIVATE = 5
+    COMMON_CREATE = 4
+    COMMON_ACTIVATE = 5
+    COMMON_DEACTIVATE = 6
+    COMMON_REMOVE = 7
+
+    ACTIVE_CONNECTION_LIST_UPDATE = 8
+    COMMON_CONNECTION_UUID_PUBLICATED = 9
 
 
 class Mediator(ABC):
@@ -43,6 +49,7 @@ class Mediator(ABC):
 
 
 class ConnectionsMediator(Mediator):
+    # pylint: disable=too-many-instance-attributes
 
     DEVICES_UUID_SUBSCRIBE_TOPIC = "/devices/+/controls/UUID"
 
@@ -53,29 +60,43 @@ class ConnectionsMediator(Mediator):
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
         dbus.mainloop.glib.threads_init()
         self._bus = dbus.SystemBus()
-        self._loop = GLib.MainLoop()
+        self._dbus_loop = GLib.MainLoop()
         self._mqtt_client = MQTTClient("connections-virtual-devices", DEFAULT_BROKER_URL)
 
-        self._common_connections = self._create_common_connections(self._mqtt_client, self._bus)
-        self._active_connections = self._create_active_connections(self._bus)
+        self._common_connections = {}
+        self._active_connections = {}
 
-        self._mutex = Lock()
+        self._event_loop = asyncio.new_event_loop()
+        self._event_loop_thread = threading.Thread(target=lambda: self._run_event_loop(self._event_loop))
 
         self._set_connections_event_handlers()
 
     def run(self):
         self._mqtt_client.start()
-        self._run_common_conections()
-        self._run_active_connections()
+        self._create_common_connections()
+        self._create_active_connections()
         self._subscribe_to_devices()
-        self._loop.run()
+
+        self._event_loop_thread.start()
+        self._dbus_loop.run()
 
     def stop(self):
-        self._loop.quit()
+        if self._event_loop_thread.is_alive():
+            asyncio.run_coroutine_threadsafe(self._stop_event_loop(), self._event_loop)
+            self._event_loop_thread.join()
+
+        self._dbus_loop.quit()
         self._mqtt_client.stop()
 
-    def _create_common_connections(self, mqtt_client: MQTTClient, dbus_bus: dbus.Bus):
-        connections_settings_proxy = dbus_bus.get_object(
+    def _run_event_loop(self, event_loop):
+        asyncio.set_event_loop(event_loop)
+        self._event_loop.run_forever()
+
+    async def _stop_event_loop(self):
+        self._event_loop.stop()
+
+    def _create_common_connections(self):
+        connections_settings_proxy = self._bus.get_object(
             "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager/Settings"
         )
 
@@ -84,18 +105,12 @@ class ConnectionsMediator(Mediator):
         )
         connections_paths = connections_settings_interface.ListConnections()
 
-        connections = {}
         for connection_path in connections_paths:
-            connections[connection_path] = CommonConnection(
-                self, mqtt_client, dbus_bus, connection_path, self._logger
+            asyncio.run_coroutine_threadsafe(
+                self._run_async_event(Event.COMMON_CREATE, path=connection_path), self._event_loop
             )
-        return connections
 
-    def _run_common_conections(self):
-        for common_connection in self._common_connections.values():
-            common_connection.run()
-
-    def _create_active_connections(self, dbus_bus: dbus.Bus):
+    def _create_active_connections(self):
         active_connections_proxy = self._bus.get_object(
             "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager"
         )
@@ -106,16 +121,12 @@ class ConnectionsMediator(Mediator):
             "org.freedesktop.NetworkManager", "ActiveConnections"
         )
 
-        active_connections = {}
-        for active_connection_path in active_connections_paths:
-            active_connections[active_connection_path] = ActiveConnection(
-                self, dbus_bus, active_connection_path, self._logger
-            )
-        return active_connections
-
-    def _run_active_connections(self):
-        for active_connection in self._active_connections.values():
-            active_connection.run()
+        asyncio.run_coroutine_threadsafe(
+            self._run_async_event(
+                Event.ACTIVE_CONNECTION_LIST_UPDATE, active_connections_paths=active_connections_paths
+            ),
+            self._event_loop,
+        )
 
     def _set_connections_event_handlers(self):
         self._bus.add_signal_receiver(
@@ -148,96 +159,151 @@ class ConnectionsMediator(Mediator):
         # For some reasons handler receive first signals from non-existed client
         # when you try to do something with connection (add,remove,etc).
         # Finally it receives normal messages after garbage
-        connection_path = args[0]
         if kwargs["sender"] in self._bus.list_names():
-            with self._mutex:
-                self._common_connections[connection_path] = CommonConnection(
-                    self, self._mqtt_client, self._bus, connection_path, self._logger
-                )
-
-            self._common_connections[connection_path].run()
+            asyncio.run_coroutine_threadsafe(
+                self._run_async_event(Event.COMMON_CREATE, path=args[0]), self._event_loop
+            )
 
     def _common_connection_removed_handler(self, *_, **kwargs):
-        connection_path = kwargs["path"]
-
-        if connection_path in self._common_connections:
-            self._common_connections[connection_path].stop()
-
-            with self._mutex:
-                self._common_connections.pop(connection_path)
+        asyncio.run_coroutine_threadsafe(
+            self._run_async_event(Event.COMMON_REMOVE, path=kwargs["path"]), self._event_loop
+        )
 
     def _active_connection_list_update_handler(self, *args, **_):
         updated_properties = args[1]
         if "ActiveConnections" in updated_properties:
-            active_connections_paths = updated_properties["ActiveConnections"]
-            old_active_paths = [x for x in self._active_connections if x not in active_connections_paths]
-            new_active_paths = [x for x in active_connections_paths if x not in self._active_connections]
+            asyncio.run_coroutine_threadsafe(
+                self._run_async_event(
+                    Event.ACTIVE_CONNECTION_LIST_UPDATE,
+                    active_connections_paths=updated_properties["ActiveConnections"],
+                ),
+                self._event_loop,
+            )
 
-            for new_active_path in new_active_paths:
-                with self._mutex:
-                    try:
-                        self._active_connections[new_active_path] = ActiveConnection(
-                            self, self._bus, new_active_path, self._logger
-                        )
-                    except dbus.exceptions.DBusException:
-                        self._logger.error("New active connection create failed %s", new_active_path)
+    # Async event functions
 
-                if new_active_path in self._active_connections:
-                    self._active_connections[new_active_path].run()
+    def _common_connection_create(self, connection_path):
+        if connection_path is not None:
+            self._common_connections[connection_path] = CommonConnection(
+                self, self._mqtt_client, self._bus, connection_path, self._logger
+            )
+            self._common_connections[connection_path].run()
 
-            for old_active_path in old_active_paths:
-                self._active_connections[old_active_path].stop()
+    def _common_connection_activate(self, connection_properties):
+        if connection_properties is None:
+            return
+        try:
+            proxy = self._bus.get_object("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager")
+            interface = dbus.Interface(proxy, "org.freedesktop.NetworkManager")
+            empty_proxy = self._bus.get_object("org.freedesktop.NetworkManager", "/")
+            # ActivateConnection and DeactivateConnection functions ends very fast
+            # even if connection activating/deactivating process can take a long time
+            interface.ActivateConnection(connection_properties["path"], empty_proxy, empty_proxy)
+        except dbus.exceptions.DBusException:
+            self._logger.error(
+                "Unable to activate %s %s connection, no suitable device found",
+                connection_properties["name"],
+                connection_properties["uuid"],
+            )
 
-                with self._mutex:
-                    self._active_connections.pop(old_active_path)
+    def _common_connection_deactivate(self, connection_properties):
+        if connection_properties is None:
+            return
+
+        active_connections_path = [
+            active_path
+            for active_path, active_connection in self._active_connections.items()
+            if active_connection.properties["connection_path"] == connection_properties["path"]
+        ]
+
+        if len(active_connections_path) != 1:
+            self._logger.error("Unable to find active connections to deactivate")
+            return
+
+        active_connection_path = active_connections_path[0]
+        proxy = self._bus.get_object("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager")
+        interface = dbus.Interface(proxy, "org.freedesktop.NetworkManager")
+        # ActivateConnection and DeactivateConnection functions ends very fast
+        # even if connection activating/deactivating process can take a long time
+        interface.DeactivateConnection(active_connection_path)
+
+    def _common_connection_remove(self, connection_path):
+        if connection_path is not None and connection_path in self._common_connections:
+            self._common_connections[connection_path].stop()
+            self._common_connections.pop(connection_path)
+
+    def _active_connection_update(self, event: Event, active_connection_properties):
+        if active_connection_properties is None:
+            return
+
+        if event == Event.ACTIVE_INIT:
+            active_connection_properties["active"] = True
+        if event == Event.ACTIVE_DEINIT:
+            active_connection_properties["active"] = False
+        self._common_connections[active_connection_properties["connection_path"]].update(
+            **active_connection_properties
+        )
+
+    def _active_connections_list_update(self, active_connections_paths):
+        if active_connections_paths is None:
+            return
+
+        old_active_paths = [x for x in self._active_connections if x not in active_connections_paths]
+        new_active_paths = [x for x in active_connections_paths if x not in self._active_connections]
+
+        for new_active_path in new_active_paths:
+            try:
+                self._active_connections[new_active_path] = ActiveConnection(
+                    self, self._bus, new_active_path, self._logger
+                )
+                self._active_connections[new_active_path].run()
+            except dbus.exceptions.DBusException:
+                self._logger.error("New active connection create failed %s", new_active_path)
+
+        for old_active_path in old_active_paths:
+            self._active_connections[old_active_path].stop()
+            self._active_connections.pop(old_active_path)
+
+    def _common_connection_check_uuid(self, uuid):
+        if uuid is None:
+            return
+
+        existing_connection_paths = [
+            connection_path
+            for connection_path, connection in self._common_connections.items()
+            if connection.properties["uuid"] == uuid
+        ]
+
+        if len(existing_connection_paths) == 0:
+            self._logger.info("Found old virtual device for %s connection uuid, remove it", uuid)
+            CommonConnection.remove_connection_by_uuid(self._mqtt_client, uuid, self._logger)
+
+    async def _run_async_event(self, event: Event, **kwargs):
+        if event == Event.COMMON_CREATE:
+            self._common_connection_create(kwargs.get("path"))
+
+        elif event == Event.COMMON_ACTIVATE:
+            self._common_connection_activate(kwargs.get("connection_properties"))
+
+        elif event == Event.COMMON_DEACTIVATE:
+            self._common_connection_deactivate(kwargs.get("connection_properties"))
+
+        elif event == Event.COMMON_REMOVE:
+            self._common_connection_remove(kwargs.get("path"))
+
+        elif event in [Event.ACTIVE_INIT, Event.ACTIVE_UPDATE, Event.ACTIVE_DEINIT]:
+            self._active_connection_update(event, kwargs.get("connection_properties"))
+
+        elif event == Event.ACTIVE_CONNECTION_LIST_UPDATE:
+            self._active_connections_list_update(kwargs.get("active_connections_paths"))
+
+        elif event == Event.COMMON_CONNECTION_UUID_PUBLICATED:
+            self._common_connection_check_uuid(kwargs.get("uuid"))
 
     def notify(self, connection: Connection, event: Event):
-        with self._mutex:
-            if connection in self._active_connections.values():
-                properties = connection.properties
-                if event == Event.ACTIVE_INIT:
-                    properties["active"] = True
-                elif event == Event.ACTIVE_DEINIT:
-                    properties["active"] = False
-
-                if properties["connection_path"] in self._common_connections:
-                    self._common_connections[properties["connection_path"]].update(**properties)
-
-            if connection in self._common_connections.values():
-                if event == Event.COMMON_ACTIVATE:
-                    try:
-                        proxy = self._bus.get_object(
-                            "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager"
-                        )
-                        interface = dbus.Interface(proxy, "org.freedesktop.NetworkManager")
-                        empty_proxy = self._bus.get_object("org.freedesktop.NetworkManager", "/")
-                        interface.ActivateConnection(connection.properties["path"], empty_proxy, empty_proxy)
-                    except dbus.exceptions.DBusException:
-                        self._logger.error(
-                            "Unable to activate %s %s connection, no suitable device found",
-                            connection.properties["name"],
-                            connection.properties["uuid"],
-                        )
-
-                elif event == Event.COMMON_DEACTIVATE:
-                    connection_path = connection.properties["path"]
-
-                    active_connections_path = [
-                        active_path
-                        for active_path, active_connection in self._active_connections.items()
-                        if active_connection.properties["connection_path"] == connection_path
-                    ]
-
-                    if len(active_connections_path) != 1:
-                        self._logger.error("Unable to find active connections to deactivate")
-                        return
-
-                    active_connection_path = active_connections_path[0]
-                    proxy = self._bus.get_object(
-                        "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager"
-                    )
-                    interface = dbus.Interface(proxy, "org.freedesktop.NetworkManager")
-                    interface.DeactivateConnection(active_connection_path)
+        asyncio.run_coroutine_threadsafe(
+            self._run_async_event(event, connection_properties=connection.properties), self._event_loop
+        )
 
     def _on_uuid_topic_message(self, _, __, message):
         uuid = message.payload.decode("utf-8")
@@ -245,16 +311,9 @@ class ConnectionsMediator(Mediator):
         if uuid == "":
             return
 
-        with self._mutex:
-            existing_connection_paths = [
-                connection_path
-                for connection_path, connection in self._common_connections.items()
-                if connection.properties["uuid"] == uuid
-            ]
-
-        if len(existing_connection_paths) == 0:
-            self._logger.info("Found old virtual device for %s connection uuid, remove it", uuid)
-            CommonConnection.remove_connection_by_uuid(self._mqtt_client, uuid, self._logger)
+        asyncio.run_coroutine_threadsafe(
+            self._run_async_event(Event.COMMON_CONNECTION_UUID_PUBLICATED, uuid=uuid), self._event_loop
+        )
 
     def _subscribe_to_devices(self):
         self._mqtt_client.subscribe(self.DEVICES_UUID_SUBSCRIBE_TOPIC)
@@ -586,13 +645,7 @@ class ActiveConnection(Connection):
 
         self._properties = {}
 
-        self._update_handler_match = self._bus.add_signal_receiver(
-            self._update_handler,
-            "PropertiesChanged",
-            "org.freedesktop.DBus.Properties",
-            "org.freedesktop.NetworkManager",
-            self._path,
-        )
+        self._update_handler_match = None
         self._ip4config_update_handler_match = None
 
     @property
@@ -608,9 +661,6 @@ class ActiveConnection(Connection):
 
     def run(self):
         self._properties = self._read_properties()
-        self._ip4config_update_handler_match = self._enable_ip4config_properties_updating(
-            self._properties["state"]
-        )
         self._logger.info(
             "New active connection %s %s %s %s",
             self._properties["name"],
@@ -621,6 +671,17 @@ class ActiveConnection(Connection):
 
         self._mediator.notify(self, Event.ACTIVE_INIT)
 
+        # ACTIVE_UPDATE event may be raised before ACTIVE_INIT if place notify(ACTIVE_INIT) call
+        # after signal handler enabling
+        self._switch_ip4config_properties_updating(self._properties["state"])
+        self._update_handler_match = self._bus.add_signal_receiver(
+            self._update_handler,
+            "PropertiesChanged",
+            "org.freedesktop.DBus.Properties",
+            "org.freedesktop.NetworkManager",
+            self._path,
+        )
+
     def _format_ip4address_list(self, ip4addresses_list):
         ip4addresses = []
         for ip4address in ip4addresses_list:
@@ -630,16 +691,17 @@ class ActiveConnection(Connection):
 
         return " ".join(ip4addresses)
 
-    def _enable_ip4config_properties_updating(self, state: ConnectionState):
+    def _switch_ip4config_properties_updating(self, state: ConnectionState):
         if state == ConnectionState.ACTIVATED:
-            return self._bus.add_signal_receiver(
+            self._ip4config_update_handler_match = self._bus.add_signal_receiver(
                 self._ip4config_update_handler,
                 "PropertiesChanged",
                 "org.freedesktop.DBus.Properties",
                 "org.freedesktop.NetworkManager",
                 self._properties["ip4config_path"],
             )
-        return None
+        elif self._ip4config_update_handler_match is not None:
+            self._ip4config_update_handler_match.remove()
 
     def _disable_ip4config_properties_updating(self):
         if self._ip4config_update_handler_match is not None:
@@ -726,9 +788,8 @@ class ActiveConnection(Connection):
                 self._properties["state"] = ConnectionState(updated_properties["State"])
 
             self._logger.debug("Set state %s for %s connection", self._properties["state"], self._path)
-            self._ip4config_update_handler_match = self._enable_ip4config_properties_updating(
-                self._properties["state"]
-            )
+
+            self._switch_ip4config_properties_updating(self._properties["state"])
             self._mediator.notify(self, Event.ACTIVE_UPDATE)
 
     def _ip4config_update_handler(self, *args, **_):
@@ -742,11 +803,11 @@ class ActiveConnection(Connection):
             self._mediator.notify(self, Event.ACTIVE_UPDATE)
 
     def stop(self):
-        self._update_handler_match.remove()
+        # disable signals handlers first
+        self._switch_ip4config_properties_updating(None)
         self._disable_ip4config_properties_updating()
-        self._logger.info("Remove active connection %s", self._path)
 
-        # reset some properties manually
+        # now reset properties manually
         self._properties["state"] = None
         self._properties["device"] = None
         self._properties["ip4addresses"] = None
@@ -757,6 +818,7 @@ class ActiveConnection(Connection):
             self._properties["signal_quality"] = None
             self._properties["access_tech"] = None
 
+        self._logger.info("Remove active connection %s", self._path)
         self._mediator.notify(self, Event.ACTIVE_DEINIT)
 
 
