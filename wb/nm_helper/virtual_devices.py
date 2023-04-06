@@ -267,7 +267,13 @@ class ConnectionsMediator(Mediator):
         # when removing active connection, dbus generates COMMON_REMOVE before ACTIVE_DEINIT
         # so we should check that connection still exist
         connection_path = active_connection_properties["connection_path"]
-        if connection_path in self._common_connections:
+        # garbage collector do not dectruct ActiveConnection objects instantly on pop() operation
+        # so sometimes, when new ActiveConnection have same path as old popped, we can receive flickering data
+        # about connection that not active anymore
+        active_connection_path = active_connection_properties["path"]
+        if connection_path in self._common_connections and (
+            active_connection_path in self._active_connections or event.type == EventType.ACTIVE_DEINIT
+        ):
             self._common_connections[connection_path].update(**active_connection_properties)
 
     def _active_connections_list_update(self, active_connections_paths):
