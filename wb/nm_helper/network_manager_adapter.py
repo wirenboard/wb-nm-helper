@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import datetime
-import json
 import time
 from collections import namedtuple
 from enum import Enum
@@ -413,14 +412,12 @@ def apply(iface, c_handler, network_manager: NetworkManager, dry_run: bool) -> b
         return False
     if json_settings.get_opt("connection.uuid"):
         for con in network_manager.get_connections():
-            old_settings = con.get_settings()
-            dbus_settings = DBUSSettings(old_settings)
+            dbus_settings = DBUSSettings(con.get_settings())
             if dbus_settings.get_opt("connection.uuid") == json_settings.get_opt("connection.uuid"):
                 if dbus_settings.get_opt("connection.id") == json_settings.get_opt("connection.id"):
                     c_handler.set_dbus_options(dbus_settings, json_settings)
                     con.update_settings(dbus_settings.params)
-                    settings = con.get_settings()
-                    return json.dumps(old_settings, sort_keys=True) != json.dumps(settings, sort_keys=True)
+                    return True
                 con.delete()
                 network_manager.add_connection(c_handler.create(json_settings))
                 return False
