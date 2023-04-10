@@ -16,8 +16,33 @@ import dbus.types
 from gi.repository import GLib
 from wb_common.mqtt_client import DEFAULT_BROKER_URL, MQTTClient
 
-from .connection_manager import check_connectivity
-from .network_manager import NetworkManager
+from wb.nm_helper.connection_manager import check_connectivity
+from wb.nm_helper.network_manager import NetworkManager
+
+
+class EventLoop:
+    def __init__(self):
+        self._event_loop = asyncio.new_event_loop()
+        self._event_loop_thread = threading.Thread(target=lambda: self._run_event_loop(self._event_loop))
+
+    def run(self):
+        self._event_loop_thread.start()
+
+    def stop(self):
+        if self._event_loop_thread.is_alive():
+            asyncio.run_coroutine_threadsafe(self._stop_event_loop(self._event_loop), self._event_loop)
+            self._event_loop_thread.join()
+
+    def _run_event_loop(self, event_loop):
+        asyncio.set_event_loop(event_loop)
+        event_loop.run_forever()
+
+    async def _stop_event_loop(self, event_loop):
+        # self._event_loop.run_until_complete(self._event_loop.shutdown_asyncgens())
+        event_loop.stop()
+
+    def run_coroutine_threadsafe(self, coroutine):
+        asyncio.run_coroutine_threadsafe(coroutine, self._event_loop)
 
 
 class Connection(ABC):
@@ -30,15 +55,16 @@ class Connection(ABC):
 class EventType(enum.Enum):
     ACTIVE_INIT = 1
     ACTIVE_UPDATE = 2
-    ACTIVE_DEINIT = 3
+    ACTIVE_CONNECTIVITY_UPDATE = 3
+    ACTIVE_DEINIT = 4
 
-    COMMON_CREATE = 4
-    COMMON_ACTIVATE = 5
-    COMMON_DEACTIVATE = 6
-    COMMON_REMOVE = 7
+    COMMON_CREATE = 5
+    COMMON_ACTIVATE = 6
+    COMMON_DEACTIVATE = 7
+    COMMON_REMOVE = 8
 
-    ACTIVE_LIST_UPDATE = 8
-    MQTT_UUID_PUBLICATED = 9
+    ACTIVE_LIST_UPDATE = 9
+    MQTT_UUID_PUBLICATED = 10
 
 
 class Event:
@@ -67,7 +93,7 @@ class Event:
 class Mediator(ABC):
     # pylint: disable=too-few-public-methods
     @abstractmethod
-    def notify(self, event: Event):
+    def new_event(self, event: Event):
         pass
 
 
@@ -85,67 +111,29 @@ class ConnectionsMediator(Mediator):
 
         self._common_connections = {}
         self._active_connections = {}
-
-        self._event_loop = asyncio.new_event_loop()
-        self._event_loop_thread = threading.Thread(target=lambda: self._run_event_loop(self._event_loop))
+        self._event_loop = EventLoop()
+        self._connectivity_updater = ConnectivityUpdater(self)
 
         self._set_connections_event_handlers()
 
     def run(self):
         self._mqtt_client.start()
+        self._event_loop.run()
+        self._connectivity_updater.run()
+
         self._create_common_connections()
         self._create_active_connections()
         self._subscribe_to_devices()
 
-        self._event_loop_thread.start()
         self._dbus_loop.run()
 
     def stop(self):
-        if self._event_loop_thread.is_alive():
-            asyncio.run_coroutine_threadsafe(self._stop_event_loop(), self._event_loop)
-            self._event_loop_thread.join()
-
+        self._event_loop.stop()
+        self._connectivity_updater.stop()
         self._dbus_loop.quit()
         self._mqtt_client.stop()
 
-    def _run_event_loop(self, event_loop):
-        asyncio.set_event_loop(event_loop)
-        self._event_loop.run_forever()
-
-    async def _stop_event_loop(self):
-        self._event_loop.stop()
-
-    def _create_common_connections(self):
-        connections_settings_proxy = self._bus.get_object(
-            "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager/Settings"
-        )
-
-        connections_settings_interface = dbus.Interface(
-            connections_settings_proxy, "org.freedesktop.NetworkManager.Settings"
-        )
-        connections_paths = connections_settings_interface.ListConnections()
-
-        for connection_path in connections_paths:
-            asyncio.run_coroutine_threadsafe(
-                self._run_async_event(Event(EventType.COMMON_CREATE, path=connection_path)),
-                self._event_loop,
-            )
-
-    def _create_active_connections(self):
-        active_connections_proxy = self._bus.get_object(
-            "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager"
-        )
-        active_connections_interface = dbus.Interface(
-            active_connections_proxy, "org.freedesktop.DBus.Properties"
-        )
-        active_connections_paths = active_connections_interface.Get(
-            "org.freedesktop.NetworkManager", "ActiveConnections"
-        )
-
-        asyncio.run_coroutine_threadsafe(
-            self._run_async_event(Event(EventType.ACTIVE_LIST_UPDATE, path_list=active_connections_paths)),
-            self._event_loop,
-        )
+    # Signals handlers
 
     def _set_connections_event_handlers(self):
         self._bus.add_signal_receiver(
@@ -172,35 +160,62 @@ class ConnectionsMediator(Mediator):
             "/org/freedesktop/NetworkManager",
         )
 
-    # Signals handlers
+    def _create_common_connections(self):
+        connections_settings_proxy = self._bus.get_object(
+            "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager/Settings"
+        )
+
+        connections_settings_interface = dbus.Interface(
+            connections_settings_proxy, "org.freedesktop.NetworkManager.Settings"
+        )
+        connections_paths = connections_settings_interface.ListConnections()
+
+        for connection_path in connections_paths:
+            self.new_event(Event(EventType.COMMON_CREATE, path=connection_path))
+
+    def _create_active_connections(self):
+        active_connections_proxy = self._bus.get_object(
+            "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager"
+        )
+        active_connections_interface = dbus.Interface(
+            active_connections_proxy, "org.freedesktop.DBus.Properties"
+        )
+        active_connections_paths = active_connections_interface.Get(
+            "org.freedesktop.NetworkManager", "ActiveConnections"
+        )
+
+        self.new_event(Event(EventType.ACTIVE_LIST_UPDATE, path_list=active_connections_paths))
+
+    def _on_uuid_topic_message(self, _, __, message):
+        uuid = message.payload.decode("utf-8")
+
+        if uuid == "":
+            return
+
+        self.new_event(Event(EventType.MQTT_UUID_PUBLICATED, uuid=uuid))
+
+    def _subscribe_to_devices(self):
+        self._mqtt_client.subscribe(self.DEVICES_UUID_SUBSCRIBE_TOPIC)
+        self._mqtt_client.message_callback_add(self.DEVICES_UUID_SUBSCRIBE_TOPIC, self._on_uuid_topic_message)
 
     def _common_connection_added_handler(self, *args, **kwargs):
         # For some reasons handler receive first signals from non-existed client
         # when you try to do something with connection (add,remove,etc).
         # Finally it receives normal messages after garbage
         if kwargs["sender"] in self._bus.list_names():
-            asyncio.run_coroutine_threadsafe(
-                self._run_async_event(Event(EventType.COMMON_CREATE, path=args[0])),
-                self._event_loop,
-            )
+            self.new_event(Event(EventType.COMMON_CREATE, path=args[0]))
 
     def _common_connection_removed_handler(self, *_, **kwargs):
-        asyncio.run_coroutine_threadsafe(
-            self._run_async_event(Event(EventType.COMMON_REMOVE, path=kwargs["path"])),
-            self._event_loop,
-        )
+        self.new_event(Event(EventType.COMMON_REMOVE, path=kwargs["path"]))
 
     def _active_list_update_handler(self, *args, **_):
         updated_properties = args[1]
         if "ActiveConnections" in updated_properties:
-            asyncio.run_coroutine_threadsafe(
-                self._run_async_event(
-                    Event(
-                        EventType.ACTIVE_LIST_UPDATE,
-                        path_list=updated_properties["ActiveConnections"],
-                    )
-                ),
-                self._event_loop,
+            self.new_event(
+                Event(
+                    EventType.ACTIVE_LIST_UPDATE,
+                    path_list=updated_properties["ActiveConnections"],
+                )
             )
 
     # Async event functions
@@ -265,16 +280,24 @@ class ConnectionsMediator(Mediator):
             active_connection_properties["active"] = False
 
         # when removing active connection, dbus generates COMMON_REMOVE before ACTIVE_DEINIT
-        # so we should check that connection still exist
+        # so we should check that connection still exists
         connection_path = active_connection_properties["connection_path"]
-        # garbage collector do not dectruct ActiveConnection objects instantly on pop() operation
-        # so sometimes, when new ActiveConnection have same path as old popped, we can receive flickering data
-        # about connection that not active anymore
-        active_connection_path = active_connection_properties["path"]
-        if connection_path in self._common_connections and (
-            active_connection_path in self._active_connections or event.type == EventType.ACTIVE_DEINIT
-        ):
+
+        if connection_path in self._common_connections:
             self._common_connections[connection_path].update(**active_connection_properties)
+
+        if event.type in [EventType.ACTIVE_INIT, EventType.ACTIVE_UPDATE]:
+            self._connectivity_updater.update(active_connection_properties)
+
+    def _active_connection_connectivity_update(self, active_connection_properties, connectivity):
+        if active_connection_properties is None or connectivity is None:
+            return
+
+        connection_path = active_connection_properties["connection_path"]
+        active_connection_path = active_connection_properties["path"]
+
+        if connection_path in self._common_connections and active_connection_path in self._active_connections:
+            self._common_connections[connection_path].update(**{"connectivity": connectivity})
 
     def _active_connections_list_update(self, active_connections_paths):
         if active_connections_paths is None:
@@ -325,29 +348,51 @@ class ConnectionsMediator(Mediator):
         elif event.type in [EventType.ACTIVE_INIT, EventType.ACTIVE_UPDATE, EventType.ACTIVE_DEINIT]:
             self._active_connection_update(event, event.kwargs.get("properties"))
 
+        elif event.type == EventType.ACTIVE_CONNECTIVITY_UPDATE:
+            self._active_connection_connectivity_update(
+                event.kwargs.get("properties"), event.kwargs.get("connectivity")
+            )
+
         elif event.type == EventType.ACTIVE_LIST_UPDATE:
             self._active_connections_list_update(event.kwargs.get("path_list"))
 
         elif event.type == EventType.MQTT_UUID_PUBLICATED:
             self._common_connection_check_uuid(event.kwargs.get("uuid"))
 
-    def notify(self, event: Event):
-        asyncio.run_coroutine_threadsafe(self._run_async_event(event), self._event_loop)
+    def new_event(self, event: Event):
+        self._event_loop.run_coroutine_threadsafe(self._run_async_event(event))
 
-    def _on_uuid_topic_message(self, _, __, message):
-        uuid = message.payload.decode("utf-8")
 
-        if uuid == "":
+class ConnectivityUpdater:
+    def __init__(self, mediator: Mediator):
+        self._mediator = mediator
+        self._network_manager = NetworkManager()
+        self._event_loop = EventLoop()
+
+    def run(self):
+        self._event_loop.run()
+
+    def stop(self):
+        self._event_loop.stop()
+
+    def update(self, connection_properties):
+        self._event_loop.run_coroutine_threadsafe(self._update_async(connection_properties))
+
+    async def _update_async(self, connection_properties):
+        if connection_properties is None:
             return
 
-        asyncio.run_coroutine_threadsafe(
-            self._run_async_event(Event(EventType.MQTT_UUID_PUBLICATED, uuid=uuid)),
-            self._event_loop,
-        )
+        name = connection_properties["name"]
+        active_connection = self._network_manager.get_active_connections().get(name)
+        connectivity = check_connectivity(active_connection)
 
-    def _subscribe_to_devices(self):
-        self._mqtt_client.subscribe(self.DEVICES_UUID_SUBSCRIBE_TOPIC)
-        self._mqtt_client.message_callback_add(self.DEVICES_UUID_SUBSCRIBE_TOPIC, self._on_uuid_topic_message)
+        self._mediator.new_event(
+            Event(
+                EventType.ACTIVE_CONNECTIVITY_UPDATE,
+                properties=connection_properties,
+                connectivity=connectivity,
+            )
+        )
 
 
 class CommonConnection(Connection):
@@ -536,7 +581,7 @@ class CommonConnection(Connection):
         else:
             event_type = EventType.COMMON_DEACTIVATE
 
-        self._mediator.notify(Event(event_type, properties=self.properties))
+        self._mediator.new_event(Event(event_type, properties=self.properties))
 
         self._updown_control_meta["readonly"] = False
         self._publish_control_meta(self._updown_control_meta)
@@ -618,7 +663,7 @@ class CommonConnection(Connection):
         if "access_tech" in properties:
             self._publish_control_data(
                 self.ACCESS_TECH_CONTROL_META,
-                properties["access_tech"].name.replace("MM_MODEM_ACCESS_TECHNOLOGY_", "").lower()
+                properties["access_tech"].name.replace("MM_MODEM_ACCESS_TECHNOLOGY_", "").upper()
                 if properties["access_tech"] is not None
                 else None,
             )
@@ -681,7 +726,7 @@ class ActiveConnection(Connection):
     @property
     def properties(self):
         result = {"path": self._path}
-        for key in ["connection_path", "state", "device", "ip4addresses", "connectivity"]:
+        for key in ["name", "uuid", "connection_path", "state", "device", "ip4addresses"]:
             result[key] = self._properties.get(key)
 
         if self._properties.get("type") == "gsm":
@@ -699,9 +744,9 @@ class ActiveConnection(Connection):
             self._path,
         )
 
-        self._mediator.notify(Event(EventType.ACTIVE_INIT, properties=self.properties))
+        self._mediator.new_event(Event(EventType.ACTIVE_INIT, properties=self.properties))
 
-        # ACTIVE_UPDATE event may be raised before ACTIVE_INIT if place notify(ACTIVE_INIT) call
+        # ACTIVE_UPDATE event may be raised before ACTIVE_INIT if place new_event(ACTIVE_INIT) call
         # after signal handler enabling
         self._switch_ip4config_properties_updating(self._properties["state"])
         self._update_handler_match = self._bus.add_signal_receiver(
@@ -718,8 +763,9 @@ class ActiveConnection(Connection):
             ip4addresses.append(
                 ".".join([str(x) for x in struct.unpack("<BBBB", struct.pack("<I", ip4address[0]))])
             )
+        unical_ip4addresses = list(set(ip4addresses))
 
-        return " ".join(ip4addresses)
+        return " ".join(unical_ip4addresses)
 
     def _switch_ip4config_properties_updating(self, state: ConnectionState):
         if state == ConnectionState.ACTIVATED:
@@ -732,11 +778,6 @@ class ActiveConnection(Connection):
             )
         elif self._ip4config_update_handler_match is not None:
             self._ip4config_update_handler_match.remove()
-
-    def _read_connectivity_state(self, name):
-        network_manager = NetworkManager()
-        active_connection = network_manager.get_active_connections().get(name)
-        return check_connectivity(active_connection)
 
     def _read_properties(self):
         try:
@@ -760,14 +801,11 @@ class ActiveConnection(Connection):
                 result["device"] = device_interface.Get("org.freedesktop.NetworkManager.Device", "Interface")
 
             result["ip4addresses"] = None
-            result["connectivity"] = False
             if result["state"] == ConnectionState.ACTIVATED:
                 proxy = self._bus.get_object("org.freedesktop.NetworkManager", result["ip4config_path"])
                 interface = dbus.Interface(proxy, "org.freedesktop.DBus.Properties")
                 ip4addresses_list = interface.Get("org.freedesktop.NetworkManager.IP4Config", "Addresses")
-
                 result["ip4addresses"] = self._format_ip4address_list(ip4addresses_list)
-                result["connectivity"] = self._read_connectivity_state(result["name"])
 
             if result["type"] == "gsm":
                 result["operator_name"] = None
@@ -825,7 +863,7 @@ class ActiveConnection(Connection):
             )
 
             self._switch_ip4config_properties_updating(self._properties["state"])
-            self._mediator.notify(Event(EventType.ACTIVE_UPDATE, properties=self.properties))
+            self._mediator.new_event(Event(EventType.ACTIVE_UPDATE, properties=self.properties))
 
     def _ip4config_update_handler(self, *args, **_):
         updated_properties = args[1]
@@ -838,7 +876,7 @@ class ActiveConnection(Connection):
                 self._properties["connection_path"],
                 self._path,
             )
-            self._mediator.notify(Event(EventType.ACTIVE_UPDATE, properties=self.properties))
+            self._mediator.new_event(Event(EventType.ACTIVE_UPDATE, properties=self.properties))
 
     def stop(self):
         # disable signals handlers first
@@ -857,7 +895,7 @@ class ActiveConnection(Connection):
             self._properties["access_tech"] = None
 
         logging.info("Remove active connection %s %s", self._properties["connection_path"], self._path)
-        self._mediator.notify(Event(EventType.ACTIVE_DEINIT, properties=self.properties))
+        self._mediator.new_event(Event(EventType.ACTIVE_DEINIT, properties=self.properties))
 
 
 def main():
