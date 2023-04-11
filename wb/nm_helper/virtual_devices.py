@@ -65,6 +65,7 @@ class EventType(enum.Enum):
 
     ACTIVE_LIST_UPDATE = 9
     MQTT_UUID_PUBLICATED = 10
+    CONNECTIVITY_REQUEST = 11
 
 
 class Event:
@@ -274,11 +275,6 @@ class ConnectionsMediator(Mediator):
         if active_connection_properties is None:
             return
 
-        if event.type == EventType.ACTIVE_INIT:
-            active_connection_properties["active"] = True
-        elif event.type == EventType.ACTIVE_DEINIT:
-            active_connection_properties["active"] = False
-
         # when removing active connection, dbus generates COMMON_REMOVE before ACTIVE_DEINIT
         # so we should check that connection still exists
         connection_path = active_connection_properties["connection_path"]
@@ -313,6 +309,7 @@ class ConnectionsMediator(Mediator):
                 self._active_connections[new_active_path] = ActiveConnection(self, self._bus, new_active_path)
                 self._active_connections[new_active_path].run()
             except dbus.exceptions.DBusException:
+                self._active_connections.pop(new_active_path)
                 logging.error("New active connection create failed %s", new_active_path)
 
         for old_active_path in old_active_paths:
@@ -378,9 +375,16 @@ class ConnectivityUpdater:
         self._event_loop.stop()
 
     def update(self, connection_properties):
-        self._event_loop.run_coroutine_threadsafe(self._update_async(connection_properties))
+        self._event_loop.run_coroutine_threadsafe(
+            self._run_async_event(
+                Event(EventType.CONNECTIVITY_REQUEST, connection_properties=connection_properties)
+            )
+        )
 
-    async def _update_async(self, connection_properties):
+    async def _run_async_event(self, event: Event):
+        logging.debug("Execute event %s %s", event.number, event.type.name)
+
+        connection_properties = event.kwargs.get("connection_properties")
         if connection_properties is None:
             return
 
@@ -670,10 +674,11 @@ class CommonConnection(Connection):
                 else None,
             )
         logging.debug(
-            "Update virtual device settings for %s %s %s",
+            "Update virtual device settings for %s %s %s %s",
             self._properties.get("name"),
             self._properties.get("uuid"),
             self._path,
+            list(properties.keys()),
         )
 
     def stop(self):
@@ -728,7 +733,7 @@ class ActiveConnection(Connection):
     @property
     def properties(self):
         result = {"path": self._path}
-        for key in ["name", "uuid", "connection_path", "state", "device", "ip4addresses"]:
+        for key in ["name", "uuid", "connection_path", "active", "state", "device", "ip4addresses"]:
             result[key] = self._properties.get(key)
 
         if self._properties.get("type") == "gsm":
@@ -788,6 +793,7 @@ class ActiveConnection(Connection):
             properties = interface.GetAll("org.freedesktop.NetworkManager.Connection.Active")
 
             result = {}
+            result["active"] = True
             result["name"] = properties["Id"]
             result["uuid"] = properties["Uuid"]
             result["type"] = properties["Type"]
@@ -843,7 +849,7 @@ class ActiveConnection(Connection):
         except dbus.exceptions.DBusException:
             logging.error(
                 "Read active connection %s %s properties failed",
-                self._properties["connection_path"],
+                self._properties.get("connection_path"),  # Maybe unable to read this property too
                 self._path,
             )
             raise
@@ -886,6 +892,7 @@ class ActiveConnection(Connection):
         self._update_handler_match.remove()
 
         # now reset properties manually
+        self._properties["active"] = False
         self._properties["state"] = None
         self._properties["device"] = None
         self._properties["ip4addresses"] = None
