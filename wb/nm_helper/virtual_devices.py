@@ -38,7 +38,7 @@ class EventLoop:
         event_loop.run_forever()
 
     async def _stop_event_loop(self, event_loop):
-        # self._event_loop.run_until_complete(self._event_loop.shutdown_asyncgens())
+        await self._event_loop.shutdown_asyncgens()
         event_loop.stop()
 
     def run_coroutine_threadsafe(self, coroutine):
@@ -246,25 +246,28 @@ class ConnectionsMediator(Mediator):
             )
 
     def _common_connection_deactivate(self, connection_properties):
-        if connection_properties is None:
-            return
+        try:
+            if connection_properties is None:
+                return
 
-        active_connections_path = [
-            active_path
-            for active_path, active_connection in self._active_connections.items()
-            if active_connection.properties["connection_path"] == connection_properties["path"]
-        ]
+            active_connections_path = [
+                active_path
+                for active_path, active_connection in self._active_connections.items()
+                if active_connection.properties["connection_path"] == connection_properties["path"]
+            ]
 
-        if len(active_connections_path) != 1:
-            logging.error("Unable to find active connections to deactivate")
-            return
+            if len(active_connections_path) != 1:
+                logging.error("Unable to find active connections to deactivate")
+                return
 
-        active_connection_path = active_connections_path[0]
-        proxy = self._bus.get_object("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager")
-        interface = dbus.Interface(proxy, "org.freedesktop.NetworkManager")
-        # ActivateConnection and DeactivateConnection functions ends very fast
-        # even if connection activating/deactivating process can take a long time
-        interface.DeactivateConnection(active_connection_path)
+            active_connection_path = active_connections_path[0]
+            proxy = self._bus.get_object("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager")
+            interface = dbus.Interface(proxy, "org.freedesktop.NetworkManager")
+            # ActivateConnection and DeactivateConnection functions ends very fast
+            # even if connection activating/deactivating process can take a long time
+            interface.DeactivateConnection(active_connection_path)
+        except dbus.exceptions.DBusException:
+            logging.error("The connection %s was not active", connection_properties["path"])
 
     def _common_connection_remove(self, connection_path):
         if connection_path is not None and connection_path in self._common_connections:
@@ -742,20 +745,10 @@ class ActiveConnection(Connection):
         return result
 
     def run(self):
-        self._properties = self._read_properties()
-        logging.info(
-            "New active connection %s %s %s %s",
-            self._properties["name"],
-            self._properties["uuid"],
-            self._properties["connection_path"],
-            self._path,
-        )
+        # ACTIVE_UPDATE event may be raised before ACTIVE_INIT and it will be legal
+        # due to dbus updates may be faster then ActiveDevice object initializing
+        # Please, be careful then making some changes there, sensitive to operations order
 
-        self._mediator.new_event(Event(EventType.ACTIVE_INIT, properties=self.properties))
-
-        # ACTIVE_UPDATE event may be raised before ACTIVE_INIT if place new_event(ACTIVE_INIT) call
-        # after signal handler enabling
-        self._switch_ip4config_properties_updating(self._properties["state"])
         self._update_handler_match = self._bus.add_signal_receiver(
             self._update_handler,
             "PropertiesChanged",
@@ -764,7 +757,20 @@ class ActiveConnection(Connection):
             self._path,
         )
 
+        self._properties = self._read_properties()
+        self._switch_ip4config_properties_updating(self._properties.get("state"))
+
+        logging.info(
+            "New active connection %s %s %s %s",
+            self._properties.get("name"),
+            self._properties.get("uuid"),
+            self._properties.get("connection_path"),
+            self._path,
+        )
+        self._mediator.new_event(Event(EventType.ACTIVE_INIT, properties=self.properties))
+
     def _format_ip4address_list(self, ip4addresses_list):
+
         ip4addresses = []
         for ip4address in ip4addresses_list:
             ip4addresses.append(
@@ -775,13 +781,16 @@ class ActiveConnection(Connection):
         return " ".join(unical_ip4addresses)
 
     def _switch_ip4config_properties_updating(self, state: ConnectionState):
-        if state == ConnectionState.ACTIVATED:
+        if state is None:
+            return
+
+        if state == ConnectionState.ACTIVATED and "ip4config_path" in self._properties:
             self._ip4config_update_handler_match = self._bus.add_signal_receiver(
                 self._ip4config_update_handler,
                 "PropertiesChanged",
                 "org.freedesktop.DBus.Properties",
                 "org.freedesktop.NetworkManager",
-                self._properties["ip4config_path"],
+                self._properties.get("ip4config_path"),
             )
         elif self._ip4config_update_handler_match is not None:
             self._ip4config_update_handler_match.remove()
@@ -849,7 +858,7 @@ class ActiveConnection(Connection):
         except dbus.exceptions.DBusException:
             logging.error(
                 "Read active connection %s %s properties failed",
-                self._properties.get("connection_path"),  # Maybe unable to read this property too
+                self._properties.get("connection_path"),
                 self._path,
             )
             raise
@@ -865,12 +874,12 @@ class ActiveConnection(Connection):
 
             logging.debug(
                 "Set state %s for %s %s connection",
-                self._properties["state"],
-                self._properties["connection_path"],
+                self._properties.get("state"),
+                self._properties.get("connection_path"),
                 self._path,
             )
 
-            self._switch_ip4config_properties_updating(self._properties["state"])
+            self._switch_ip4config_properties_updating(self._properties.get("state"))
             self._mediator.new_event(Event(EventType.ACTIVE_UPDATE, properties=self.properties))
 
     def _ip4config_update_handler(self, *args, **_):
@@ -878,13 +887,14 @@ class ActiveConnection(Connection):
 
         if "Addresses" in updated_properties:
             self._properties["ip4addresses"] = self._format_ip4address_list(updated_properties["Addresses"])
-            logging.debug(
-                "Set address %s for %s %s connection",
-                self._properties["ip4addresses"],
-                self._properties["connection_path"],
-                self._path,
-            )
-            self._mediator.new_event(Event(EventType.ACTIVE_UPDATE, properties=self.properties))
+
+        logging.debug(
+            "Set address %s for %s %s connection",
+            self._properties.get("ip4addresses"),
+            self._properties.get("connection_path"),
+            self._path,
+        )
+        self._mediator.new_event(Event(EventType.ACTIVE_UPDATE, properties=self.properties))
 
     def stop(self):
         # disable signals handlers first
@@ -898,12 +908,12 @@ class ActiveConnection(Connection):
         self._properties["ip4addresses"] = None
         self._properties["connectivity"] = False
 
-        if self._properties["type"] == "gsm":
+        if self._properties.get("type") == "gsm":
             self._properties["operator_name"] = None
             self._properties["signal_quality"] = None
             self._properties["access_tech"] = None
 
-        logging.info("Remove active connection %s %s", self._properties["connection_path"], self._path)
+        logging.info("Remove active connection %s %s", self._properties.get("connection_path"), self._path)
         self._mediator.new_event(Event(EventType.ACTIVE_DEINIT, properties=self.properties))
 
 
