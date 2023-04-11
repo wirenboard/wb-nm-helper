@@ -288,6 +288,8 @@ class ConnectionsMediator(Mediator):
 
         if event.type in [EventType.ACTIVE_INIT, EventType.ACTIVE_UPDATE]:
             self._connectivity_updater.update(active_connection_properties)
+        else:
+            self._common_connections[connection_path].update(**{"connectivity": False})
 
     def _active_connection_connectivity_update(self, active_connection_properties, connectivity):
         if active_connection_properties is None or connectivity is None:
