@@ -42,7 +42,7 @@ class EventLoop:
         event_loop.stop()
 
     def run_coroutine_threadsafe(self, coroutine):
-        asyncio.run_coroutine_threadsafe(coroutine, self._event_loop)
+        return asyncio.run_coroutine_threadsafe(coroutine, self._event_loop)
 
 
 class Connection(ABC):
@@ -53,19 +53,17 @@ class Connection(ABC):
 
 
 class EventType(enum.Enum):
-    ACTIVE_INIT = 1
-    ACTIVE_UPDATE = 2
-    ACTIVE_CONNECTIVITY_UPDATE = 3
-    ACTIVE_DEINIT = 4
+    COMMON_CREATE = 1
+    COMMON_SWITCH = 2
+    COMMON_REMOVE = 3
 
-    COMMON_CREATE = 5
-    COMMON_ACTIVATE = 6
-    COMMON_DEACTIVATE = 7
-    COMMON_REMOVE = 8
+    ACTIVE_PROPERTIES_UPDATED = 4
+    ACTIVE_CONNECTIVITY_UPDATED = 5
+    ACTIVE_MODEM_STATE_UPDATED = 6
 
-    ACTIVE_LIST_UPDATE = 9
-    MQTT_UUID_PUBLICATED = 10
-    CONNECTIVITY_REQUEST = 11
+    ACTIVE_LIST_UPDATE = 7
+    MQTT_UUID_PUBLICATED = 8
+    CONNECTIVITY_REQUEST = 9
 
 
 class Event:
@@ -222,83 +220,68 @@ class ConnectionsMediator(Mediator):
     # Async event functions
 
     def _common_connection_create(self, connection_path):
-        if connection_path is not None:
-            self._common_connections[connection_path] = CommonConnection(
-                self, self._mqtt_client, self._bus, connection_path
-            )
-            self._common_connections[connection_path].run()
-
-    def _common_connection_activate(self, connection_properties):
-        if connection_properties is None:
+        if connection_path is None:
             return
         try:
-            proxy = self._bus.get_object("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager")
-            interface = dbus.Interface(proxy, "org.freedesktop.NetworkManager")
-            empty_proxy = self._bus.get_object("org.freedesktop.NetworkManager", "/")
-            # ActivateConnection and DeactivateConnection functions ends very fast
-            # even if connection activating/deactivating process can take a long time
-            interface.ActivateConnection(connection_properties["path"], empty_proxy, empty_proxy)
+            new_common_connection = CommonConnection(self, self._mqtt_client, self._bus, connection_path)
+            new_common_connection.run()
+            self._common_connections[connection_path] = new_common_connection
         except dbus.exceptions.DBusException:
-            logging.error(
-                "Unable to activate %s %s connection, no suitable device found",
-                connection_properties["name"],
-                connection_properties["uuid"],
-            )
+            logging.error("Common connection %s creation failed", connection_path)
 
-    def _common_connection_deactivate(self, connection_properties):
-        try:
-            if connection_properties is None:
-                return
+    def _common_connection_switch(self, connection: Connection):
+        connection_path = connection.properties["path"]
+        if connection_path not in self._common_connections:
+            return
 
-            active_connections_path = [
-                active_path
-                for active_path, active_connection in self._active_connections.items()
-                if active_connection.properties["connection_path"] == connection_properties["path"]
-            ]
+        connection.set_updown_button_readonly(True)
 
-            if len(active_connections_path) != 1:
-                logging.error("Unable to find active connections to deactivate")
-                return
+        active_connections_path = [
+            active_path
+            for active_path, active_connection in self._active_connections.items()
+            if active_connection.properties["connection"] == connection_path
+        ]
 
-            active_connection_path = active_connections_path[0]
-            proxy = self._bus.get_object("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager")
-            interface = dbus.Interface(proxy, "org.freedesktop.NetworkManager")
-            # ActivateConnection and DeactivateConnection functions ends very fast
-            # even if connection activating/deactivating process can take a long time
-            interface.DeactivateConnection(active_connection_path)
-        except dbus.exceptions.DBusException:
-            logging.error("The connection %s was not active", connection_properties["path"])
+        if len(active_connections_path) == 0:
+            try:
+                proxy = self._bus.get_object(
+                    "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager"
+                )
+                interface = dbus.Interface(proxy, "org.freedesktop.NetworkManager")
+                empty_proxy = self._bus.get_object("org.freedesktop.NetworkManager", "/")
+                # ActivateConnection and DeactivateConnection functions ends very fast
+                # even if connection activating/deactivating process can take a long time
+                interface.ActivateConnection(connection.properties["path"], empty_proxy, empty_proxy)
+            except dbus.exceptions.DBusException:
+                logging.error(
+                    "Unable to activate %s %s connection, no suitable device found",
+                    connection.properties["name"],
+                    connection.properties["uuid"],
+                )
+                # this is for interface
+                connection.update({"state": None})
+
+        elif len(active_connections_path) == 1:
+            active_connection = self._active_connections[active_connections_path[0]]
+            try:
+                proxy = self._bus.get_object(
+                    "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager"
+                )
+                interface = dbus.Interface(proxy, "org.freedesktop.NetworkManager")
+                # ActivateConnection and DeactivateConnection functions ends very fast
+                # even if connection activating/deactivating process can take a long time
+                interface.DeactivateConnection(active_connection.properties["path"])
+            except dbus.exceptions.DBusException:
+                logging.error("The connection %s was not active", connection.properties["path"])
+        else:
+            logging.error("Unable to find connection to switch")
+
+        connection.set_updown_button_readonly(False)
 
     def _common_connection_remove(self, connection_path):
         if connection_path is not None and connection_path in self._common_connections:
             self._common_connections[connection_path].stop()
             self._common_connections.pop(connection_path)
-
-    def _active_connection_update(self, event: Event, active_connection_properties):
-        if active_connection_properties is None:
-            return
-
-        # when removing active connection, dbus generates COMMON_REMOVE before ACTIVE_DEINIT
-        # so we should check that connection still exists
-        connection_path = active_connection_properties["connection_path"]
-
-        if connection_path in self._common_connections:
-            self._common_connections[connection_path].update(**active_connection_properties)
-
-        if event.type in [EventType.ACTIVE_INIT, EventType.ACTIVE_UPDATE]:
-            self._connectivity_updater.update(active_connection_properties)
-        else:
-            self._common_connections[connection_path].update(**{"connectivity": False})
-
-    def _active_connection_connectivity_update(self, active_connection_properties, connectivity):
-        if active_connection_properties is None or connectivity is None:
-            return
-
-        connection_path = active_connection_properties["connection_path"]
-        active_connection_path = active_connection_properties["path"]
-
-        if connection_path in self._common_connections and active_connection_path in self._active_connections:
-            self._common_connections[connection_path].update(**{"connectivity": connectivity})
 
     def _active_connections_list_update(self, active_connections_paths):
         if active_connections_paths is None:
@@ -309,15 +292,55 @@ class ConnectionsMediator(Mediator):
 
         for new_active_path in new_active_paths:
             try:
-                self._active_connections[new_active_path] = ActiveConnection(self, self._bus, new_active_path)
-                self._active_connections[new_active_path].run()
+                new_active_connection = ActiveConnection(self, self._bus, new_active_path)
+                new_active_connection.run()
+
+                connection_path = new_active_connection.properties["connection"]
+                common_connection = self._common_connections[connection_path]
+                common_connection.update(new_active_connection.properties)
+
+                self._connectivity_updater.update(new_active_connection)
+
+                self._active_connections[new_active_path] = new_active_connection
             except dbus.exceptions.DBusException:
-                self._active_connections.pop(new_active_path)
                 logging.error("New active connection create failed %s", new_active_path)
 
         for old_active_path in old_active_paths:
-            self._active_connections[old_active_path].stop()
+            old_active_connection = self._active_connections[old_active_path]
+            old_active_connection.stop()
+
+            connection_path = old_active_connection.properties["connection"]
+            common_connection = self._common_connections[connection_path]
+            common_connection.update(old_active_connection.properties)
+
             self._active_connections.pop(old_active_path)
+
+    def _active_connection_connectivity_updated(self, connection: Connection, connectivity):
+        if connection is None or connectivity is None:
+            return
+
+        connection_path = connection.properties["connection"]
+        active_connection_path = connection.properties["path"]
+        if connection_path in self._common_connections and active_connection_path in self._active_connections:
+            self._common_connections[connection_path].update({"connectivity": connectivity})
+
+    # ActiveConnection have been updated by dbus
+    def _active_connection_properties_updated(self, connection: Connection, properties):
+        if connection in self._active_connections.values():
+            connection.update(properties)
+
+            connection_path = connection.properties["connection"]
+            if connection_path in self._common_connections:
+                self._common_connections[connection_path].update(connection.properties)
+
+                if connection.properties["state"] == ConnectionState.ACTIVATED:
+                    self._connectivity_updater.update(connection)
+                else:
+                    self._common_connections[connection_path].update({"connectivity": False})
+
+    def _active_connection_modem_state_updated(self, connection):
+        if connection in self._active_connections:
+            connection.update_modem()
 
     def _common_connection_check_uuid(self, uuid):
         if uuid is None:
@@ -338,25 +361,27 @@ class ConnectionsMediator(Mediator):
         if event.type == EventType.COMMON_CREATE:
             self._common_connection_create(event.kwargs.get("path"))
 
-        elif event.type == EventType.COMMON_ACTIVATE:
-            self._common_connection_activate(event.kwargs.get("properties"))
-
-        elif event.type == EventType.COMMON_DEACTIVATE:
-            self._common_connection_deactivate(event.kwargs.get("properties"))
+        elif event.type == EventType.COMMON_SWITCH:
+            self._common_connection_switch(event.kwargs.get("connection"))
 
         elif event.type == EventType.COMMON_REMOVE:
             self._common_connection_remove(event.kwargs.get("path"))
 
-        elif event.type in [EventType.ACTIVE_INIT, EventType.ACTIVE_UPDATE, EventType.ACTIVE_DEINIT]:
-            self._active_connection_update(event, event.kwargs.get("properties"))
-
-        elif event.type == EventType.ACTIVE_CONNECTIVITY_UPDATE:
-            self._active_connection_connectivity_update(
-                event.kwargs.get("properties"), event.kwargs.get("connectivity")
-            )
-
         elif event.type == EventType.ACTIVE_LIST_UPDATE:
             self._active_connections_list_update(event.kwargs.get("path_list"))
+
+        elif event.type == EventType.ACTIVE_CONNECTIVITY_UPDATED:
+            self._active_connection_connectivity_updated(
+                event.kwargs.get("connection"), event.kwargs.get("connectivity")
+            )
+
+        elif event.type == EventType.ACTIVE_PROPERTIES_UPDATED:
+            self._active_connection_properties_updated(
+                event.kwargs.get("connection"), event.kwargs.get("properties")
+            )
+
+        elif event.type == EventType.ACTIVE_MODEM_STATE_UPDATED:
+            self._active_connection_modem_state_updated(event.kwargs.get("connection"))
 
         elif event.type == EventType.MQTT_UUID_PUBLICATED:
             self._common_connection_check_uuid(event.kwargs.get("uuid"))
@@ -368,8 +393,9 @@ class ConnectionsMediator(Mediator):
 class ConnectivityUpdater:
     def __init__(self, mediator: Mediator):
         self._mediator = mediator
-        self._network_manager = NetworkManager()
+        self._network_manager = None
         self._event_loop = EventLoop()
+        self._futures = {}
 
     def run(self):
         self._event_loop.run()
@@ -377,31 +403,42 @@ class ConnectivityUpdater:
     def stop(self):
         self._event_loop.stop()
 
-    def update(self, connection_properties):
-        self._event_loop.run_coroutine_threadsafe(
-            self._run_async_event(
-                Event(EventType.CONNECTIVITY_REQUEST, connection_properties=connection_properties)
-            )
+    def update(self, connection: Connection):
+        name = connection.properties.get("name")
+        if name is None:
+            return
+
+        if name in self._futures:
+            self._futures[name].cancel()
+
+        self._futures[name] = self._event_loop.run_coroutine_threadsafe(
+            self._run_async_event(Event(EventType.CONNECTIVITY_REQUEST, connection=connection))
         )
 
     async def _run_async_event(self, event: Event):
-        logging.debug("Execute event %s %s", event.number, event.type.name)
 
-        connection_properties = event.kwargs.get("connection_properties")
-        if connection_properties is None:
+        logging.debug("Execute event %s %s", event.number, event.type.name)
+        self._network_manager = NetworkManager()
+
+        connection = event.kwargs.get("connection")
+        if connection is None:
             return
 
-        name = connection_properties["name"]
-        active_connection = self._network_manager.get_active_connections().get(name)
-        connectivity = check_connectivity(active_connection)
+        try:
+            name = connection.properties.get("name")
+            active_connection = self._network_manager.get_active_connections().get(name)
+            if active_connection is not None:
+                connectivity = check_connectivity(active_connection)
 
-        self._mediator.new_event(
-            Event(
-                EventType.ACTIVE_CONNECTIVITY_UPDATE,
-                properties=connection_properties,
-                connectivity=connectivity,
-            )
-        )
+                self._mediator.new_event(
+                    Event(
+                        EventType.ACTIVE_CONNECTIVITY_UPDATED,
+                        connection=connection,
+                        connectivity=connectivity,
+                    )
+                )
+        except dbus.exceptions.DBusException:
+            logging.error("Unable to read connectivity for %s", connection.properties.get("path"))
 
 
 class CommonConnection(Connection):
@@ -582,17 +619,10 @@ class CommonConnection(Connection):
         self._mqtt_client.publish(self._get_control_topic(meta) + "/meta", meta_json, retain=True)
 
     def _updown_message_callback(self, _, __, ___):
-        self._updown_control_meta["readonly"] = True
-        self._publish_control_meta(self._updown_control_meta)
+        self._mediator.new_event(Event(EventType.COMMON_SWITCH, connection=self))
 
-        if self._updown_control_meta["title"]["en"] == "Up":
-            event_type = EventType.COMMON_ACTIVATE
-        else:
-            event_type = EventType.COMMON_DEACTIVATE
-
-        self._mediator.new_event(Event(event_type, properties=self.properties))
-
-        self._updown_control_meta["readonly"] = False
+    def set_updown_button_readonly(self, readonly):
+        self._updown_control_meta["readonly"] = readonly
         self._publish_control_meta(self._updown_control_meta)
 
     def _add_control_message_callback(self, meta):
@@ -647,7 +677,7 @@ class CommonConnection(Connection):
             self._path,
         )
 
-    def update(self, **properties):
+    def update(self, properties):
         if "active" in properties:
             self._publish_control_data(self.ACTIVE_CONTROL_META, "1" if properties["active"] else "0")
             self._updown_control_meta["title"]["en"] = "Down" if properties["active"] else "Up"
@@ -732,11 +762,12 @@ class ActiveConnection(Connection):
 
         self._update_handler_match = None
         self._ip4config_update_handler_match = None
+        self._modem_update_handler_match = None
 
     @property
     def properties(self):
         result = {"path": self._path}
-        for key in ["name", "uuid", "connection_path", "active", "state", "device", "ip4addresses"]:
+        for key in ["connection", "name", "uuid", "active", "state", "device", "ip4addresses"]:
             result[key] = self._properties.get(key)
 
         if self._properties.get("type") == "gsm":
@@ -745,10 +776,6 @@ class ActiveConnection(Connection):
         return result
 
     def run(self):
-        # ACTIVE_UPDATE event may be raised before ACTIVE_INIT and it will be legal
-        # due to dbus updates may be faster then ActiveDevice object initializing
-        # Please, be careful then making some changes there, sensitive to operations order
-
         self._update_handler_match = self._bus.add_signal_receiver(
             self._update_handler,
             "PropertiesChanged",
@@ -757,20 +784,145 @@ class ActiveConnection(Connection):
             self._path,
         )
 
-        self._properties = self._read_properties()
-        self._switch_ip4config_properties_updating(self._properties.get("state"))
+        self.update(self._read_properties())
 
         logging.info(
             "New active connection %s %s %s %s",
-            self._properties.get("name"),
-            self._properties.get("uuid"),
-            self._properties.get("connection_path"),
+            self.properties["name"],
+            self.properties["uuid"],
+            self.properties["connection"],
             self._path,
         )
-        self._mediator.new_event(Event(EventType.ACTIVE_INIT, properties=self.properties))
+
+    def update(self, properties):
+        self._properties.update(properties)
+
+        if "device" in properties and self._properties.get("type") == "gsm":
+            modem_path = self._find_modem_path_by_device(properties["device"])
+            self._properties["modem_path"] = modem_path
+            self._properties.update(self._read_modem_properties(modem_path))
+            self._update_modem_handlers(modem_path)
+
+        if "ip4config_path" in properties:
+            self._update_ip4config_handlers(properties["ip4config_path"])
+
+    def update_modem(self):
+        modem_path = self._properties["modem_path"]
+        self._properties.update(self._read_modem_properties(modem_path))
+
+    def _update_modem_handlers(self, modem_path):
+        if self._modem_update_handler_match is not None:
+            self._modem_update_handler_match.remove()
+            self._modem_update_handler_match = None
+
+        if modem_path is not None:
+            self._modem_update_handler_match = self._bus.add_signal_receiver(
+                self._modem_update_handler,
+                "StateChanged",
+                "org.freedesktop.ModemManager1.Modem",
+                "org.freedesktop.ModemManager1",
+                modem_path,
+            )
+
+    def _update_ip4config_handlers(self, ip4config_path):
+        if self._ip4config_update_handler_match is not None:
+            self._ip4config_update_handler_match.remove()
+            self._ip4config_update_handler_match = None
+
+        if ip4config_path != "/":
+            self._ip4config_update_handler_match = self._bus.add_signal_receiver(
+                self._update_handler,
+                "PropertiesChanged",
+                "org.freedesktop.DBus.Properties",
+                "org.freedesktop.NetworkManager",
+                ip4config_path,
+            )
+
+    def _read_properties(self):
+        try:
+            proxy = self._bus.get_object("org.freedesktop.NetworkManager", self._path)
+            interface = dbus.Interface(proxy, "org.freedesktop.DBus.Properties")
+            properties = interface.GetAll("org.freedesktop.NetworkManager.Connection.Active")
+
+            result = {"active": True}
+            result.update(self._parse_dbus_properties(properties))
+            return result
+        except dbus.exceptions.DBusException:
+            logging.error(
+                "Read active connection %s %s properties failed",
+                self.properties["connection"],
+                self._path,
+            )
+            raise
+
+    def _find_modem_path_by_device(self, device):
+        path = None
+        if device is not None:
+            proxy = self._bus.get_object("org.freedesktop.ModemManager1", "/org/freedesktop/ModemManager1")
+            interface = dbus.Interface(proxy, "org.freedesktop.DBus.ObjectManager")
+            modem_manager_objects = interface.GetManagedObjects()
+            modem_paths = modem_manager_objects.keys()
+
+            for modem_path in modem_paths:
+                proxy = self._bus.get_object("org.freedesktop.ModemManager1", modem_path)
+                interface = dbus.Interface(proxy, "org.freedesktop.DBus.Properties")
+                modem_port = interface.Get("org.freedesktop.ModemManager1.Modem", "PrimaryPort")
+                if modem_port == device:
+                    path = modem_path
+                    break
+        return path
+
+    def _read_modem_properties(self, modem_path):
+        result = {}
+        if modem_path is not None:
+            proxy = self._bus.get_object("org.freedesktop.ModemManager1", modem_path)
+            interface = dbus.Interface(proxy, "org.freedesktop.ModemManager1.Modem.Simple")
+            status_properties = interface.GetStatus()
+            result.update(self._parse_dbus_properties(status_properties))
+        return result
+
+    def _parse_dbus_properties(self, dbus_properties):
+        # pylint: disable=too-many-branches
+        result = {}
+        if "Id" in dbus_properties:
+            result["name"] = dbus_properties["Id"]
+        if "Uuid" in dbus_properties:
+            result["uuid"] = dbus_properties["Uuid"]
+        if "Type" in dbus_properties:
+            result["type"] = dbus_properties["Type"]
+        if "State" in dbus_properties:
+            result["state"] = ConnectionState(dbus_properties["State"])
+        if "Connection" in dbus_properties:
+            result["connection"] = dbus_properties["Connection"]
+
+        if "Ip4Config" in dbus_properties:
+            result["ip4config_path"] = dbus_properties["Ip4Config"]
+            result["ip4addresses"] = None
+            if dbus_properties["Ip4Config"] != "/":
+                proxy = self._bus.get_object("org.freedesktop.NetworkManager", dbus_properties["Ip4Config"])
+                interface = dbus.Interface(proxy, "org.freedesktop.DBus.Properties")
+                ip4addresses_list = interface.Get("org.freedesktop.NetworkManager.IP4Config", "Addresses")
+                result["ip4addresses"] = self._format_ip4address_list(ip4addresses_list)
+
+        if "Devices" in dbus_properties:
+            result["device"] = None
+            if len(dbus_properties["Devices"]) > 0:
+                device_path = dbus_properties["Devices"][0]
+                device_proxy = self._bus.get_object("org.freedesktop.NetworkManager", device_path)
+                device_interface = dbus.Interface(device_proxy, "org.freedesktop.DBus.Properties")
+                result["device"] = device_interface.Get("org.freedesktop.NetworkManager.Device", "Interface")
+        if "Addresses" in dbus_properties:
+            result["ip4addresses"] = self._format_ip4address_list(dbus_properties["Addresses"])
+
+        if "access-technologies" in dbus_properties:
+            result["access_tech"] = ModemAccessTechnology(dbus_properties["access-technologies"])
+        if "signal-quality" in dbus_properties:
+            result["signal_quality"] = dbus_properties["signal-quality"][0]
+        if "m3gpp-operator-name" in dbus_properties:
+            result["operator_name"] = dbus_properties["m3gpp-operator-name"]
+        return result
 
     def _format_ip4address_list(self, ip4addresses_list):
-
         ip4addresses = []
         for ip4address in ip4addresses_list:
             ip4addresses.append(
@@ -780,141 +932,31 @@ class ActiveConnection(Connection):
 
         return " ".join(unical_ip4addresses)
 
-    def _switch_ip4config_properties_updating(self, state: ConnectionState):
-        if state is None:
-            return
-
-        if state == ConnectionState.ACTIVATED and "ip4config_path" in self._properties:
-            self._ip4config_update_handler_match = self._bus.add_signal_receiver(
-                self._ip4config_update_handler,
-                "PropertiesChanged",
-                "org.freedesktop.DBus.Properties",
-                "org.freedesktop.NetworkManager",
-                self._properties.get("ip4config_path"),
-            )
-        elif self._ip4config_update_handler_match is not None:
-            self._ip4config_update_handler_match.remove()
-
-    def _read_properties(self):
-        try:
-            proxy = self._bus.get_object("org.freedesktop.NetworkManager", self._path)
-            interface = dbus.Interface(proxy, "org.freedesktop.DBus.Properties")
-            properties = interface.GetAll("org.freedesktop.NetworkManager.Connection.Active")
-
-            result = {}
-            result["active"] = True
-            result["name"] = properties["Id"]
-            result["uuid"] = properties["Uuid"]
-            result["type"] = properties["Type"]
-            result["state"] = ConnectionState(properties["State"])
-            result["connection_path"] = properties["Connection"]
-            result["ip4config_path"] = properties["Ip4Config"]
-
-            result["device"] = None
-            if len(properties["Devices"]) > 0:
-                device_path = properties["Devices"][0]
-                device_proxy = self._bus.get_object("org.freedesktop.NetworkManager", device_path)
-                device_interface = dbus.Interface(device_proxy, "org.freedesktop.DBus.Properties")
-                result["device"] = device_interface.Get("org.freedesktop.NetworkManager.Device", "Interface")
-
-            result["ip4addresses"] = None
-            if result["state"] == ConnectionState.ACTIVATED:
-                proxy = self._bus.get_object("org.freedesktop.NetworkManager", result["ip4config_path"])
-                interface = dbus.Interface(proxy, "org.freedesktop.DBus.Properties")
-                ip4addresses_list = interface.Get("org.freedesktop.NetworkManager.IP4Config", "Addresses")
-                result["ip4addresses"] = self._format_ip4address_list(ip4addresses_list)
-
-            if result["type"] == "gsm":
-                result["operator_name"] = None
-                result["signal_quality"] = None
-                result["access_tech"] = None
-
-                proxy = self._bus.get_object(
-                    "org.freedesktop.ModemManager1", "/org/freedesktop/ModemManager1"
-                )
-                interface = dbus.Interface(proxy, "org.freedesktop.DBus.ObjectManager")
-                modem_manager_objects = interface.GetManagedObjects()
-                modem_paths = modem_manager_objects.keys()
-
-                for modem_path in modem_paths:
-                    proxy = self._bus.get_object("org.freedesktop.ModemManager1", modem_path)
-                    interface = dbus.Interface(proxy, "org.freedesktop.DBus.Properties")
-                    modem_properties = interface.GetAll("org.freedesktop.ModemManager1.Modem")
-
-                    if (
-                        modem_properties.get("PrimaryPort") == result["device"]
-                        and modem_properties.get("State") == self.MM_MODEM_STATE_REGISTERED
-                    ):
-                        interface = dbus.Interface(proxy, "org.freedesktop.ModemManager1.Modem.Simple")
-                        status = interface.GetStatus()
-
-                        result["operator_name"] = status.get("m3gpp-operator-name")
-                        result["signal_quality"] = status.get("signal-quality")[0]
-                        result["access_tech"] = ModemAccessTechnology(status.get("access-technologies"))
-
-                        break
-
-            return result
-        except dbus.exceptions.DBusException:
-            logging.error(
-                "Read active connection %s %s properties failed",
-                self._properties.get("connection_path"),
-                self._path,
-            )
-            raise
-
     def _update_handler(self, *args, **_):
-        updated_properties = args[1]
-
-        if "State" in updated_properties:
-            try:
-                self._properties = self._read_properties()
-            except dbus.exceptions.DBusException:
-                self._properties["state"] = ConnectionState(updated_properties["State"])
-
-            logging.debug(
-                "Set state %s for %s %s connection",
-                self._properties.get("state"),
-                self._properties.get("connection_path"),
-                self._path,
+        new_properties = self._parse_dbus_properties(args[1])
+        if new_properties:
+            self._mediator.new_event(
+                Event(EventType.ACTIVE_PROPERTIES_UPDATED, connection=self, properties=new_properties)
             )
 
-            self._switch_ip4config_properties_updating(self._properties.get("state"))
-            self._mediator.new_event(Event(EventType.ACTIVE_UPDATE, properties=self.properties))
-
-    def _ip4config_update_handler(self, *args, **_):
-        updated_properties = args[1]
-
-        if "Addresses" in updated_properties:
-            self._properties["ip4addresses"] = self._format_ip4address_list(updated_properties["Addresses"])
-
-        logging.debug(
-            "Set address %s for %s %s connection",
-            self._properties.get("ip4addresses"),
-            self._properties.get("connection_path"),
-            self._path,
-        )
-        self._mediator.new_event(Event(EventType.ACTIVE_UPDATE, properties=self.properties))
+    def _modem_update_handler(self, *_, **__):
+        self._mediator.new_event(Event(EventType.ACTIVE_MODEM_STATE_UPDATED, connection=self))
 
     def stop(self):
-        # disable signals handlers first
-        self._switch_ip4config_properties_updating(None)
+        empty_properties = {
+            "active": False,
+            "state": None,
+            "device": None,
+            "ip4config_path": "/",
+            "ip4addresses": None,
+            "operator_name": None,
+            "signal_quality": None,
+            "access_tech": None,
+        }
+        self.update(empty_properties)
         self._update_handler_match.remove()
 
-        # now reset properties manually
-        self._properties["active"] = False
-        self._properties["state"] = None
-        self._properties["device"] = None
-        self._properties["ip4addresses"] = None
-        self._properties["connectivity"] = False
-
-        if self._properties.get("type") == "gsm":
-            self._properties["operator_name"] = None
-            self._properties["signal_quality"] = None
-            self._properties["access_tech"] = None
-
-        logging.info("Remove active connection %s %s", self._properties.get("connection_path"), self._path)
-        self._mediator.new_event(Event(EventType.ACTIVE_DEINIT, properties=self.properties))
+        logging.info("Remove active connection %s %s", self.properties["connection"], self._path)
 
 
 def main():
