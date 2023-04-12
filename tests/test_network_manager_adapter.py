@@ -311,7 +311,7 @@ def test_modem_set_dbus_options(json, dbus_old, dbus_new):
         (dbus.Struct((123, 123.456, "test string")), '[123, 123.456, "test string"]'),
         (
             dbus.Struct((123, 123.456, "test string", dbus.Struct((789, dbus.String("test"))))),
-            '[123, 123.456, "test string", [789, "test"]]'
+            '[123, 123.456, "test string", [789, "test"]]',
         ),
         (
             dbus.Dictionary(
@@ -326,9 +326,9 @@ def test_modem_set_dbus_options(json, dbus_old, dbus_new):
                     )
                 }
             ),
-            '{"test dict": {"boolean": 0, "bytearray": "test bytearray", "float": 123.456, "int": 123}}'
-        )
-    ]
+            '{"test dict": {"boolean": 0, "bytearray": "test bytearray", "float": 123.456, "int": 123}}',
+        ),
+    ],
 )
 def test_dbus_obj_serialization(dbus_obj, serialized):
     assert serialize_dbus_obj(dbus_obj) == serialized
