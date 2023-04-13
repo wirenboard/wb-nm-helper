@@ -1,3 +1,10 @@
+wb-nm-helper (1.24.0) stable; urgency=medium
+
+  * Remove connections virtual devices from system wb-rules
+  * Add virtual devices service with dbus communication
+
+ -- Ekaterina Volkova <ekaterina.volkova@wirenboard.ru>  Thu, 23 Mar 2023 17:08:49 +0300
+
 wb-nm-helper (1.23.2) stable; urgency=medium
 
   * network_manager_adapter: fix some dbus->json serialization errors
