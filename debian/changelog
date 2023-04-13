@@ -5,6 +5,18 @@ wb-nm-helper (1.24.0) stable; urgency=medium
 
  -- Ekaterina Volkova <ekaterina.volkova@wirenboard.ru>  Thu, 23 Mar 2023 17:08:49 +0300
 
+wb-nm-helper (1.23.2) stable; urgency=medium
+
+  * network_manager_adapter: fix some dbus->json serialization errors
+
+ -- Vladimir Romanov <v.romanov@wirenboard.com>  Mon, 10 Apr 2023 12:19:38 +0400
+
+wb-nm-helper (1.23.1) stable; urgency=medium
+
+  * Don't restart NetworkManager service if not required
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Wed, 04 Apr 2023 16:21:00 +0400
+
 wb-nm-helper (1.23.0) stable; urgency=medium
 
   * Hide wb-gsm-sim* connections if modem is not enabled

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 import time
 from collections import namedtuple
 from enum import Enum
@@ -164,6 +165,17 @@ def scan(dev: NMWirelessDevice, scan_timeout: datetime.timedelta) -> None:
     res = list(ssids)
     res.sort()
     return res
+
+
+class DbusJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, (dbus.Byte, dbus.ByteArray)):
+            return o.decode("utf-8")
+        return super().default(o)
+
+
+def serialize_dbus_obj(dbus_obj) -> str:
+    return json.dumps(dbus_obj, sort_keys=True, cls=DbusJSONEncoder)
 
 
 class JSONSettings:
@@ -412,12 +424,14 @@ def apply(iface, c_handler, network_manager: NetworkManager, dry_run: bool) -> b
         return False
     if json_settings.get_opt("connection.uuid"):
         for con in network_manager.get_connections():
-            dbus_settings = DBUSSettings(con.get_settings())
+            old_settings = con.get_settings()
+            dbus_settings = DBUSSettings(old_settings)
             if dbus_settings.get_opt("connection.uuid") == json_settings.get_opt("connection.uuid"):
                 if dbus_settings.get_opt("connection.id") == json_settings.get_opt("connection.id"):
                     c_handler.set_dbus_options(dbus_settings, json_settings)
                     con.update_settings(dbus_settings.params)
-                    return True
+                    settings = con.get_settings()
+                    return serialize_dbus_obj(old_settings) != serialize_dbus_obj(settings)
                 con.delete()
                 network_manager.add_connection(c_handler.create(json_settings))
                 return False

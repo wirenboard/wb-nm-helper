@@ -1,7 +1,7 @@
 import argparse
 import json
 import subprocess
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import dbus
 import dbusmock
@@ -13,7 +13,9 @@ from dbusmock.templates.networkmanager import (
     DeviceState,
 )
 
+from tests.mm_mock import FakeNetworkManager
 from wb.nm_helper import nm_helper
+from wb.nm_helper.network_manager_adapter import NetworkManagerAdapter
 
 
 class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
@@ -292,19 +294,31 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
         assert res["ui"]["connections"][8]["type"] == "can"
 
 
+class FakeNMAdapter(NetworkManagerAdapter):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.network_manager = FakeNetworkManager()
+
+    def apply(self, interfaces, dry_run):
+        dry_run = False
+        super().apply(interfaces, dry_run)
+
+
 def test_from_json():
     with open("tests/data/ui.json", "r", encoding="utf-8") as f:
         cfg = json.load(f)
 
-    res = nm_helper.from_json(
-        cfg,
-        args=argparse.Namespace(
-            interfaces_conf="tests/data/interfaces",
-            dnsmasq_conf="tests/data/dnsmasq.conf",
-            hostapd_conf="tests/data/hostapd.conf",
-            dry_run=True,
-        ),
-    )
+    # we need to unset dry_run only for "apply" method
+    with patch("wb.nm_helper.network_manager_adapter.NetworkManagerAdapter", FakeNMAdapter):
+        res = nm_helper.from_json(
+            cfg,
+            args=argparse.Namespace(
+                interfaces_conf="tests/data/interfaces",
+                dnsmasq_conf="tests/data/dnsmasq.conf",
+                hostapd_conf="tests/data/hostapd.conf",
+                dry_run=True,
+            ),
+        )
 
-    assert len(res["connections"]) == 0
-    assert res["debug"] is False
+        assert len(res["connections"]) == 0
+        assert res["debug"] is False
