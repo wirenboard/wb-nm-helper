@@ -167,6 +167,17 @@ def scan(dev: NMWirelessDevice, scan_timeout: datetime.timedelta) -> None:
     return res
 
 
+class DbusJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, (dbus.Byte, dbus.ByteArray)):
+            return o.decode("utf-8")
+        return super().default(o)
+
+
+def serialize_dbus_obj(dbus_obj) -> str:
+    return json.dumps(dbus_obj, sort_keys=True, cls=DbusJSONEncoder)
+
+
 class JSONSettings:
     def __init__(self, dict_from_json=None) -> None:
         self.params = {} if dict_from_json is None else dict_from_json
@@ -420,7 +431,7 @@ def apply(iface, c_handler, network_manager: NetworkManager, dry_run: bool) -> b
                     c_handler.set_dbus_options(dbus_settings, json_settings)
                     con.update_settings(dbus_settings.params)
                     settings = con.get_settings()
-                    return json.dumps(old_settings, sort_keys=True) != json.dumps(settings, sort_keys=True)
+                    return serialize_dbus_obj(old_settings) != serialize_dbus_obj(settings)
                 con.delete()
                 network_manager.add_connection(c_handler.create(json_settings))
                 return False
