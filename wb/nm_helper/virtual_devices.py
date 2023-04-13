@@ -303,9 +303,10 @@ class ConnectionsMediator(Mediator):
 
                 self._active_connections[new_active_path] = new_active_connection
             except dbus.exceptions.DBusException:
-                # When connection up/down/create/remove is in process, active connectins list changes very fast
-                # and it's impossible to create some temporary active connections because they are removing faster than
-                # we can read their properties. Finally, when some active connection becomes stable,
+                # When connection up/down/create/remove is in process, active connectins list
+                # changes very fast and it's impossible to create some temporary active connections
+                # because they are removing faster than we can read their properties.
+                # Finally, when some active connection becomes stable,
                 # we can successfully read its properties on active connections list update signal.
                 # So this message mostly for debug
                 logging.debug("New active connection create failed %s", new_active_path)
