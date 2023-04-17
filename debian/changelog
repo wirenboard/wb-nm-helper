@@ -1,3 +1,9 @@
+wb-nm-helper (1.23.1-wb101) stable; urgency=medium
+
+  * virtual-devices: disable state polling if NetworkManager is not running
+
+ -- Nikita Maslov <nikita.maslov@wirenboard.ru>  Mon, 17 Apr 2023 15:50:28 +0600
+
 wb-nm-helper (1.23.1-wb100) stable; urgency=medium
 
   * Revert "Don't restart NetworkManager service if not required (#59)"
