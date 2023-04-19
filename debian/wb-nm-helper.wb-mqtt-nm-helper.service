@@ -1,6 +1,7 @@
 [Unit]
 Description=Virtual MQTT devices management service for Network Manager connections
 After=NetworkManager.service mosquitto.service
+ReloadPropagatedFrom=wb-connection-manager.service
 
 [Service]
 Type=simple
