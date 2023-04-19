@@ -907,18 +907,29 @@ class ActiveConnection(Connection):
             result["ip4config_path"] = dbus_properties["Ip4Config"]
             result["ip4addresses"] = None
             if dbus_properties["Ip4Config"] != "/":
-                proxy = self._bus.get_object("org.freedesktop.NetworkManager", dbus_properties["Ip4Config"])
-                interface = dbus.Interface(proxy, "org.freedesktop.DBus.Properties")
-                ip4addresses_list = interface.Get("org.freedesktop.NetworkManager.IP4Config", "Addresses")
-                result["ip4addresses"] = self._format_ip4address_list(ip4addresses_list)
+                try:
+                    proxy = self._bus.get_object(
+                        "org.freedesktop.NetworkManager", dbus_properties["Ip4Config"]
+                    )
+                    interface = dbus.Interface(proxy, "org.freedesktop.DBus.Properties")
+                    ip4addresses_list = interface.Get("org.freedesktop.NetworkManager.IP4Config", "Addresses")
+                    result["ip4addresses"] = self._format_ip4address_list(ip4addresses_list)
+                except dbus.exceptions.DBusException:
+                    logging.debug("Error reading Ip4Config properties %s", self._path)
 
         if "Devices" in dbus_properties:
             result["device"] = None
             if len(dbus_properties["Devices"]) > 0:
-                device_path = dbus_properties["Devices"][0]
-                device_proxy = self._bus.get_object("org.freedesktop.NetworkManager", device_path)
-                device_interface = dbus.Interface(device_proxy, "org.freedesktop.DBus.Properties")
-                result["device"] = device_interface.Get("org.freedesktop.NetworkManager.Device", "Interface")
+                try:
+                    device_path = dbus_properties["Devices"][0]
+                    device_proxy = self._bus.get_object("org.freedesktop.NetworkManager", device_path)
+                    device_interface = dbus.Interface(device_proxy, "org.freedesktop.DBus.Properties")
+                    result["device"] = device_interface.Get(
+                        "org.freedesktop.NetworkManager.Device", "Interface"
+                    )
+                except dbus.exceptions.DBusException:
+                    logging.debug("Error reading device properties %s", self._path)
+
         if "Addresses" in dbus_properties:
             result["ip4addresses"] = self._format_ip4address_list(dbus_properties["Addresses"])
 
