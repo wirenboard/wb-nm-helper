@@ -16,6 +16,7 @@ var deviceMetaTopicList = ['name', 'driver'];
 var updateNetworkTimer = null;
 var pollingEnabled = false;
 
+
 function getVirtualDeviceName(connectionUuid) {
   return 'system__networks__' + connectionUuid;
 }
