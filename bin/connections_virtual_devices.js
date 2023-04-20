@@ -305,7 +305,7 @@ function updateDevices() {
 }
 
 function startPollingIfNetworkManagerIsUp() {
-  runShellCommand('LC_ALL=C nmcli g 2>/dev/null', {
+  runShellCommand('systemctl is-active NetworkManager.service >/dev/null', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
       if (exitCode == 0 && updateNetworkTimer === null) {
