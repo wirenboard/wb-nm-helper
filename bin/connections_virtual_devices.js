@@ -13,6 +13,9 @@ var controlTopicList = [
 ];
 var deviceMetaTopicList = ['name', 'driver'];
 
+var updateNetworkTimer = null;
+var pollingEnabled = false;
+
 function getVirtualDeviceName(connectionUuid) {
   return 'system__networks__' + connectionUuid;
 }
@@ -147,14 +150,21 @@ function getUpDownCommand(mqttConnectionDevice) {
   var uuid = mqttConnectionDevice.getControl('UUID').getValue();
 
   if (buttonTitle == 'Up') {
-    return 'nmcli connection up ' + uuid + ' 2>/dev/null';
+    return 'timeout 20s nmcli connection up ' + uuid + ' 2>/dev/null';
   } else {
-    return 'nmcli connection down ' + uuid + ' 2>/dev/null';
+    return 'timeout 20s nmcli connection down ' + uuid + ' 2>/dev/null';
   }
 }
 
-function enableUpDownButton(mqttConnectionDevice) {
+function enableUpDownButton(conExitCode, mqttConnectionDevice) {
   var uuid = mqttConnectionDevice.getControl('UUID').getValue();
+
+  if (conExitCode !== 0) {
+      log('Changing connection state failed, enabling button back');
+      mqttConnectionDevice.getControl('UpDown').setReadonly(false);
+      return;
+  }
+
   runShellCommand('LC_ALL=C nmcli -g uuid,device,active,state c s 2>/dev/null | grep ' + uuid + ' ', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
@@ -176,11 +186,14 @@ function defineNewRules(mqttConnectionDevice) {
   defineRule('whenUpDown' + mqttConnectionDevice.getId(), {
     whenChanged: mqttConnectionDevice.getId() + '/UpDown',
     then: function (newValue, devName, cellName) {
+      if (!pollingEnabled) {
+        return;
+      }
       disableUpDownButton(mqttConnectionDevice);
       runShellCommand(getUpDownCommand(mqttConnectionDevice), {
         captureOutput: false,
         exitCallback: function (exitCode) {
-          enableUpDownButton(mqttConnectionDevice);
+          enableUpDownButton(exitCode, mqttConnectionDevice);
         },
       });
     },
@@ -291,17 +304,18 @@ function updateDevices() {
   });
 }
 
-var updateNetworkTimer = null;
 function startPollingIfNetworkManagerIsUp() {
   runShellCommand('LC_ALL=C nmcli g 2>/dev/null', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
       if (exitCode == 0 && updateNetworkTimer === null) {
         log("NetworkManager is up, start polling");
+        pollingEnabled = true;
         updateNetworkTimer = setInterval(updateDevices, 2000);
       } else {
         if (updateNetworkTimer !== null) {
           log("NetworkManager is down, stop polling");
+          pollingEnabled = false;
           clearInterval(updateNetworkTimer);
           updateNetworkTimer = null;
         }
