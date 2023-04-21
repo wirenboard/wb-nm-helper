@@ -13,6 +13,9 @@ var controlTopicList = [
 ];
 var deviceMetaTopicList = ['name', 'driver'];
 
+var updateNetworkTimer = null;
+var pollingEnabled = false;
+
 function getVirtualDeviceName(connectionUuid) {
   return 'system__networks__' + connectionUuid;
 }
@@ -96,7 +99,7 @@ function updateDeviceData(mqttConnectionDevice, device, active, state) {
 function updateIp(mqttConnectionDevice) {
   var uuid = mqttConnectionDevice.getControl('UUID').getValue();
 
-  runShellCommand('nmcli -g ip4.address c s ' + uuid, {
+  runShellCommand('nmcli -g ip4.address c s ' + uuid + ' 2>/dev/null', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
       var ipList = capturedOutput.split('|');
@@ -111,11 +114,14 @@ function updateIp(mqttConnectionDevice) {
 
 function updateConnectivity(mqttConnectionDevice) {
   var uuid = mqttConnectionDevice.getControl('UUID').getValue();
+  if (!uuid) {
+    return;
+  }
 
   runShellCommand(
     'ping -q -W1 -c3 -I $(nmcli -g GENERAL.IP-IFACE  connection show ' +
       uuid +
-      ') 1.1.1.1 2>/dev/null',
+      ' 2>/dev/null) 1.1.1.1 2>/dev/null',
     {
       captureOutput: false,
       exitCallback: function (exitCode) {
@@ -144,15 +150,22 @@ function getUpDownCommand(mqttConnectionDevice) {
   var uuid = mqttConnectionDevice.getControl('UUID').getValue();
 
   if (buttonTitle == 'Up') {
-    return 'nmcli connection up ' + uuid;
+    return 'timeout 20s nmcli connection up ' + uuid + ' 2>/dev/null';
   } else {
-    return 'nmcli connection down ' + uuid;
+    return 'timeout 20s nmcli connection down ' + uuid + ' 2>/dev/null';
   }
 }
 
-function enableUpDownButton(mqttConnectionDevice) {
+function enableUpDownButton(conExitCode, mqttConnectionDevice) {
   var uuid = mqttConnectionDevice.getControl('UUID').getValue();
-  runShellCommand('LC_ALL=C nmcli -g uuid,device,active,state c s | grep ' + uuid + ' ', {
+
+  if (conExitCode !== 0) {
+      log('Changing connection state failed, enabling button back');
+      mqttConnectionDevice.getControl('UpDown').setReadonly(false);
+      return;
+  }
+
+  runShellCommand('LC_ALL=C nmcli -g uuid,device,active,state c s 2>/dev/null | grep ' + uuid + ' ', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
       var dataList = capturedOutput.replace(/\n/, '').split(':');
@@ -173,11 +186,14 @@ function defineNewRules(mqttConnectionDevice) {
   defineRule('whenUpDown' + mqttConnectionDevice.getId(), {
     whenChanged: mqttConnectionDevice.getId() + '/UpDown',
     then: function (newValue, devName, cellName) {
+      if (!pollingEnabled) {
+        return;
+      }
       disableUpDownButton(mqttConnectionDevice);
       runShellCommand(getUpDownCommand(mqttConnectionDevice), {
         captureOutput: false,
         exitCallback: function (exitCode) {
-          enableUpDownButton(mqttConnectionDevice);
+          enableUpDownButton(exitCode, mqttConnectionDevice);
         },
       });
     },
@@ -233,9 +249,13 @@ function initializeOldDevices() {
 }
 
 function initializeDevices() {
-  runShellCommand('LC_ALL=C nmcli -g name,uuid,type,active  c s', {
+  runShellCommand('LC_ALL=C nmcli -g name,uuid,type,active  c s 2>/dev/null', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
+      if (exitCode !== 0) {
+          return;
+      }
+
       var connectionsList = capturedOutput.split(/\r?\n/);
       for (var i = 0; i < connectionsList.length - 1; i++) {
         var dataList = connectionsList[i].replace(/\n/, '').split(':');
@@ -253,7 +273,7 @@ function initializeDevices() {
 }
 
 function updateDevices() {
-  runShellCommand('LC_ALL=C nmcli -g name,uuid,type,device,active,state c s', {
+  runShellCommand('LC_ALL=C nmcli -g name,uuid,type,device,active,state c s 2>/dev/null', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
       if (exitCode == 0) {
@@ -284,6 +304,29 @@ function updateDevices() {
   });
 }
 
+function startPollingIfNetworkManagerIsUp() {
+  runShellCommand('systemctl is-active NetworkManager.service >/dev/null', {
+    captureOutput: true,
+    exitCallback: function (exitCode, capturedOutput) {
+      if (exitCode == 0) {
+        if (updateNetworkTimer === null) {
+          log("NetworkManager is up, start polling");
+          pollingEnabled = true;
+          updateNetworkTimer = setInterval(updateDevices, 2000);
+        }
+      } else {
+        if (updateNetworkTimer !== null) {
+          log("NetworkManager is down, stop polling");
+          pollingEnabled = false;
+          clearInterval(updateNetworkTimer);
+          updateNetworkTimer = null;
+        }
+      }
+    },
+  });
+}
+
 initializeOldDevices();
 initializeDevices();
-setInterval(updateDevices, 2000);
+startPollingIfNetworkManagerIsUp();
+setInterval(startPollingIfNetworkManagerIsUp, 60000);
