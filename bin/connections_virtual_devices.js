@@ -16,7 +16,6 @@ var deviceMetaTopicList = ['name', 'driver'];
 var updateNetworkTimer = null;
 var pollingEnabled = false;
 
-
 function getVirtualDeviceName(connectionUuid) {
   return 'system__networks__' + connectionUuid;
 }
@@ -309,10 +308,12 @@ function startPollingIfNetworkManagerIsUp() {
   runShellCommand('systemctl is-active NetworkManager.service >/dev/null', {
     captureOutput: true,
     exitCallback: function (exitCode, capturedOutput) {
-      if (exitCode == 0 && updateNetworkTimer === null) {
-        log("NetworkManager is up, start polling");
-        pollingEnabled = true;
-        updateNetworkTimer = setInterval(updateDevices, 2000);
+      if (exitCode == 0) {
+        if (updateNetworkTimer === null) {
+          log("NetworkManager is up, start polling");
+          pollingEnabled = true;
+          updateNetworkTimer = setInterval(updateDevices, 2000);
+        }
       } else {
         if (updateNetworkTimer !== null) {
           log("NetworkManager is down, stop polling");
