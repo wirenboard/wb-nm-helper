@@ -7,7 +7,7 @@
         "toJSON": "wb-nm-helper",
         "fromJSON": ["wb-nm-helper", "-s"],
         "restartDelayMS": 4000,
-        "service": "wb-connection-manager",
+        "service": ["wb-connection-manager","wb-mqtt-nm-helper"],
         "needReload": true,
         "editor": "network-connections"
     },

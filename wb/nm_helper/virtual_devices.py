@@ -4,6 +4,7 @@ import copy
 import enum
 import json
 import logging
+import os
 import signal
 import struct
 import sys
@@ -64,6 +65,8 @@ class EventType(enum.Enum):
     ACTIVE_LIST_UPDATE = 7
     MQTT_UUID_PUBLICATED = 8
     CONNECTIVITY_REQUEST = 9
+
+    RELOAD = 10
 
 
 class Event:
@@ -362,6 +365,10 @@ class ConnectionsMediator(Mediator):
             logging.info("Found old virtual device for %s connection uuid, remove it", uuid)
             CommonConnection.remove_connection_by_uuid(self._mqtt_client, uuid)
 
+    def _reload_connectivity(self):
+        for active_connection in self._active_connections:
+            self._connectivity_updater.update(active_connection)
+
     async def _run_async_event(self, event: Event):
         logging.debug("Execute event %s %s", event.number, event.type.name)
         if event.type == EventType.COMMON_CREATE:
@@ -391,6 +398,9 @@ class ConnectionsMediator(Mediator):
 
         elif event.type == EventType.MQTT_UUID_PUBLICATED:
             self._common_connection_check_uuid(event.kwargs.get("uuid"))
+
+        elif event.type == EventType.RELOAD:
+            self._reload_connectivity()
 
     def new_event(self, event: Event):
         self._event_loop.run_coroutine_threadsafe(self._run_async_event(event))
@@ -997,6 +1007,14 @@ def main():
         dest="broker",
         required=False,
     )
+    parser.add_argument(
+        "-r",
+        "--reload",
+        help="Reload main process of this service",
+        dest="main_process_pid",
+        default=0,
+        required=False,
+    )
     options = parser.parse_args()
 
     if options.debug:
@@ -1006,13 +1024,23 @@ def main():
 
     logging.basicConfig(level=logging_level)
 
+    if options.main_process_pid:
+        pid_fd = os.pidfd_open(int(options.main_process_pid), 0)
+        signal.pidfd_send_signal(pid_fd, signal.SIGHUP)
+        logging.info("Send SIGHUP signal to %s process", options.main_process_pid)
+        return
+
     connections_mediator = ConnectionsMediator(options.broker)
 
     def stop_virtual_connections_client(_, __):
         connections_mediator.stop()
 
+    def reload_virtual_connections_client(_, __):
+        connections_mediator.new_event(Event(EventType.RELOAD))
+
     signal.signal(signal.SIGINT, stop_virtual_connections_client)
     signal.signal(signal.SIGTERM, stop_virtual_connections_client)
+    signal.signal(signal.SIGHUP, reload_virtual_connections_client)
 
     try:
         connections_mediator.run()

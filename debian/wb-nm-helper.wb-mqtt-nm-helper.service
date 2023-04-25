@@ -7,6 +7,7 @@ ReloadPropagatedFrom=wb-connection-manager.service
 Type=simple
 User=root
 ExecStart=/usr/bin/wb-mqtt-nm-helper
+ExecReload=/usr/bin/wb-mqtt-nm-helper --reload $MAINPID
 
 [Install]
 WantedBy=multi-user.target
