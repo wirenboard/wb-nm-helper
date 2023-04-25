@@ -1,7 +1,7 @@
 wb-nm-helper (1.25.0) stable; urgency=medium
 
   * Add wb-mqtt-nm-helper service restartig when wb-connection-manager restarts
-  * Add some exceptions handlind
+  * Add some exceptions handling
 
  -- Ekaterina Volkova <ekaterina.volkova@wirenboard.ru>  Wed, 19 Apr 2023 15:24:13 +0300
 
