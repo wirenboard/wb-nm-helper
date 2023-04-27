@@ -1385,6 +1385,7 @@
                             "description": "URL address used to check connection's network connectivity and absense of captive portals",
                             "type": "string",
                             "propertyOrder": 4,
+                            "default": "http://network-test.debian.org/nm",
                             "minLength": 8,
                             "options": {
                                 "show_opt_in": true,
