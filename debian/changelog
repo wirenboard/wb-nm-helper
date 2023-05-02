@@ -1,3 +1,9 @@
+wb-nm-helper (1.26.0) stable; urgency=medium
+
+  * Add wifi encryption algorithm configuration
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Fri, 28 Apr 2023 17:11:00 +0400
+
 wb-nm-helper (1.25.0) stable; urgency=medium
 
   * Add wb-mqtt-nm-helper service restartig when wb-connection-manager restarts
