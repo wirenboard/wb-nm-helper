@@ -93,9 +93,17 @@
                             "minLength": 8,
                             "maxLength": 63,
                             "propertyOrder": 2
+                        },
+                        "encryption": {
+                            "type": "string",
+                            "enum": ["Auto", "TKIP", "AES/CCMP"],
+                            "default": "Auto",
+                            "title": "Encryption",
+                            "description": "For maximum compatibility set to Auto",
+                            "propertyOrder": 3
                         }
                     },
-                    "required": ["security", "key-mgmt", "psk"]
+                    "required": ["security", "key-mgmt", "psk", "encryption"]
                 }
             ],
             "options": {
@@ -1536,7 +1544,9 @@
             "Connection Tiers": "Приоритеты сетевых соединений",
             "High-priority connections": "Соединения с высоким приоритетом",
             "Medium-priority connections": "Соединения со средним приоритетом",
-            "Low-priority connections": "Соединения с низким приоритетом"
+            "Low-priority connections": "Соединения с низким приоритетом",
+            "Encryption": "Шифрование",
+            "For maximum compatibility set to Auto": "Для максимальной совместимости оставьте Auto"
         }
     }
 }

@@ -350,6 +350,8 @@ class WiFiConnection(Connection):
                 if con.get_opt("802-11-wireless.security") is not None:
                     del con.params["802-11-wireless"]["security"]
 
+            self.set_encryption(con, iface.get_opt("802-11-wireless-security.encryption"))
+
     @staticmethod
     def get_dbus_settings(con: NMConnection) -> DBUSSettings:
         return WiFiDBUSSettings(con)
@@ -364,11 +366,39 @@ class WiFiConnection(Connection):
             )
         )
 
+    def set_encryption(self, con: NMConnection, encryption: str) -> None:
+        if encryption == "Auto":
+            con.set_value("802-11-wireless-security.pairwise", None)
+        elif encryption == "TKIP":
+            con.set_value(
+                "802-11-wireless-security.pairwise", dbus.Array(["tkip"], signature=dbus.Signature("s"))
+            )
+        elif encryption == "AES/CCMP":
+            con.set_value(
+                "802-11-wireless-security.pairwise", dbus.Array(["ccmp"], signature=dbus.Signature("s"))
+            )
+
+    def get_encryption(self, con: NMConnection) -> (str | None):
+        cfg = self.get_dbus_settings(con)
+        if cfg.get_opt("802-11-wireless-security.pairwise") is None:
+            return "Auto"
+
+        pairwise = list(set(cfg.get_opt("802-11-wireless-security.pairwise")))
+        if "tkip" in pairwise and "ccmp" in pairwise:
+            return "Auto"
+        if "tkip" in pairwise:
+            return "TKIP"
+        if "ccmp" in pairwise:
+            return "AES/CCMP"
+
+        return None
+
     def get_connection(self, con: NMConnection):
         res = super().get_connection(con)
         if res is not None:
             if "802-11-wireless-security" in res:
                 res["802-11-wireless-security"]["security"] = "wpa-psk"
+                res["802-11-wireless-security"]["encryption"] = self.get_encryption(con)
             else:
                 res["802-11-wireless-security"] = {"security": "none"}
         return res
