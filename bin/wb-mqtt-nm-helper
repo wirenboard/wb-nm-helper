@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+# pylint: disable=C0103
+
+import sys
+
+from wb.nm_helper.virtual_devices import main
+
+sys.exit(main())

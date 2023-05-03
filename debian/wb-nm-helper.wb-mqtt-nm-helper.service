@@ -1,0 +1,11 @@
+[Unit]
+Description=Virtual MQTT devices management service for Network Manager connections
+After=NetworkManager.service mosquitto.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/wb-mqtt-nm-helper
+
+[Install]
+WantedBy=multi-user.target
