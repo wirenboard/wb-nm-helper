@@ -8,7 +8,12 @@ class ModemManager(IModemManager):
         self.bus = dbus.SystemBus()
         self.mm_proxy = self.bus.get_object("org.freedesktop.ModemManager1", "/org/freedesktop/ModemManager1")
 
-    def get_modem(self, modem_path):
+    @property
+    def default_modem_path(self):
+        return "/org/freedesktop/ModemManager1/Modem/wbc"
+
+    def get_modem(self, modem_path=None):
+        modem_path = modem_path or self.default_modem_path
         objects = dbus.Interface(self.mm_proxy, "org.freedesktop.DBus.ObjectManager")
         for obj in objects.GetManagedObjects():
             if obj == modem_path:
@@ -17,7 +22,8 @@ class ModemManager(IModemManager):
                 return modem
         return None
 
-    def get_primary_sim_slot(self, modem_path):
+    def get_primary_sim_slot(self, modem_path=None):
+        modem_path = modem_path or self.default_modem_path
         modem = self.get_modem(modem_path)
         if modem:
             modem_properties = dbus.Interface(modem, "org.freedesktop.DBus.Properties")
@@ -25,7 +31,8 @@ class ModemManager(IModemManager):
             return current_sim
         return None
 
-    def set_primary_sim_slot(self, modem_path, slot_index):
+    def set_primary_sim_slot(self, slot_index, modem_path=None):
+        modem_path = modem_path or self.default_modem_path
         modem = self.get_modem(modem_path)
         if modem:
             modem.SetPrimarySimSlot(slot_index)

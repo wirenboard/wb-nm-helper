@@ -453,8 +453,6 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
         return False
 
     def _activate_gsm_connection(self, dev: NMDevice, con: NMConnection) -> Optional[NMActiveConnection]:
-        dev_path = dev.get_property("Udi")
-        logging.debug('Device path "%s"', dev_path)
         # Switching SIM card while other connection is active can cause NM restart
         # So deactivate active connection if it exists
         active_connection = dev.get_active_connection()
@@ -463,13 +461,12 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
         else:
             logging.debug("No active gsm connection detected")
         sim_slot = con.get_sim_slot()
-        current_sim_slot = self.modem_manager.get_primary_sim_slot(dev_path)
+        current_sim_slot = self.modem_manager.get_primary_sim_slot()
         logging.debug("Current SIM slot: %s, new SIM slot: %s", str(current_sim_slot), str(sim_slot))
         if sim_slot not in (NM_SETTINGS_GSM_SIM_SLOT_DEFAULT, current_sim_slot):
             logging.debug("Will change SIM slot to %s", sim_slot)
-            dev = self.change_modem_sim_slot(dev, con, sim_slot)
-        if not dev:
-            return None
+            if not self.change_modem_sim_slot(dev, con, sim_slot):
+                return None
         active_connection = self.network_manager.activate_connection(con, dev)
         if self._wait_connection_activation(active_connection, self.timeouts.connection_activation_timeout):
             return active_connection
@@ -498,18 +495,10 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
         self.network_manager.deactivate_connection(active_cn)
         self._wait_connection_deactivation(active_cn, CONNECTION_DEACTIVATION_TIMEOUT)
 
-    def change_modem_sim_slot(self, dev: NMDevice, con: NMConnection, sim_slot: str) -> Optional[NMDevice]:
-        dev_path = dev.get_property("Udi")
-        if not self.modem_manager.set_primary_sim_slot(dev_path, sim_slot):
-            return None
-        # After switching SIM card MM recreates device with new path
-        dev = self._wait_gsm_sim_slot_to_change(con, dev_path, str(sim_slot), DEVICE_WAITING_TIMEOUT)
-        if not dev:
-            logging.debug("Failed to get new device after changing SIM slot")
-            return None
-        dev_path = dev.get_property("Udi")
-        logging.debug('Device path after SIM switching "%s"', dev_path)
-        return dev
+    def change_modem_sim_slot(self, dev: NMDevice, con: NMConnection, sim_slot: str) -> bool:
+        if not self.modem_manager.set_primary_sim_slot(sim_slot):
+            return False
+        return self._is_sim_slot_settled_properly(con, str(sim_slot), DEVICE_WAITING_TIMEOUT)
 
     def deactivate_current_gsm_connection(self, active_connection):
         logging.debug("Currently active gsm connection is %s", active_connection)
@@ -525,10 +514,10 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
         else:
             logging.debug("We deactivated non-current connection")
 
-    def _wait_gsm_sim_slot_to_change(
-        self, con: NMConnection, dev_path: str, sim_slot: str, timeout: datetime.timedelta
-    ) -> Optional[NMDevice]:
-        logging.debug("Waiting for GSM device path %s to change", dev_path)
+    def _is_sim_slot_settled_properly(
+        self, con: NMConnection, sim_slot: str, timeout: datetime.timedelta
+    ) -> bool:
+        new_dev_path = ''
         start = datetime.datetime.now()
         while start + timeout >= datetime.datetime.now():
             try:
@@ -537,16 +526,15 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
                     continue
                 new_dev_path = dev.get_property("Udi")
                 logging.debug("Current device path: %s", new_dev_path)
-                if dev_path != new_dev_path:
-                    logging.debug("Device path changed from %s to %s", dev_path, new_dev_path)
+                if new_dev_path == self.modem_manager.default_modem_path:
                     logging.info("Changed SIM slot to %s to check connectivity", sim_slot)
-                    return dev
+                    return True
             except dbus.exceptions.DBusException as ex:
                 # Some exceptions can be raised during waiting, because MM and NM remove and create devices
                 logging.debug("Error during device waiting: %s", ex)
             time.sleep(1)
-        logging.debug("Timeout reached while trying to change SIM slot")
-        return None
+        logging.debug("Timeout reached while trying to change SIM slot. Last device path: '%s'", new_dev_path)
+        return False
 
     @staticmethod
     def _wait_connection_activation(con: NMActiveConnection, timeout) -> bool:

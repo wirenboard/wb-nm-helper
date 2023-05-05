@@ -386,11 +386,17 @@ class FakeModemManager(IModemManager):
     def __init__(self, net_man):
         self.net_man = net_man
 
-    def get_primary_sim_slot(self, modem_path):
+    @property
+    def default_modem_path(self):
+        return "/fake/Devices/ttyUSB1/2"
+
+    def get_primary_sim_slot(self, modem_path=None):
+        modem_path = modem_path or self.default_modem_path
         dev_name = modem_path.split("/")[3]
         return self.net_man.devices.get(dev_name).get("sim_slot")
 
-    def set_primary_sim_slot(self, modem_path, slot_index):
+    def set_primary_sim_slot(self, slot_index, modem_path=None):
+        modem_path = modem_path or self.default_modem_path
         dev_name = modem_path.split("/")[3]
         device = FakeNMDevice(dev_name, self.net_man)
         for data in self.net_man.connections.values():
@@ -406,5 +412,5 @@ class FakeModemManager(IModemManager):
                 return True
         return False
 
-    def get_modem(self, modem_path):
+    def get_modem(self, modem_path=None):
         pass
