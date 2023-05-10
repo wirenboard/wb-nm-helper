@@ -1,3 +1,12 @@
+wb-nm-helper (1.23.1-wb102) stable; urgency=medium
+
+  * Remove connections virtual devices from system wb-rules
+  * Add virtual devices service with dbus communication
+  * Add wb-mqtt-nm-helper service restartig when wb-connection-manager restarts
+  * Add some exceptions handling
+
+ -- Nikita Maslov <nikita.maslov@wirenboard.ru>  Mon, 17 Apr 2023 15:50:28 +0600
+ 
 wb-nm-helper (1.23.1-wb101) stable; urgency=medium
 
   * virtual-devices: disable state polling if NetworkManager is not running
