@@ -36,7 +36,7 @@ Depends: ${misc:Depends},
          network-manager,
          modemmanager,
          mobile-broadband-provider-info,
-         wb-configs (>= 3.15.4~~),
+         wb-configs (>= 3.16.0~~),
          nftables,
          ifmetric
 Description:  Wirenboard network configuration backend for wb-mqtt-confed.
