@@ -503,7 +503,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
         if not self.modem_manager.set_primary_sim_slot(dev_path, sim_slot):
             return None
         # After switching SIM card MM recreates device with new path
-        dev = self._wait_gsm_sim_slot_to_change(con, dev_path, str(sim_slot), DEVICE_WAITING_TIMEOUT)
+        dev = self._wait_gsm_sim_slot_to_change(con, str(sim_slot), DEVICE_WAITING_TIMEOUT)
         if not dev:
             logging.debug("Failed to get new device after changing SIM slot")
             return None
@@ -526,19 +526,19 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
             logging.debug("We deactivated non-current connection")
 
     def _wait_gsm_sim_slot_to_change(
-        self, con: NMConnection, dev_path: str, sim_slot: str, timeout: datetime.timedelta
+        self, con: NMConnection, sim_slot: str, timeout: datetime.timedelta
     ) -> Optional[NMDevice]:
-        logging.debug("Waiting for GSM device path %s to change", dev_path)
+        logging.debug("Waiting for SIM slot to change")
         start = datetime.datetime.now()
         while start + timeout >= datetime.datetime.now():
             try:
                 dev = self.network_manager.find_device_for_connection(con)
                 if not dev:
                     continue
-                new_dev_path = dev.get_property("Udi")
-                logging.debug("Current device path: %s", new_dev_path)
-                if dev_path != new_dev_path:
-                    logging.debug("Device path changed from %s to %s", dev_path, new_dev_path)
+                dev_path = dev.get_property("Udi")
+                current_sim_slot = self.modem_manager.get_primary_sim_slot(dev_path)
+                logging.debug("Current sim slot: %s", current_sim_slot)
+                if str(sim_slot) == str(current_sim_slot):
                     logging.info("Changed SIM slot to %s to check connectivity", sim_slot)
                     return dev
             except dbus.exceptions.DBusException as ex:
