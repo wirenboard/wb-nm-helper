@@ -1534,7 +1534,7 @@
             "None": "Нет",
             "Shared to other computers": "Общий с другими компьютерами",
             "Type": "Тип",
-            "Share Internet connection": "Разрешить доступ в Интернет",
+            "Share Internet connection": "Раздавать интернет",
             "Deny GSM/Wi-Fi connections switching period (seconds)": "Не переключать SIM-слот или Wi-Fi-сеть в течение этого периода (секунды)",
             "After successfully establishing a modem/Wi-Fi connection, do not try changing SIM slot or change to another Wi-Fi network for this amount of seconds": "После успешного подключения через модем или Wi-Fi, не пытаться менять SIM-слот или Wi-Fi-соединение даже на более приоритетные в течение этого количества секунд",
             "DNS servers": "DNS-серверы",
