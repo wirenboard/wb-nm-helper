@@ -1,3 +1,9 @@
+wb-nm-helper (1.27.0) stable; urgency=medium
+
+  * Get wb-internal modem via specific tag
+
+ -- Vladimir Romanov <v.romanov@wirenboard.com>  Fri, 05 May 2023 11:45:12 +0400
+
 wb-nm-helper (1.26.0) stable; urgency=medium
 
   * Add wifi encryption algorithm configuration
