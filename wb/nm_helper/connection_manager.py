@@ -463,6 +463,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
         else:
             logging.debug("No active gsm connection detected")
         sim_slot = con.get_sim_slot()
+        logging.debug("SIM slot for connection %s is %s", con.get_connection_id(), sim_slot)
         current_sim_slot = self.modem_manager.get_primary_sim_slot(dev_path)
         logging.debug("Current SIM slot: %s, new SIM slot: %s", str(current_sim_slot), str(sim_slot))
         if sim_slot not in (NM_SETTINGS_GSM_SIM_SLOT_DEFAULT, current_sim_slot):
@@ -501,6 +502,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
     def change_modem_sim_slot(self, dev: NMDevice, con: NMConnection, sim_slot: str) -> Optional[NMDevice]:
         dev_path = dev.get_property("Udi")
         if not self.modem_manager.set_primary_sim_slot(dev_path, sim_slot):
+            logging.debug("It seems that SIM slot was not changed by MM")
             return None
         # After switching SIM card MM recreates device with new path
         dev = self._wait_gsm_sim_slot_to_change(con, str(sim_slot), DEVICE_WAITING_TIMEOUT)

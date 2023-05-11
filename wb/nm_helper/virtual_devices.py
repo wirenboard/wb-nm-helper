@@ -100,7 +100,6 @@ class Mediator(ABC):
 
 
 class ConnectionsMediator(Mediator):
-
     DEVICES_UUID_SUBSCRIBE_TOPIC = "/devices/+/controls/UUID"
 
     def __init__(self, broker) -> None:
@@ -432,7 +431,6 @@ class ConnectivityUpdater:
         )
 
     async def _run_async_event(self, event: Event):
-
         logging.debug("Execute event %s %s", event.number, event.type.name)
         self._network_manager = NetworkManager()
 

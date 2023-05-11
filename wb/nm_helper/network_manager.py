@@ -155,6 +155,9 @@ class NMConnection(NMObject, INMConnection):
     def __init__(self, path: str, bus: dbus.SystemBus):
         NMObject.__init__(self, path, bus, "org.freedesktop.NetworkManager.Settings.Connection")
 
+    def get_connection_id(self) -> str:
+        return str(self.get_settings()["connection"]["id"])
+
     def get_settings(self):
         return self.get_iface().GetSettings()
 
@@ -208,7 +211,7 @@ class NMActiveConnection(NMObject, INMActiveConnection):
         return res
 
     def get_connection_id(self) -> str:
-        return str(self.get_connection().get_settings()["connection"]["id"])
+        return self.get_connection().get_connection_id()
 
     def get_connection_type(self) -> str:
         return self.get_connection().get_connection_type()

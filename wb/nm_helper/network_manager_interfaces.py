@@ -70,6 +70,10 @@ class INetworkManager(INMObject):
 
 class INMConnection(INMObject):
     @abstractmethod
+    def get_connection_id(self) -> str:
+        pass
+
+    @abstractmethod
     def get_settings(self):
         pass
 
