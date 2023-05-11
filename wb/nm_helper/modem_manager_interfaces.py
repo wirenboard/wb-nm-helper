@@ -4,7 +4,11 @@ from abc import ABC, abstractmethod
 class IModemManager(ABC):
     @property
     @abstractmethod
-    def default_modem_path(self):
+    def wb_specific_property(self):
+        pass
+
+    @abstractmethod
+    def get_modem_prop(self, modem_iface, propname):
         pass
 
     @abstractmethod

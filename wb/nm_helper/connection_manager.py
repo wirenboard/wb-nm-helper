@@ -465,7 +465,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
         logging.debug("Current SIM slot: %s, new SIM slot: %s", str(current_sim_slot), str(sim_slot))
         if sim_slot not in (NM_SETTINGS_GSM_SIM_SLOT_DEFAULT, current_sim_slot):
             logging.debug("Will change SIM slot to %s", sim_slot)
-            if not self.change_modem_sim_slot(dev, con, sim_slot):
+            if not self.change_modem_sim_slot(con, sim_slot):
                 return None
         active_connection = self.network_manager.activate_connection(con, dev)
         if self._wait_connection_activation(active_connection, self.timeouts.connection_activation_timeout):
@@ -495,7 +495,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
         self.network_manager.deactivate_connection(active_cn)
         self._wait_connection_deactivation(active_cn, CONNECTION_DEACTIVATION_TIMEOUT)
 
-    def change_modem_sim_slot(self, dev: NMDevice, con: NMConnection, sim_slot: str) -> bool:
+    def change_modem_sim_slot(self, con: NMConnection, sim_slot: str) -> bool:
         if not self.modem_manager.set_primary_sim_slot(sim_slot):
             return False
         return self._is_sim_slot_settled_properly(con, str(sim_slot), DEVICE_WAITING_TIMEOUT)
@@ -517,7 +517,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
     def _is_sim_slot_settled_properly(
         self, con: NMConnection, sim_slot: str, timeout: datetime.timedelta
     ) -> bool:
-        new_dev_path = ''
+        new_dev_path = ""
         start = datetime.datetime.now()
         while start + timeout >= datetime.datetime.now():
             try:
@@ -526,7 +526,13 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
                     continue
                 new_dev_path = dev.get_property("Udi")
                 logging.debug("Current device path: %s", new_dev_path)
-                if new_dev_path == self.modem_manager.default_modem_path:
+                modem = self.modem_manager.get_modem(new_dev_path)
+                if (
+                    self.modem_manager.get_modem_prop(
+                        modem, self.modem_manager.wb_specific_property.prop_name
+                    )
+                    == self.modem_manager.wb_specific_property.prop_value
+                ):
                     logging.info("Changed SIM slot to %s to check connectivity", sim_slot)
                     return True
             except dbus.exceptions.DBusException as ex:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections import namedtuple
 from typing import List, Optional
 
 from wb.nm_helper.modem_manager_interfaces import IModemManager
@@ -385,18 +386,19 @@ class FakeNetworkManager(INetworkManager):  # pylint: disable=too-many-public-me
 class FakeModemManager(IModemManager):
     def __init__(self, net_man):
         self.net_man = net_man
+        self.fake_modem_path = "/fake/Devices/ttyUSB1/2"
 
     @property
-    def default_modem_path(self):
-        return "/fake/Devices/ttyUSB1/2"
+    def wb_specific_property(self):
+        return namedtuple("device_property", "prop_name prop_value")(prop_name="Device", prop_value="wbc")
 
     def get_primary_sim_slot(self, modem_path=None):
-        modem_path = modem_path or self.default_modem_path
+        modem_path = modem_path or self.fake_modem_path
         dev_name = modem_path.split("/")[3]
         return self.net_man.devices.get(dev_name).get("sim_slot")
 
     def set_primary_sim_slot(self, slot_index, modem_path=None):
-        modem_path = modem_path or self.default_modem_path
+        modem_path = modem_path or self.fake_modem_path
         dev_name = modem_path.split("/")[3]
         device = FakeNMDevice(dev_name, self.net_man)
         for data in self.net_man.connections.values():
@@ -414,3 +416,8 @@ class FakeModemManager(IModemManager):
 
     def get_modem(self, modem_path=None):
         pass
+
+    def get_modem_prop(self, modem_iface, propname):
+        if propname == self.wb_specific_property.prop_name:
+            return self.wb_specific_property.prop_value
+        return None
