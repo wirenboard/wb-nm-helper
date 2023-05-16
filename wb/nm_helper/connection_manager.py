@@ -1,4 +1,5 @@
 import datetime
+import io
 import json
 import logging
 import signal
@@ -50,6 +51,7 @@ class ImproperlyConfigured(ValueError):
     pass
 
 
+# covered by proper unit tests ok
 class ConnectionTier:  # pylint: disable=R0903
     def __init__(self, name: str, priority: int, connections: List):
         self.name = name
@@ -63,6 +65,7 @@ class ConnectionTier:  # pylint: disable=R0903
         self.connections = new_connections
 
 
+# covered by proper unit tests ok
 class ConfigFile:
     def __init__(self) -> None:
         self.debug = False
@@ -123,6 +126,7 @@ class ConfigFile:
         return False
 
 
+# covered by proper unit tests ok
 class NetworkAwareConfigFile(ConfigFile):
     def __init__(self, network_manager: INetworkManager) -> None:
         super().__init__()
@@ -158,7 +162,7 @@ class NetworkAwareConfigFile(ConfigFile):
             never_default = item.get_settings().get("ipv4").get("never-default")
             connection_type = item.get_connection_type()
             device_type = connection_type_to_device_type(connection_type)
-            connection_id = str(item.get_settings().get("connection").get("id"))
+            connection_id = item.get_connection_id()
             unmanaged = self.is_connection_unmanaged(item)
             if not autoconnect or never_default or unmanaged:
                 continue
@@ -180,7 +184,7 @@ class NetworkAwareConfigFile(ConfigFile):
 
     def is_connection_unmanaged(self, con):
         assert con, "Connection cannot be empty"
-        cn_id = con.get_settings().get("connection").get("id")
+        cn_id = con.get_connection_id()
         device = self.network_manager.find_device_for_connection(con)
         if not device:
             logging.warning("No device for connection %s found, assuming unmnaged", cn_id)
@@ -194,6 +198,7 @@ class NetworkAwareConfigFile(ConfigFile):
         return True
 
 
+# covered by proper unit tests ok
 class TimeoutManager:
     def __init__(self, config: ConfigFile) -> None:
         self.config: ConfigFile = config
@@ -253,7 +258,7 @@ def read_config_json():
 
 
 def curl_get(iface: str, url: str) -> str:
-    buffer = BytesIO()
+    buffer = io.BytesIO()
     curl = pycurl.Curl()
     curl.setopt(curl.URL, url)
     curl.setopt(curl.WRITEDATA, buffer)
@@ -315,6 +320,41 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
             self.deactivate_lesser_gsm_connections(new_connection, new_tier)
             self.apply_metrics()
 
+    def check_current_connection(self):
+        logging.debug("checking currently active connection %s", self.current_connection)
+        try:
+            active_cn = self.find_activated_connection(self.current_connection)
+            if active_cn and check_connectivity(active_cn, self.config):
+                logging.debug(
+                    "Current connection %s is most preferred and has connectivity",
+                    self.current_connection,
+                )
+                return True
+        except dbus.exceptions.DBusException as ex:
+            self._log_connection_check_error(self.current_connection, ex)
+        return False
+
+    def check_non_current_connection(self, tier, cn_id):
+        if (
+            self.current_tier
+            and tier.priority == self.current_tier.priority
+            and cn_id == self.current_connection
+        ):
+            logging.debug("current connection %s was already checked before, skipping", cn_id)
+            return False
+        logging.debug("checking connection %s", cn_id)
+        try:
+            active_cn = self.find_activated_connection(cn_id)
+            if not active_cn and self.ok_to_activate_connection(cn_id):
+                active_cn = self.activate_connection(cn_id)
+                self.timeouts.touch_connection_retry_timeout(cn_id)
+            if active_cn and check_connectivity(active_cn, self.config):
+                return True
+        except dbus.exceptions.DBusException as ex:
+            self._log_connection_check_error(cn_id, ex)
+            self.timeouts.touch_connection_retry_timeout(cn_id)
+        return False
+
     def check(self) -> (ConnectionTier, str, bool):
         logging.debug("check(): starting iteration")
         self.timeouts.debug_log_timeouts()
@@ -322,38 +362,12 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
             logging.debug("checking tier %s", tier.name)
             # first, if tier is current, check current connection
             if self.current_tier and self.current_connection and self.current_tier.priority == tier.priority:
-                logging.debug("checking currently active connection %s", self.current_connection)
-                try:
-                    active_cn = self.find_activated_connection(self.current_connection)
-                    if active_cn and check_connectivity(active_cn, self.config):
-                        logging.debug(
-                            "Current connection %s is most preferred and has connectivity",
-                            self.current_connection,
-                        )
-                        return self.current_tier, self.current_connection
-                except dbus.exceptions.DBusException as ex:
-                    self._log_connection_check_error(self.current_connection, ex)
+                if self.check_current_connection():
+                    return self.current_tier, self.current_connection
             # second, iterate all connections in tier
             for cn_id in tier.connections:
-                if (
-                    self.current_tier
-                    and tier.priority == self.current_tier.priority
-                    and cn_id == self.current_connection
-                ):
-                    logging.debug("current connection %s was already checked above, skipping", cn_id)
-                    continue
-                logging.debug("checking connection %s", cn_id)
-                try:
-                    active_cn = self.find_activated_connection(cn_id)
-                    if not active_cn and self.ok_to_activate_connection(cn_id):
-                        active_cn = self.activate_connection(cn_id)
-                        self.timeouts.touch_connection_retry_timeout(cn_id)
-                    if active_cn and check_connectivity(active_cn, self.config):
-                        return tier, cn_id
-                except dbus.exceptions.DBusException as ex:
-                    self._log_connection_check_error(cn_id, ex)
-                    self.timeouts.touch_connection_retry_timeout(cn_id)
-
+                if self.check_non_current_connection(tier, cn_id):
+                    return tier, cn_id
         logging.debug("No working connections found at all")
         return self.current_tier, self.current_connection
 
@@ -384,21 +398,12 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
             return None
         return active_cn
 
-    def activate_connection(self, cn_id: str) -> Optional[NMActiveConnection]:
-        logging.debug("Trying to activate connection %s", cn_id)
+    def _activate_connection_with_type(self, dev, con, device_type, connection_type, cn_id):
         activation_fns = {
             NM_DEVICE_TYPE_ETHERNET: self._activate_generic_connection,
             NM_DEVICE_TYPE_WIFI: self._activate_wifi_connection,
             NM_DEVICE_TYPE_MODEM: self._activate_gsm_connection,
         }
-        con = self.find_connection(cn_id)
-        if not con:
-            return None
-        dev = self._find_device_for_connection(con, cn_id)
-        if not dev:
-            return None
-        connection_type = con.get_connection_type()
-        device_type = connection_type_to_device_type(connection_type)
         activate_fn = activation_fns.get(device_type)
         if not activate_fn:
             extra = {
@@ -413,6 +418,18 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
         if con:
             logging.debug("Activated connection %s", cn_id)
         return con
+
+    def activate_connection(self, cn_id: str) -> Optional[NMActiveConnection]:
+        logging.debug("Trying to activate connection %s", cn_id)
+        con = self.find_connection(cn_id)
+        if not con:
+            return None
+        dev = self._find_device_for_connection(con, cn_id)
+        if not dev:
+            return None
+        connection_type = con.get_connection_type()
+        device_type = connection_type_to_device_type(connection_type)
+        return self._activate_connection_with_type(dev, con, device_type, connection_type, cn_id)
 
     def find_connection(self, cn_id):
         con = self.network_manager.find_connection(cn_id)
@@ -436,11 +453,10 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
             return active_connection
         return None
 
-    @staticmethod
-    def _wait_generic_connection_activation(con: NMActiveConnection, timeout) -> bool:
+    def _wait_generic_connection_activation(self, con: NMActiveConnection, timeout) -> bool:
         logging.debug("Waiting for connection activation (%s)", con.get_connection_id())
-        start = datetime.datetime.now()
-        while start + timeout >= datetime.datetime.now():
+        start = self.now()
+        while start + timeout >= self.now():
             current_state = con.get_property("State")
             if current_state == NM_ACTIVE_CONNECTION_STATE_ACTIVATED:
                 return True
@@ -452,9 +468,19 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
             time.sleep(1)
         return False
 
-    def _activate_gsm_connection(self, dev: NMDevice, con: NMConnection) -> Optional[NMActiveConnection]:
+    def apply_sim_slot(self, dev, con, sim_slot):
         dev_path = dev.get_property("Udi")
         logging.debug('Device path "%s"', dev_path)
+        logging.debug("SIM slot for connection %s is %s", con.get_connection_id(), sim_slot)
+        current_sim_slot = self.modem_manager.get_primary_sim_slot(dev_path)
+        logging.debug("Current SIM slot: %s, new SIM slot: %s", str(current_sim_slot), str(sim_slot))
+        if sim_slot in (NM_SETTINGS_GSM_SIM_SLOT_DEFAULT, current_sim_slot):
+            logging.debug("No need to change SIM slot")
+            return dev
+        logging.debug("Will change SIM slot to %s", sim_slot)
+        return self.change_modem_sim_slot(dev, con, sim_slot)
+
+    def _activate_gsm_connection(self, dev: NMDevice, con: NMConnection) -> Optional[NMActiveConnection]:
         # Switching SIM card while other connection is active can cause NM restart
         # So deactivate active connection if it exists
         active_connection = dev.get_active_connection()
@@ -463,12 +489,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
         else:
             logging.debug("No active gsm connection detected")
         sim_slot = con.get_sim_slot()
-        logging.debug("SIM slot for connection %s is %s", con.get_connection_id(), sim_slot)
-        current_sim_slot = self.modem_manager.get_primary_sim_slot(dev_path)
-        logging.debug("Current SIM slot: %s, new SIM slot: %s", str(current_sim_slot), str(sim_slot))
-        if sim_slot not in (NM_SETTINGS_GSM_SIM_SLOT_DEFAULT, current_sim_slot):
-            logging.debug("Will change SIM slot to %s", sim_slot)
-            dev = self.change_modem_sim_slot(dev, con, sim_slot)
+        dev = self.apply_sim_slot(dev, con, sim_slot)
         if not dev:
             return None
         active_connection = self.network_manager.activate_connection(con, dev)
@@ -662,6 +683,9 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
             if connection_type_to_device_type(active_cn.get_connection_type()) == NM_DEVICE_TYPE_WIFI:
                 results.append(active_cn)
         return results
+
+    def now(self):
+        return datetime.datetime.now()
 
 
 def init_logging(debug: bool):
