@@ -21,6 +21,18 @@ from wb.nm_helper.connection_manager import check_connectivity
 from wb.nm_helper.network_manager import NetworkManager
 
 
+def exception_handling(func):
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except dbus.exceptions.DBusException as error:
+            raise dbus.exceptions.DBusException from error
+        except Exception as error:
+            logging.error("Unhandled error %s", error, exc_info=True)
+
+    return wrapper
+
+
 class EventLoop:
     def __init__(self):
         self._event_loop = asyncio.new_event_loop()
@@ -222,6 +234,7 @@ class ConnectionsMediator(Mediator):
 
     # Async event functions
 
+    @exception_handling
     def _common_connection_create(self, connection_path):
         if connection_path is None:
             return
@@ -232,6 +245,7 @@ class ConnectionsMediator(Mediator):
         except dbus.exceptions.DBusException:
             logging.error("Common connection %s creation failed", connection_path)
 
+    @exception_handling
     def _common_connection_switch(self, connection: Connection):
         connection_path = connection.properties["path"]
         if connection_path not in self._common_connections:
@@ -281,11 +295,13 @@ class ConnectionsMediator(Mediator):
 
         connection.set_updown_button_readonly(False)
 
+    @exception_handling
     def _common_connection_remove(self, connection_path):
         if connection_path is not None and connection_path in self._common_connections:
             self._common_connections[connection_path].stop()
             self._common_connections.pop(connection_path)
 
+    @exception_handling
     def _active_connections_list_update(self, active_connections_paths):
         if active_connections_paths is None:
             return
@@ -324,6 +340,7 @@ class ConnectionsMediator(Mediator):
 
             self._active_connections.pop(old_active_path)
 
+    @exception_handling
     def _active_connection_connectivity_updated(self, connection: Connection, connectivity):
         if connection is None or connectivity is None:
             return
@@ -334,6 +351,7 @@ class ConnectionsMediator(Mediator):
             self._common_connections[connection_path].update({"connectivity": connectivity})
 
     # ActiveConnection have been updated by dbus
+    @exception_handling
     def _active_connection_properties_updated(self, connection: Connection, properties):
         if connection in self._active_connections.values():
             connection.update(properties)
@@ -347,10 +365,12 @@ class ConnectionsMediator(Mediator):
                 else:
                     self._common_connections[connection_path].update({"connectivity": False})
 
+    @exception_handling
     def _active_connection_modem_state_updated(self, connection):
         if connection in self._active_connections:
             connection.update_modem()
 
+    @exception_handling
     def _common_connection_check_uuid(self, uuid):
         if uuid is None:
             return
@@ -365,6 +385,7 @@ class ConnectionsMediator(Mediator):
             logging.info("Found old virtual device for %s connection uuid, remove it", uuid)
             CommonConnection.remove_connection_by_uuid(self._mqtt_client, uuid)
 
+    @exception_handling
     def _reload_connectivity(self):
         for active_connection in self._active_connections:
             self._connectivity_updater.update(active_connection)
