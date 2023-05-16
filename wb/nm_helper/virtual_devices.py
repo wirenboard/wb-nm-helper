@@ -22,6 +22,7 @@ from wb.nm_helper.network_manager import NetworkManager
 
 
 def exception_handling(func):
+    # pylint: disable=broad-exception-caught
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
@@ -29,6 +30,7 @@ def exception_handling(func):
             raise dbus.exceptions.DBusException from error
         except Exception as error:
             logging.error("Unhandled error %s", error, exc_info=True)
+            raise
 
     return wrapper
 
@@ -112,6 +114,7 @@ class Mediator(ABC):
 
 
 class ConnectionsMediator(Mediator):
+    # pylint: disable=too-many-instance-attributes
     DEVICES_UUID_SUBSCRIBE_TOPIC = "/devices/+/controls/UUID"
 
     def __init__(self, broker) -> None:
