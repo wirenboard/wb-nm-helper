@@ -385,7 +385,7 @@ class ConnectionsMediator(Mediator):
 
     @exception_handling
     def _reload_connectivity(self):
-        for active_connection in self._active_connections:
+        for active_connection in self._active_connections.values():
             self._connectivity_updater.update(active_connection)
 
     async def _run_async_event(self, event: Event):
@@ -438,8 +438,8 @@ class ConnectivityUpdater:
     def stop(self):
         self._event_loop.stop()
 
-    def update(self, connection: Connection):
-        name = connection.properties.get("name")
+    def update(self, active_connection: Connection):
+        name = active_connection.properties.get("name")
         if name is None:
             return
 
@@ -447,19 +447,19 @@ class ConnectivityUpdater:
             self._futures[name].cancel()
 
         self._futures[name] = self._event_loop.run_coroutine_threadsafe(
-            self._run_async_event(Event(EventType.CONNECTIVITY_REQUEST, connection=connection))
+            self._run_async_event(Event(EventType.CONNECTIVITY_REQUEST, connection=active_connection))
         )
 
     async def _run_async_event(self, event: Event):
         logging.debug("Execute event %s %s", event.number, event.type.name)
         self._network_manager = NetworkManager()
 
-        connection = event.kwargs.get("connection")
-        if connection is None:
+        active_connection = event.kwargs.get("connection")
+        if active_connection is None:
             return
 
         try:
-            name = connection.properties.get("name")
+            name = active_connection.properties.get("name")
             active_connection = self._network_manager.get_active_connections().get(name)
             if active_connection is not None:
                 connectivity = check_connectivity(active_connection)
@@ -467,12 +467,12 @@ class ConnectivityUpdater:
                 self._mediator.new_event(
                     Event(
                         EventType.ACTIVE_CONNECTIVITY_UPDATED,
-                        connection=connection,
+                        connection=active_connection,
                         connectivity=connectivity,
                     )
                 )
         except dbus.exceptions.DBusException:
-            logging.error("Unable to read connectivity for %s", connection.properties.get("path"))
+            logging.error("Unable to read connectivity for %s", active_connection.properties.get("path"))
 
 
 class CommonConnection(Connection):
