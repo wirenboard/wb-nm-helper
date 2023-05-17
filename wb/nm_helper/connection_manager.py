@@ -6,7 +6,6 @@ import signal
 import subprocess
 import sys
 import time
-from io import BytesIO
 from typing import Dict, Iterator, List, Optional
 
 import dbus
@@ -51,7 +50,6 @@ class ImproperlyConfigured(ValueError):
     pass
 
 
-# covered by proper unit tests ok
 class ConnectionTier:  # pylint: disable=R0903
     def __init__(self, name: str, priority: int, connections: List):
         self.name = name
@@ -65,7 +63,6 @@ class ConnectionTier:  # pylint: disable=R0903
         self.connections = new_connections
 
 
-# covered by proper unit tests ok
 class ConfigFile:
     def __init__(self) -> None:
         self.debug = False
@@ -82,7 +79,8 @@ class ConfigFile:
         self.connectivity_check_url = self.get_connectivity_check_url(cfg)
         self.connectivity_check_payload = self.get_connectivity_check_payload(cfg)
 
-    def get_tiers(self, cfg: Dict) -> List[ConnectionTier]:
+    @staticmethod
+    def get_tiers(cfg: Dict) -> List[ConnectionTier]:
         tiers = []
         for name, level in (("high", 3), ("medium", 2), ("low", 1)):
             items = []
@@ -126,7 +124,6 @@ class ConfigFile:
         return False
 
 
-# covered by proper unit tests ok
 class NetworkAwareConfigFile(ConfigFile):
     def __init__(self, network_manager: INetworkManager) -> None:
         super().__init__()
@@ -198,7 +195,6 @@ class NetworkAwareConfigFile(ConfigFile):
         return True
 
 
-# covered by proper unit tests ok
 class TimeoutManager:
     def __init__(self, config: ConfigFile) -> None:
         self.config: ConfigFile = config
@@ -295,7 +291,7 @@ def check_connectivity(active_cn: NMActiveConnection, config: ConfigFile = None)
     return False
 
 
-class ConnectionManager:  # pylint: disable=too-many-instance-attributes
+class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable=too-many-public-methods
     def __init__(
         self,
         network_manager: INetworkManager,
@@ -398,7 +394,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
             return None
         return active_cn
 
-    def _activate_connection_with_type(self, dev, con, device_type, connection_type, cn_id):
+    def _activate_connection_with_type(self, dev, con, device_type, cn_id):
         activation_fns = {
             NM_DEVICE_TYPE_ETHERNET: self._activate_generic_connection,
             NM_DEVICE_TYPE_WIFI: self._activate_wifi_connection,
@@ -411,7 +407,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
                 "rate_limit_timeout": LOG_RATE_LIMIT_DEFAULT,
             }
             logging.warning(
-                'Activation function for connection "%s" (%s) not found', cn_id, connection_type, extra=extra
+                'Activation function for connection "%s" (%s) not found', cn_id, device_type, extra=extra
             )
             return None
         con = activate_fn(dev, con)
@@ -429,7 +425,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
             return None
         connection_type = con.get_connection_type()
         device_type = connection_type_to_device_type(connection_type)
-        return self._activate_connection_with_type(dev, con, device_type, connection_type, cn_id)
+        return self._activate_connection_with_type(dev, con, device_type, cn_id)
 
     def find_connection(self, cn_id):
         con = self.network_manager.find_connection(cn_id)
@@ -498,7 +494,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
         return None
 
     def _activate_wifi_connection(self, dev: NMDevice, con: NMConnection) -> Optional[NMActiveConnection]:
-        # Deactivate other active wifi connection if it exists
+        # Deactivate other active Wi-Fi connection if it exists
         active_wifi_connections = self._get_active_wifi_connections()
         for active_connection in active_wifi_connections:
             logging.debug(
@@ -568,13 +564,11 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
         logging.debug("Timeout reached while trying to change SIM slot")
         return None
 
-    @staticmethod
-    def _wait_connection_activation(con: NMActiveConnection, timeout) -> bool:
+    def _wait_connection_activation(self, con: NMActiveConnection, timeout) -> bool:
         logging.debug("Waiting for connection activation (%s)", con.get_connection_id())
-        start = datetime.datetime.now()
-        while start + timeout >= datetime.datetime.now():
-            current_state = con.get_property("State")
-            if current_state == NM_ACTIVE_CONNECTION_STATE_ACTIVATED:
+        start = self.now()
+        while start + timeout >= self.now():
+            if con.get_property("State") == NM_ACTIVE_CONNECTION_STATE_ACTIVATED:
                 return True
             time.sleep(1)
         return False
@@ -584,8 +578,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
         start = self.now()
         while start + timeout >= self.now():
             try:
-                current_state = con.get_property("State")
-                if current_state == NM_ACTIVE_CONNECTION_STATE_DEACTIVATED:
+                if con.get_property("State") == NM_ACTIVE_CONNECTION_STATE_DEACTIVATED:
                     return
             except dbus.exceptions.DBusException as ex:
                 if ex.get_dbus_name() == "org.freedesktop.DBus.Error.UnknownMethod":
@@ -680,7 +673,8 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
                 results.append(active_cn)
         return results
 
-    def now(self):
+    @staticmethod
+    def now():
         return datetime.datetime.now()
 
 
@@ -731,6 +725,7 @@ def main():
             time.sleep(CHECK_PERIOD.total_seconds())
     else:
         logging.info("Nothing to manage")
+        return 0
 
 
 if __name__ == "__main__":
