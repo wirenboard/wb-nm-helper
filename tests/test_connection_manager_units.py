@@ -22,6 +22,7 @@ from wb.nm_helper.network_manager import (
 
 # pylint: disable=protected-access disable=attribute-defined-outside-init disable=too-few-public-methods
 # pylint: disable=no-member disable=unnecessary-dunder-call disable=too-many-public-methods
+# pylint: disable=duplicate-code
 
 # DUMMY CLASSES
 
