@@ -63,7 +63,7 @@ class ConnectionTier:  # pylint: disable=R0903
         self.connections = new_connections
 
 
-class ConfigFile:
+class ConfigFile:  # pylint: disable=too-many-instance-attributes
     def __init__(self) -> None:
         self.debug = False
         self.tiers: List[ConnectionTier] = []
@@ -195,7 +195,7 @@ class NetworkAwareConfigFile(ConfigFile):
         return True
 
 
-class TimeoutManager:
+class TimeoutManager:  # pylint: disable=too-many-instance-attributes
     def __init__(self, config: ConfigFile) -> None:
         self.config: ConfigFile = config
         self.connection_retry_timeouts = {}
