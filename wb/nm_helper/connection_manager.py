@@ -529,9 +529,6 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
         dev = self._wait_gsm_sim_slot_to_change(con, str(sim_slot), DEVICE_WAITING_TIMEOUT)
         if not dev:
             logging.debug("Failed to get new device after changing SIM slot")
-            return None
-        dev_path = dev.get_property("Udi")
-        logging.debug('Device path after SIM switching "%s"', dev_path)
         return dev
 
     def deactivate_current_gsm_connection(self, active_connection):
@@ -552,8 +549,8 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
         self, con: NMConnection, sim_slot: str, timeout: datetime.timedelta
     ) -> Optional[NMDevice]:
         logging.debug("Waiting for SIM slot to change")
-        start = datetime.datetime.now()
-        while start + timeout >= datetime.datetime.now():
+        start = self.now()
+        while start + timeout >= self.now():
             try:
                 dev = self.network_manager.find_device_for_connection(con)
                 if not dev:
@@ -582,11 +579,10 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes
             time.sleep(1)
         return False
 
-    @staticmethod
-    def _wait_connection_deactivation(con: NMActiveConnection, timeout) -> None:
+    def _wait_connection_deactivation(self, con: NMActiveConnection, timeout) -> None:
         logging.debug("Waiting for connection deactivation (%s)", con.get_connection_id())
-        start = datetime.datetime.now()
-        while start + timeout >= datetime.datetime.now():
+        start = self.now()
+        while start + timeout >= self.now():
             try:
                 current_state = con.get_property("State")
                 if current_state == NM_ACTIVE_CONNECTION_STATE_DEACTIVATED:
@@ -707,7 +703,7 @@ def main():
         json.decoder.JSONDecodeError,
     ) as ex:
         logging.error("Loading %s failed: %s", CONFIG_FILE, ex)
-        sys.exit(EXIT_NOT_CONFIGURED)
+        return EXIT_NOT_CONFIGURED
 
     init_logging(cfg_json.get("debug", False))  # must be initialized before NetworkAwareConfigFile
 
@@ -716,7 +712,7 @@ def main():
         config.load_config(cfg=cfg_json)
     except ImproperlyConfigured as ex:
         logging.error("Configuration error: %s", ex)
-        sys.exit(EXIT_NOT_CONFIGURED)
+        return EXIT_NOT_CONFIGURED
 
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
@@ -738,4 +734,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())  # pragma: no cover
