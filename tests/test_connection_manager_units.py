@@ -1,3 +1,6 @@
+# pylint: disable=duplicate-code
+# pylint: disable=protected-access disable=attribute-defined-outside-init disable=too-few-public-methods
+# pylint: disable=no-member disable=unnecessary-dunder-call disable=too-many-public-methods
 import datetime
 import importlib
 import io
@@ -19,10 +22,6 @@ from wb.nm_helper.network_manager import (
     NM_DEVICE_TYPE_MODEM,
     NM_DEVICE_TYPE_WIFI,
 )
-
-# pylint: disable=protected-access disable=attribute-defined-outside-init disable=too-few-public-methods
-# pylint: disable=no-member disable=unnecessary-dunder-call disable=too-many-public-methods
-# pylint: disable=duplicate-code
 
 # DUMMY CLASSES
 
