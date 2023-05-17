@@ -460,9 +460,9 @@ class ConnectivityUpdater:
 
         try:
             name = active_connection.properties.get("name")
-            active_connection = self._network_manager.get_active_connections().get(name)
-            if active_connection is not None:
-                connectivity = check_connectivity(active_connection)
+            nm_active_connection = self._network_manager.get_active_connections().get(name)
+            if nm_active_connection is not None:
+                connectivity = check_connectivity(nm_active_connection)
 
                 self._mediator.new_event(
                     Event(
