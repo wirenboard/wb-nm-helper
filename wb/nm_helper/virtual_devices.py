@@ -176,6 +176,7 @@ class ConnectionsMediator(Mediator):
             "org.freedesktop.DBus.Properties",
             "org.freedesktop.NetworkManager",
             "/org/freedesktop/NetworkManager",
+            sender_keyword="sender",
         )
 
     def _create_common_connections(self):
@@ -226,9 +227,9 @@ class ConnectionsMediator(Mediator):
     def _common_connection_removed_handler(self, *_, **kwargs):
         self.new_event(Event(EventType.COMMON_REMOVE, path=kwargs["path"]))
 
-    def _active_list_update_handler(self, *args, **_):
+    def _active_list_update_handler(self, *args, **kwargs):
         updated_properties = args[1]
-        if "ActiveConnections" in updated_properties:
+        if kwargs["sender"] in self._bus.list_names() and "ActiveConnections" in updated_properties:
             self.new_event(
                 Event(
                     EventType.ACTIVE_LIST_UPDATE,
@@ -237,6 +238,14 @@ class ConnectionsMediator(Mediator):
             )
 
     # Async event functions
+
+    def _update_connectivity(self, active_connection: Connection):
+        common_connection = self._connections_matching[active_connection]
+
+        if active_connection.properties["state"] == ConnectionState.ACTIVATED:
+            self._connectivity_updater.update(active_connection)
+        else:
+            common_connection.update({"connectivity": False})
 
     @exception_handling
     def _common_connection_create(self, connection_path):
@@ -316,12 +325,15 @@ class ConnectionsMediator(Mediator):
             try:
                 new_active_connection = ActiveConnection(self, self._bus, new_active_path)
                 common_connection_path = new_active_connection.run()
-                common_connection = self._common_connections[common_connection_path]
-                common_connection.update(new_active_connection.properties)
-                self._connectivity_updater.update(new_active_connection)
 
-                self._active_connections[new_active_path] = new_active_connection
-                self._connections_matching[new_active_connection] = common_connection
+                if common_connection_path in self._common_connections:
+                    common_connection = self._common_connections[common_connection_path]
+                    common_connection.update(new_active_connection.properties)
+
+                    self._active_connections[new_active_path] = new_active_connection
+                    self._connections_matching[new_active_connection] = common_connection
+
+                    self._update_connectivity(new_active_connection)
             except dbus.exceptions.DBusException:
                 # When connection up/down/create/remove is in process, active connections list
                 # changes very fast and it's impossible to create some temporary active connections
@@ -336,7 +348,8 @@ class ConnectionsMediator(Mediator):
             old_active_connection.stop()
 
             common_connection = self._connections_matching[old_active_connection]
-            common_connection.update(old_active_connection.properties)
+            if common_connection in self._common_connections.values():
+                common_connection.update(old_active_connection.properties)
 
             self._active_connections.pop(old_active_path)
             self._connections_matching.pop(old_active_connection)
@@ -354,14 +367,11 @@ class ConnectionsMediator(Mediator):
     def _active_connection_properties_updated(self, active_connection: Connection, properties):
         if active_connection in self._active_connections.values():
             active_connection.update(properties)
-
             common_connection = self._connections_matching[active_connection]
-            common_connection.update(active_connection.properties)
 
-            if active_connection.properties["state"] == ConnectionState.ACTIVATED:
-                self._connectivity_updater.update(active_connection)
-            else:
-                common_connection.update({"connectivity": False})
+            if common_connection in self._common_connections.values():
+                common_connection.update(active_connection.properties)
+                self._update_connectivity(active_connection)
 
     @exception_handling
     def _active_connection_modem_state_updated(self, active_connection: Connection):
@@ -386,7 +396,7 @@ class ConnectionsMediator(Mediator):
     @exception_handling
     def _reload_connectivity(self):
         for active_connection in self._active_connections.values():
-            self._connectivity_updater.update(active_connection)
+            self._update_connectivity(active_connection)
 
     async def _run_async_event(self, event: Event):
         logging.debug("Execute event %s %s", event.number, event.type.name)
