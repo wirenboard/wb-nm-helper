@@ -180,7 +180,8 @@ class NetworkAwareConfigFile(ConfigFile):
         return tiers
 
     def is_connection_unmanaged(self, con):
-        assert con, "Connection cannot be empty"
+        if not con:
+            raise ValueError("Connection cannot be empty")
         cn_id = con.get_connection_id()
         device = self.network_manager.find_device_for_connection(con)
         if not device:
@@ -419,9 +420,11 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
         logging.debug("Trying to activate connection %s", cn_id)
         con = self.find_connection(cn_id)
         if not con:
+            logging.debug("Connection %s not found", cn_id)
             return None
         dev = self._find_device_for_connection(con, cn_id)
         if not dev:
+            logging.debug("Device for connection %s not found", cn_id)
             return None
         connection_type = con.get_connection_type()
         device_type = connection_type_to_device_type(connection_type)
@@ -462,6 +465,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
                 current_state,
             )
             time.sleep(1)
+        logging.debug("Connection activation timeout (%s)", con.get_connection_id())
         return False
 
     def apply_sim_slot(self, dev, con, sim_slot):
@@ -571,6 +575,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
             if con.get_property("State") == NM_ACTIVE_CONNECTION_STATE_ACTIVATED:
                 return True
             time.sleep(1)
+        logging.debug("Timeout reached while waiting for connection activation")
         return False
 
     def _wait_connection_deactivation(self, con: NMActiveConnection, timeout) -> None:
@@ -585,6 +590,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
                     # Connection object is already removed from bus
                     return
             time.sleep(1)
+        logging.debug("Timeout reached while waiting for connection deactivation")
 
     def connection_is_gsm(self, cn_id: str) -> bool:
         con = self.network_manager.find_connection(cn_id)

@@ -1,6 +1,7 @@
-wb-nm-helper (1.26.1) stable; urgency=medium
+wb-nm-helper (1.27.0) stable; urgency=medium
 
   * Change SIM slot change method
+  * Large tests refactoring
 
  -- Aleksandr Kazadaev <aleksandr.kazadaev@wirenboard.com>  Thu, 11 May 2023 16:35:00 +0600
 

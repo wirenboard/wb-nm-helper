@@ -105,8 +105,7 @@ class ConfigFileTests(TestCase):
         self.assertEqual("", self.config.connectivity_check_url)
         self.assertEqual("", self.config.connectivity_check_payload)
 
-    def test_load_config(self):
-        # no tiers
+    def test_load_config_01_no_tiers(self):
         self.config.get_tiers = MagicMock(return_value=["DUMMY_TIERS"])
         self.config.get_connectivity_check_payload = MagicMock(return_value="DUMMY_PAYLOAD")
         self.config.get_connectivity_check_url = MagicMock(return_value="DUMMY_URL")
@@ -124,7 +123,7 @@ class ConfigFileTests(TestCase):
         self.assertEqual([call(test_config)], self.config.get_connectivity_check_url.mock_calls)
         self.assertEqual([call(test_config)], self.config.get_sticky_connection_period.mock_calls)
 
-        # with tiers
+    def test_load_config_02_with_tiers(self):
         self.config.get_tiers = MagicMock(return_value=["DUMMY_TIERS"])
         self.config.get_connectivity_check_payload = MagicMock(return_value="DUMMY_PAYLOAD")
         self.config.get_connectivity_check_url = MagicMock(return_value="DUMMY_URL")
@@ -156,19 +155,22 @@ class ConfigFileTests(TestCase):
             dummy_tier.side_effect = ["TIER1", "TIER2", "TIER3"]
             output = self.config.get_tiers(test_config)
 
+        self.assertEqual(
+            [call('high', 3, ['wb_eth0']), call('medium', 2, ['wb_eth0']), call('low', 1, ['wb_eth0'])],
+            dummy_tier.mock_calls
+        )
         self.assertEqual(["TIER1", "TIER2", "TIER3"], output)
 
-    def test_get_sticky_connection_period(self):
-        # default
+    def test_get_sticky_connection_period_01_default(self):
         output = self.config.get_sticky_connection_period({})
 
         self.assertEqual(connection_manager.DEFAULT_STICKY_CONNECTION_PERIOD, output)
 
-        # invalid
+    def test_get_sticky_connection_period_02_invalid(self):
         with self.assertRaises(connection_manager.ImproperlyConfigured):
             self.config.get_sticky_connection_period({"sticky_connection_period_s": "ABC"})
 
-        # valid
+    def test_get_sticky_connection_period_03_valid(self):
         output = self.config.get_sticky_connection_period({"sticky_connection_period_s": 13})
 
         self.assertEqual(timedelta(seconds=13), output)
@@ -344,7 +346,7 @@ class NetworkAwareConfigFileTests(TestCase):
                 NM_DEVICE_TYPE_ETHERNET,
                 NM_DEVICE_TYPE_WIFI,
                 NM_DEVICE_TYPE_MODEM,
-                31337,
+                31337,  # random invalid type
             )
             output = self.config.get_default_tiers()
 
@@ -385,7 +387,7 @@ class NetworkAwareConfigFileTests(TestCase):
         )
 
     def test_is_connection_unmanaged(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             self.config.is_connection_unmanaged(None)
 
         test_con = DummyNMConnection("dummy", {})
@@ -845,7 +847,7 @@ class ConnectionManagerTests(TestCase):
             self.con_man.check_non_current_connection.mock_calls,
         )
 
-    def test__log_connection_check_error(self):
+    def test_log_connection_check_error(self):
         with patch.object(logging, "warning") as mock_warning:
             ex = Exception("Test")
             self.con_man._log_connection_check_error("wb_eth3", ex)
