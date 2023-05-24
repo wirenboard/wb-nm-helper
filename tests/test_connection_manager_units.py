@@ -156,8 +156,8 @@ class ConfigFileTests(TestCase):
             output = self.config.get_tiers(test_config)
 
         self.assertEqual(
-            [call('high', 3, ['wb_eth0']), call('medium', 2, ['wb_eth0']), call('low', 1, ['wb_eth0'])],
-            dummy_tier.mock_calls
+            [call("high", 3, ["wb_eth0"]), call("medium", 2, ["wb_eth0"]), call("low", 1, ["wb_eth0"])],
+            dummy_tier.mock_calls,
         )
         self.assertEqual(["TIER1", "TIER2", "TIER3"], output)
 
