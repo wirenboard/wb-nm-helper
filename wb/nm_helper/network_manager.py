@@ -163,9 +163,7 @@ class NMConnection(NMObject, INMConnection):
 
     def get_sim_slot(self) -> int:
         settings = self.get_settings()
-        if "sim-slot" in settings["gsm"]:
-            return settings["gsm"]["sim-slot"]
-        return NM_SETTINGS_GSM_SIM_SLOT_DEFAULT
+        return settings.get("gsm", {}).get("sim-slot", NM_SETTINGS_GSM_SIM_SLOT_DEFAULT)
 
     def get_connection_type(self) -> str:
         return str(self.get_settings()["connection"]["type"])

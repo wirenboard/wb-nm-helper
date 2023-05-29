@@ -474,10 +474,13 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
         logging.debug("SIM slot for connection %s is %s", con.get_connection_id(), sim_slot)
         current_sim_slot = self.modem_manager.get_primary_sim_slot(dev_path)
         logging.debug("Current SIM slot: %s, new SIM slot: %s", str(current_sim_slot), str(sim_slot))
+        if not current_sim_slot:
+            logging.debug("Device %s seems to be not a WB-one", dev_path)
+            return None
         if sim_slot in (NM_SETTINGS_GSM_SIM_SLOT_DEFAULT, current_sim_slot):
             logging.debug("No need to change SIM slot")
             return dev
-        logging.debug("Will change SIM slot to %s", sim_slot)
+        logging.debug("Will change SIM slot to %s", str(sim_slot))
         return self.change_modem_sim_slot(dev, con, sim_slot)
 
     def _activate_gsm_connection(self, dev: NMDevice, con: NMConnection) -> Optional[NMActiveConnection]:
