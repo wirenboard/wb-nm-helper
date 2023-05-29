@@ -5,6 +5,12 @@ wb-nm-helper (1.27.0) stable; urgency=medium
 
  -- Aleksandr Kazadaev <aleksandr.kazadaev@wirenboard.com>  Thu, 11 May 2023 16:35:00 +0600
 
+wb-nm-helper (1.26.1) stable; urgency=medium
+
+  * Fix Russian translation
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Thu, 11 May 2023 15:57:19 +0500
+
 wb-nm-helper (1.26.0) stable; urgency=medium
 
   * Add wifi encryption algorithm configuration
