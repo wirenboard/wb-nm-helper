@@ -317,7 +317,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
             self.deactivate_lesser_gsm_connections(new_connection, new_tier)
             self.apply_metrics()
 
-    def check_current_connection(self):
+    def current_connection_has_connectivity(self):
         logging.debug("checking currently active connection %s", self.current_connection)
         try:
             active_cn = self.find_activated_connection(self.current_connection)
@@ -331,7 +331,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
             self._log_connection_check_error(self.current_connection, ex)
         return False
 
-    def check_non_current_connection(self, tier, cn_id):
+    def non_current_connection_has_connectivity(self, tier, cn_id):
         if (
             self.current_tier
             and tier.priority == self.current_tier.priority
@@ -359,11 +359,11 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
             logging.debug("checking tier %s", tier.name)
             # first, if tier is current, check current connection
             if self.current_tier and self.current_connection and self.current_tier.priority == tier.priority:
-                if self.check_current_connection():
+                if self.current_connection_has_connectivity():
                     return self.current_tier, self.current_connection
             # second, iterate all connections in tier
             for cn_id in tier.connections:
-                if self.check_non_current_connection(tier, cn_id):
+                if self.non_current_connection_has_connectivity(tier, cn_id):
                     return tier, cn_id
         logging.debug("No working connections found at all")
         return self.current_tier, self.current_connection
