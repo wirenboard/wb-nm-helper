@@ -27,6 +27,9 @@ class FakeNMError(Exception):
 
 
 class FakeNMConnection(INMConnection):
+    def get_connection_id(self) -> str:
+        return self.get_settings().get("connection").get("id")
+
     def __init__(self, name, net_man):
         self.name = name
         self.net_man = net_man

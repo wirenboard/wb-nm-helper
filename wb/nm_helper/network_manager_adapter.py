@@ -378,7 +378,7 @@ class WiFiConnection(Connection):
                 "802-11-wireless-security.pairwise", dbus.Array(["ccmp"], signature=dbus.Signature("s"))
             )
 
-    def get_encryption(self, con: NMConnection) -> (str | None):
+    def get_encryption(self, con: NMConnection) -> str | None:
         cfg = self.get_dbus_settings(con)
         if cfg.get_opt("802-11-wireless-security.pairwise") is None:
             return "Auto"
