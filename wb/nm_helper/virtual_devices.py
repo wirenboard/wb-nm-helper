@@ -600,7 +600,6 @@ class CommonConnection(Connection):
         return self._get_device_topic() + "/controls/" + control_meta.get("name", "")
 
     def _create_device(self):
-        self._mqtt_client.publish(self._get_device_topic(), self._properties.get("uuid"), retain=True)
         self._mqtt_client.publish(
             self._get_device_topic() + "/meta/name",
             "Network Connection " + self._properties.get("name"),
@@ -611,7 +610,6 @@ class CommonConnection(Connection):
     def _remove_device(self):
         self._mqtt_client.publish(self._get_device_topic() + "/meta/driver", None, retain=True)
         self._mqtt_client.publish(self._get_device_topic() + "/meta/name", None, retain=True)
-        self._mqtt_client.publish(self._get_device_topic(), None, retain=True)
 
     def _create_control(
         self,
