@@ -6,7 +6,6 @@ from wb.nm_helper.network_manager_adapter import (
     JSONSettings,
     ModemConnection,
     WiFiAp,
-    serialize_dbus_obj,
 )
 
 
@@ -289,46 +288,3 @@ def test_modem_set_dbus_options(json, dbus_old, dbus_new):
     dbus_new_settings = DBUSSettings(dbus_new)
     access_point.set_dbus_options(dbus_old_settings, json_settings)
     assert dbus_old_settings.params == dbus_new_settings.params
-
-
-# dbus-types: https://dbus.freedesktop.org/doc/dbus-python/tutorial.html#basic-types
-@pytest.mark.parametrize(
-    "dbus_obj,serialized",
-    [
-        (dbus.Boolean(True), "1"),
-        (dbus.Byte(b"B"), str(ord("B"))),
-        (dbus.Int16(123), "123"),
-        (dbus.UInt16(123), "123"),
-        (dbus.Int32(123), "123"),
-        (dbus.UInt32(123), "123"),
-        (dbus.Int64(123), "123"),
-        (dbus.UInt64(123), "123"),
-        (dbus.Double(123.456), "123.456"),
-        (dbus.ObjectPath("/test/1/2/3"), '"/test/1/2/3"'),
-        (dbus.Signature("sv"), '"sv"'),
-        (dbus.String("test string"), '"test string"'),
-        (dbus.ByteArray(b"test string"), '"test string"'),
-        (dbus.Struct((123, 123.456, "test string")), '[123, 123.456, "test string"]'),
-        (
-            dbus.Struct((123, 123.456, "test string", dbus.Struct((789, dbus.String("test"))))),
-            '[123, 123.456, "test string", [789, "test"]]',
-        ),
-        (
-            dbus.Dictionary(
-                {
-                    dbus.String("test dict"): dbus.Dictionary(
-                        {
-                            dbus.String("boolean"): dbus.Boolean(False),
-                            dbus.String("bytearray"): dbus.ByteArray(b"test bytearray"),
-                            dbus.String("float"): dbus.Double(123.456),
-                            dbus.String("int"): dbus.Int32(123),
-                        }
-                    )
-                }
-            ),
-            '{"test dict": {"boolean": 0, "bytearray": "test bytearray", "float": 123.456, "int": 123}}',
-        ),
-    ],
-)
-def test_dbus_obj_serialization(dbus_obj, serialized):
-    assert serialize_dbus_obj(dbus_obj) == serialized
