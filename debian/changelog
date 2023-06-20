@@ -1,3 +1,9 @@
+wb-nm-helper (1.27.1) stable; urgency=medium
+
+  * Fix unnecessary NetworkManager restarting after connection deletion
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Tue, 20 Jun 2023 17:03:11 +0500
+
 wb-nm-helper (1.27.0) stable; urgency=medium
 
   * Change SIM slot change method
