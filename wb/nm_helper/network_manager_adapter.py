@@ -11,7 +11,11 @@ from typing import List, TypedDict
 
 import dbus
 
-from .network_management_system import DEVICE_TYPE_ETHERNET, DEVICE_TYPE_MODEM, DEVICE_TYPE_WIFI
+from .network_management_system import (
+    DEVICE_TYPE_ETHERNET,
+    DEVICE_TYPE_MODEM,
+    DEVICE_TYPE_WIFI,
+)
 from .network_manager import (
     NM_DEVICE_TYPE_ETHERNET,
     NM_DEVICE_TYPE_MODEM,
