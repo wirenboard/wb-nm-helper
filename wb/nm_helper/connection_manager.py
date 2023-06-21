@@ -166,6 +166,9 @@ class NetworkAwareConfigFile(ConfigFile):
             if device_type == NM_DEVICE_TYPE_MODEM:
                 tiers[2].connections.append(connection_id)
             elif device_type == NM_DEVICE_TYPE_WIFI:
+                if item.get_settings("wifi", {}).get("mode") == "ap":
+                    logging.debug("Skipping AP connection %s", connection_id)
+                    continue
                 tiers[1].connections.append(connection_id)
             elif device_type == NM_DEVICE_TYPE_ETHERNET:
                 tiers[0].connections.append(connection_id)
