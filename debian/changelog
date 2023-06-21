@@ -1,3 +1,9 @@
+wb-nm-helper (1.27.1) stable; urgency=medium
+
+  * Fix bug disabling Wi-Fi AP
+
+ -- Aleksandr Kazadaev <aleksandr.kazadaev@wirenboard.com>  Wed, 21 Jun 2023 21:29:00 +0600
+
 wb-nm-helper (1.27.0) stable; urgency=medium
 
   * Change SIM slot change method
