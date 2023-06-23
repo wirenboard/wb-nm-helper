@@ -1614,21 +1614,42 @@ class ConnectionManagerTests(TestCase):
     def test_get_active_wifi_connections_02_not_empty(self):
         active_cn1 = DummyNMActiveConnection()
         active_cn2 = DummyNMActiveConnection()
+        active_cn3 = DummyNMActiveConnection()
+        cn1 = DummyNMConnection("cn1", {})
+        cn2 = DummyNMConnection("cn2", {})
+        cn3 = DummyNMConnection("cn3", {})
         self.con_man.network_manager.get_active_connections = MagicMock(
-            return_value={"dev1": active_cn1, "dev2": active_cn2}
+            return_value={"dev1": active_cn1, "dev2": active_cn2, "dev3": active_cn3}
         )
         active_cn1.get_connection_type = MagicMock(return_value="CON1")
         active_cn2.get_connection_type = MagicMock(return_value="CON2")
+        active_cn3.get_connection_type = MagicMock(return_value="CON3")
+        active_cn1.get_connection_id = MagicMock(return_value="CN1")
+        active_cn2.get_connection_id = MagicMock(return_value="CN2")
+        active_cn3.get_connection_id = MagicMock(return_value="CN3")
+        active_cn1.get_connection = MagicMock(return_value=cn1)
+        active_cn2.get_connection = MagicMock(return_value=cn2)
+        active_cn3.get_connection = MagicMock(return_value=cn3)
+        cn1.get_settings = MagicMock(return_value={"802-11-wireless": {"mode": "ap"}})
+        cn2.get_settings = MagicMock(return_value={"802-11-wireless": {"mode": "client"}})
+        cn3.get_settings = MagicMock(return_value={})
 
         with patch.object(connection_manager, "connection_type_to_device_type") as mock_ct_to_dt:
-            mock_ct_to_dt.side_effect = [NM_DEVICE_TYPE_WIFI, NM_DEVICE_TYPE_MODEM]
+            mock_ct_to_dt.side_effect = [NM_DEVICE_TYPE_WIFI, NM_DEVICE_TYPE_WIFI, NM_DEVICE_TYPE_MODEM]
             result = self.con_man._get_active_wifi_connections()
 
         self.assertEqual([call()], self.con_man.network_manager.get_active_connections.mock_calls)
         self.assertEqual([call()], active_cn1.get_connection_type.mock_calls)
         self.assertEqual([call()], active_cn2.get_connection_type.mock_calls)
-        self.assertEqual([call("CON1"), call("CON2")], mock_ct_to_dt.mock_calls)
-        self.assertEqual([active_cn1], result)
+        self.assertEqual([call()], active_cn3.get_connection_type.mock_calls)
+        self.assertEqual([call("CON1"), call("CON2"), call("CON3")], mock_ct_to_dt.mock_calls)
+        self.assertEqual([call()], active_cn1.get_connection.mock_calls)
+        self.assertEqual([call()], active_cn2.get_connection.mock_calls)
+        self.assertEqual([call()], active_cn3.get_connection.mock_calls)
+        self.assertEqual([call()], cn1.get_settings.mock_calls)
+        self.assertEqual([call()], cn2.get_settings.mock_calls)
+        self.assertEqual([call()], cn3.get_settings.mock_calls)
+        self.assertEqual([active_cn2], result)
 
     def test_cycle_loop(self):
         sample_tier = connection_manager.ConnectionTier("DUMMY_TIER", 666, ["wb-eth1"])
