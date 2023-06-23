@@ -167,15 +167,8 @@ def scan(dev: NMWirelessDevice, scan_timeout: datetime.timedelta) -> None:
     return res
 
 
-class DbusJSONEncoder(json.JSONEncoder):
-    def default(self, o):
-        if isinstance(o, (dbus.Byte, dbus.ByteArray)):
-            return o.decode("utf-8")
-        return super().default(o)
-
-
-def serialize_dbus_obj(dbus_obj) -> str:
-    return json.dumps(dbus_obj, sort_keys=True, cls=DbusJSONEncoder)
+def serialize_json_obj(obj) -> str:
+    return json.dumps(obj, sort_keys=True)
 
 
 class JSONSettings:
@@ -454,14 +447,16 @@ def apply(iface, c_handler, network_manager: NetworkManager, dry_run: bool) -> b
         return False
     if json_settings.get_opt("connection.uuid"):
         for con in network_manager.get_connections():
-            old_settings = con.get_settings()
-            dbus_settings = DBUSSettings(old_settings)
+            dbus_settings = DBUSSettings(con.get_settings())
             if dbus_settings.get_opt("connection.uuid") == json_settings.get_opt("connection.uuid"):
                 if dbus_settings.get_opt("connection.id") == json_settings.get_opt("connection.id"):
+                    old_dump = serialize_json_obj(iface)
+                    new_dump = serialize_json_obj(c_handler.get_connection(con))
+                    if old_dump == new_dump:
+                        return False
                     c_handler.set_dbus_options(dbus_settings, json_settings)
                     con.update_settings(dbus_settings.params)
-                    settings = con.get_settings()
-                    return serialize_dbus_obj(old_settings) != serialize_dbus_obj(settings)
+                    return True
                 con.delete()
                 network_manager.add_connection(c_handler.create(json_settings))
                 return False
