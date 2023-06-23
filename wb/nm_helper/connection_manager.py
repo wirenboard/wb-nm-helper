@@ -678,8 +678,17 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
     def _get_active_wifi_connections(self):
         results = []
         for active_cn in self.network_manager.get_active_connections().values():
-            if connection_type_to_device_type(active_cn.get_connection_type()) == NM_DEVICE_TYPE_WIFI:
+            device_type = connection_type_to_device_type(active_cn.get_connection_type())
+            wireless_mode = active_cn.get_connection().get_settings().get("802-11-wireless", {}).get("mode")
+            logging.debug(
+                "Connection %s is %s, wireless mode is %s",
+                active_cn.get_connection_id(),
+                device_type,
+                wireless_mode,
+            )
+            if device_type == NM_DEVICE_TYPE_WIFI and wireless_mode != "ap":
                 results.append(active_cn)
+        logging.debug("Found %s active wifi connections: %s", len(results), results)
         return results
 
     @staticmethod
