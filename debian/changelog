@@ -1,3 +1,9 @@
+wb-nm-helper (1.27.3) stable; urgency=medium
+
+  * Fix bug disabling Wi-Fi AP
+
+ -- Aleksandr Kazadaev <aleksandr.kazadaev@wirenboard.com>  Tue, 27 Jun 2023 13:57:00 +0600
+
 wb-nm-helper (1.27.2) stable; urgency=medium
 
   * Fix unnecessary NetworkManager restarting after connection deletion
