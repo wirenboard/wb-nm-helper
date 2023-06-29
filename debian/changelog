@@ -1,3 +1,9 @@
+wb-nm-helper (1.27.4) stable; urgency=medium
+
+  * Fix logging
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Wed, 28 Jun 2023 17:11:00 +0400
+
 wb-nm-helper (1.27.3) stable; urgency=medium
 
   * Fix bug disabling Wi-Fi AP

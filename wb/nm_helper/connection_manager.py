@@ -280,7 +280,7 @@ def check_connectivity(active_cn: NMActiveConnection, config: ConfigFile = None)
         config = ConfigFile()
         config.load_config(read_config_json())
     ifaces = active_cn.get_ifaces()
-    logging.debug("interfaces for %s: %s", active_cn.get_connection_id(), ifaces)
+    logging.debug("interfaces for %s: %s", active_cn.get_connection_id(), ", ".join([str(i) for i in ifaces]))
     if ifaces and ifaces[0]:
         try:
             payload = curl_get(ifaces[0], config.connectivity_check_url)
