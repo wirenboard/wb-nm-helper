@@ -63,6 +63,7 @@ class DummyCurl:
     URL = 10001
     WRITEDATA = 10002
     INTERFACE = 10003
+    HTTPHEADER = 10023
 
 
 class DummyBytesIO:
@@ -547,7 +548,7 @@ class SingleFunctionTests(TestCase):
         DummyBytesIO.getvalue = MagicMock(return_value="ЖЖЖ".encode("UTF8"))
         with patch.object(pycurl, "Curl", DummyCurl), patch.object(io, "BytesIO", DummyBytesIO):
             output = connection_manager.curl_get("dummy_if", "dummy_url")
-            self.assertEqual(5, DummyCurl.setopt.call_count)
+            self.assertEqual(6, DummyCurl.setopt.call_count)
             self.assertEqual(call(pycurl.Curl.URL, "dummy_url"), DummyCurl.setopt.mock_calls[0])
             self.assertEqual(2, len(DummyCurl.setopt.mock_calls[1].args))
             self.assertEqual(pycurl.Curl.WRITEDATA, DummyCurl.setopt.mock_calls[1].args[0])
@@ -560,6 +561,10 @@ class SingleFunctionTests(TestCase):
             self.assertEqual(
                 call(pycurl.TIMEOUT, connection_manager.CONNECTIVITY_CHECK_TIMEOUT),
                 DummyCurl.setopt.mock_calls[4],
+            )
+            self.assertEqual(
+                call(pycurl.Curl.HTTPHEADER, ["Host: dummy_url"]),
+                DummyCurl.setopt.mock_calls[5],
             )
             self.assertEqual([call()], DummyCurl.perform.mock_calls)
             self.assertEqual([call()], DummyCurl.close.mock_calls)

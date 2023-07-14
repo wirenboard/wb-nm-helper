@@ -6,6 +6,10 @@ import signal
 import subprocess
 import sys
 import time
+import pycares
+import select
+import socket
+from urllib.parse import urlparse, urlunparse
 from typing import Dict, Iterator, List, Optional
 
 import dbus
@@ -257,14 +261,75 @@ def read_config_json():
         return json.load(file)
 
 
+def wait_pycares_channel(channel):
+    start = time.monotonic_ns()
+    while time.monotonic_ns() - start < 5000000000:
+        read_fds, write_fds = channel.getsock()
+        if not read_fds and not write_fds:
+            break
+        timeout = channel.timeout()
+        if not timeout:
+            channel.process_fd(pycares.ARES_SOCKET_BAD, pycares.ARES_SOCKET_BAD)
+            continue
+        rlist, wlist, xlist = select.select(read_fds, write_fds, [], timeout)
+        for fd in rlist:
+            channel.process_fd(fd, pycares.ARES_SOCKET_BAD)
+        for fd in wlist:
+            channel.process_fd(pycares.ARES_SOCKET_BAD, fd)
+
+
+class PycaresCallback:
+    def __init__(self) -> None:
+        self.result = None
+        self.error = None
+
+    def __call__(self, result, error) -> None:
+        self.result = result
+        self.error = error
+
+
+def resolve_domain_name(name: str, iface: str) -> str:
+    channel = pycares.Channel()
+    channel.set_local_dev(iface.encode())
+    callback = PycaresCallback()
+    channel.gethostbyname(name, socket.AF_INET, callback)
+    wait_pycares_channel(channel)
+    if callback.error is None and callback.result is not None and len(callback.result.addresses) > 0:
+        logging.debug("%s resolves to %s", name, callback.result.addresses[0])
+        return callback.result.addresses[0]
+    if callback.error is not None:
+        logging.debug("Error during %s resolving: %s", name, callback.error)
+    else:
+        logging.debug("Error during %s resolving: timeout", name)
+    return None
+
+
+def get_host_name(url: str) -> str:
+    parsed_url = urlparse(url)
+    return parsed_url.hostname if parsed_url.hostname is not None else url
+
+
+def replace_host_name_by_ip(url: str, iface: str) -> str:
+    parsed_url = urlparse(url)
+    if not parsed_url.hostname:
+        return url
+    resolved_ip = resolve_domain_name(parsed_url.hostname, iface)
+    if resolved_ip is None:
+        return url
+    if parsed_url.port is not None:
+        return urlunparse(parsed_url._replace(netloc="{}:{}".format(resolved_ip, parsed_url.port)))
+    return urlunparse(parsed_url._replace(netloc=resolved_ip))
+
+
 def curl_get(iface: str, url: str) -> str:
     buffer = io.BytesIO()
     curl = pycurl.Curl()
-    curl.setopt(curl.URL, url)
+    curl.setopt(curl.URL, replace_host_name_by_ip(url, iface))
     curl.setopt(curl.WRITEDATA, buffer)
     curl.setopt(curl.INTERFACE, iface)
     curl.setopt(pycurl.CONNECTTIMEOUT, CONNECTIVITY_CHECK_TIMEOUT)
     curl.setopt(pycurl.TIMEOUT, CONNECTIVITY_CHECK_TIMEOUT)
+    curl.setopt(curl.HTTPHEADER, ["Host: {}".format(get_host_name(url))])
     curl.perform()
     curl.close()
     return buffer.getvalue().decode("UTF-8")
