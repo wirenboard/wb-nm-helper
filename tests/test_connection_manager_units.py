@@ -696,13 +696,13 @@ class SingleFunctionTests(TestCase):
         )
         self.assertEqual(
             "http://1.1.1.1/params/some",
-            connection_manager.replace_host_name_by_ip(
+            connection_manager.replace_host_name_with_ip(
                 "http://good_url.com/params/some", "wlan2", dsn_resolver_mock
             ),
         )
         self.assertEqual(
             "http://1.1.1.1:8080/params/some",
-            connection_manager.replace_host_name_by_ip(
+            connection_manager.replace_host_name_with_ip(
                 "http://good_url.com:8080/params/some", "wlan2", dsn_resolver_mock
             ),
         )
