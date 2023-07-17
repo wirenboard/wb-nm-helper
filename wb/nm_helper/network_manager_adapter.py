@@ -441,27 +441,50 @@ class ModemConnection(Connection):
             con.set_value("gsm.auto-config", True)
 
 
-def apply(iface, c_handler, network_manager: NetworkManager, dry_run: bool) -> bool:
-    json_settings = JSONSettings(iface)
-    if dry_run:
+def deactivate_connection(network_manager: NetworkManager, connection: NMConnection) -> bool:
+    try:
+        active_connection = network_manager.get_active_connections().get(connection.get_connection_id())
+        if active_connection is None:
+            return False
+        network_manager.deactivate_connection(active_connection)
+        return True
+    except dbus.exceptions.DBusException:
         return False
+
+
+def find_connection_by_uuid(json_settings: JSONSettings, network_manager: NetworkManager):
     if json_settings.get_opt("connection.uuid"):
         for con in network_manager.get_connections():
             dbus_settings = DBUSSettings(con.get_settings())
             if dbus_settings.get_opt("connection.uuid") == json_settings.get_opt("connection.uuid"):
-                if dbus_settings.get_opt("connection.id") == json_settings.get_opt("connection.id"):
-                    old_dump = serialize_json_obj(iface)
-                    new_dump = serialize_json_obj(c_handler.get_connection(con))
-                    if old_dump == new_dump:
-                        return False
-                    c_handler.set_dbus_options(dbus_settings, json_settings)
-                    con.update_settings(dbus_settings.params)
-                    return True
-                con.delete()
-                network_manager.add_connection(c_handler.create(json_settings))
-                return False
-    network_manager.add_connection(c_handler.create(json_settings))
-    return False
+                return con, dbus_settings
+    return None, None
+
+
+def apply(iface, c_handler, network_manager: NetworkManager, dry_run: bool) -> None:
+    if dry_run:
+        return
+    json_settings = JSONSettings(iface)
+    con, dbus_settings = find_connection_by_uuid(json_settings, network_manager)
+    if con is None:
+        network_manager.add_connection(c_handler.create(json_settings))
+        return
+    old_dump = serialize_json_obj(iface)
+    new_dump = serialize_json_obj(c_handler.get_connection(con))
+    if old_dump == new_dump:
+        return
+    if dbus_settings.get_opt("connection.id") != json_settings.get_opt("connection.id"):
+        con.delete()
+        network_manager.add_connection(c_handler.create(json_settings))
+        return
+    c_handler.set_dbus_options(dbus_settings, json_settings)
+    reactivate = deactivate_connection(network_manager, con)
+    con.update_settings(dbus_settings.params)
+    if reactivate:
+        try:
+            network_manager.activate_connection(con, None)
+        except dbus.exceptions.DBusException:
+            pass
 
 
 class NetworkManagerAdapter:
@@ -498,13 +521,11 @@ class NetworkManagerAdapter:
     def apply(self, interfaces, dry_run: bool) -> bool:
         if not dry_run:
             self.remove_undefined_connections(interfaces)
-        is_restart_required = False
         for iface in interfaces:
             handler = self.handlers.get(iface["type"])
             if handler is not None:
-                res = apply(iface, handler, self.network_manager, dry_run)
-                is_restart_required = True if is_restart_required else res
-        return is_restart_required
+                apply(iface, handler, self.network_manager, dry_run)
+        return False
 
     def get_connections(self):
         res = []
