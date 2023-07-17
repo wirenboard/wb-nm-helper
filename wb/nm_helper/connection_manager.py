@@ -2,17 +2,17 @@ import datetime
 import io
 import json
 import logging
+import select
 import signal
+import socket
 import subprocess
 import sys
 import time
-import pycares
-import select
-import socket
-from urllib.parse import urlparse, urlunparse
 from typing import Dict, Iterator, List, Optional
+from urllib.parse import urlparse, urlunparse
 
 import dbus
+import pycares
 import pycurl
 from dbus import DBusException
 
