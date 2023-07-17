@@ -17,6 +17,7 @@ import dbus
 import pycurl
 
 from wb.nm_helper import connection_manager
+from wb.nm_helper.dns_resolver import DomainNameResolveException, resolve_domain_name
 from wb.nm_helper.network_manager import (
     NM_DEVICE_TYPE_ETHERNET,
     NM_DEVICE_TYPE_MODEM,
@@ -542,12 +543,15 @@ class SingleFunctionTests(TestCase):
                 self.assertEqual(1, mock_load.call_count)
 
     def test_curl_get(self):
+        def dns_resolver_mock(url, iface):
+            return url
+
         DummyCurl.setopt = MagicMock()
         DummyCurl.perform = MagicMock()
         DummyCurl.close = MagicMock()
         DummyBytesIO.getvalue = MagicMock(return_value="ЖЖЖ".encode("UTF8"))
         with patch.object(pycurl, "Curl", DummyCurl), patch.object(io, "BytesIO", DummyBytesIO):
-            output = connection_manager.curl_get("dummy_if", "dummy_url")
+            output = connection_manager.curl_get("dummy_if", "dummy_url", dns_resolver_mock)
             self.assertEqual(6, DummyCurl.setopt.call_count)
             self.assertEqual(call(pycurl.Curl.URL, "dummy_url"), DummyCurl.setopt.mock_calls[0])
             self.assertEqual(2, len(DummyCurl.setopt.mock_calls[1].args))
@@ -610,9 +614,9 @@ class SingleFunctionTests(TestCase):
         self.assertEqual([call(), call(), call(), call()], dummy_active_cn.get_ifaces.mock_calls)
         self.assertEqual(
             [
-                call("dummy_iface1", "DUMMY_URL"),
-                call("dummy_iface2", "DUMMY_URL"),
-                call("dummy_iface3", "DUMMY_URL"),
+                call("dummy_iface1", "DUMMY_URL", resolve_domain_name),
+                call("dummy_iface2", "DUMMY_URL", resolve_domain_name),
+                call("dummy_iface3", "DUMMY_URL", resolve_domain_name),
             ],
             mock_curl_get.mock_calls,
         )
@@ -636,8 +640,21 @@ class SingleFunctionTests(TestCase):
         self.assertEqual([call()], dummy_active_cn.get_ifaces.mock_calls)
         self.assertEqual([], DummyConfigFile.load_config.mock_calls)
 
-        self.assertEqual([call("dummy_iface4", "NEW_DUMMY_URL")], mock_curl_get.mock_calls)
+        self.assertEqual(
+            [call("dummy_iface4", "NEW_DUMMY_URL", resolve_domain_name)], mock_curl_get.mock_calls
+        )
         self.assertEqual(True, result)
+
+    def test_check_connectivity_03_dns_resolve_error(self):
+        dummy_active_cn = DummyNMActiveConnection()
+        dummy_active_cn.get_connection_id = MagicMock()
+        dummy_active_cn.get_ifaces = MagicMock(return_value=["dummy_iface1"])
+        dummy_config = DummyConfigFile()
+
+        with patch.object(connection_manager, "curl_get") as mock_curl_get:
+            mock_curl_get.side_effect = DomainNameResolveException("timeout")
+            result = connection_manager.check_connectivity(dummy_active_cn, dummy_config)  # exception
+            self.assertEqual(False, result)
 
     def test_init_logging(self):
         logger = logging.getLogger()
@@ -666,6 +683,28 @@ class SingleFunctionTests(TestCase):
         )
         self.assertEqual(
             [call(level=logging.INFO, format=connection_manager.LOGGING_FORMAT)], mock_basic_config.mock_calls
+        )
+
+    def test_replace_host_name_by_ip(self):
+        def dsn_resolver_mock(url, iface):
+            if iface == "wlan1":
+                return url
+            return "1.1.1.1"
+
+        self.assertEqual(
+            "bad_url", connection_manager.replace_host_name_by_ip("bad_url", "wlan1", dsn_resolver_mock)
+        )
+        self.assertEqual(
+            "http://1.1.1.1/params/some",
+            connection_manager.replace_host_name_by_ip(
+                "http://good_url.com/params/some", "wlan2", dsn_resolver_mock
+            ),
+        )
+        self.assertEqual(
+            "http://1.1.1.1:8080/params/some",
+            connection_manager.replace_host_name_by_ip(
+                "http://good_url.com:8080/params/some", "wlan2", dsn_resolver_mock
+            ),
         )
 
 

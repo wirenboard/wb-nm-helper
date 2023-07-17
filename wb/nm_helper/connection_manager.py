@@ -2,9 +2,7 @@ import datetime
 import io
 import json
 import logging
-import select
 import signal
-import socket
 import subprocess
 import sys
 import time
@@ -12,10 +10,10 @@ from typing import Dict, Iterator, List, Optional
 from urllib.parse import urlparse, urlunparse
 
 import dbus
-import pycares
 import pycurl
 from dbus import DBusException
 
+from wb.nm_helper.dns_resolver import DomainNameResolveException, resolve_domain_name
 from wb.nm_helper.logging_filter import ConnectionStateFilter
 from wb.nm_helper.modem_manager import ModemManager
 from wb.nm_helper.modem_manager_interfaces import IModemManager
@@ -261,76 +259,26 @@ def read_config_json():
         return json.load(file)
 
 
-# Taken from https://github.com/saghul/pycares/blob/master/examples/cares-select.py
-def wait_pycares_channel(channel):
-    start = time.monotonic_ns()
-    while time.monotonic_ns() - start < 5000000000:
-        read_fds, write_fds = channel.getsock()
-        if not read_fds and not write_fds:
-            break
-        timeout = channel.timeout()
-        no_file_d = pycares.ARES_SOCKET_BAD  # pylint: disable=E1101
-        if not timeout:
-            channel.process_fd(no_file_d, no_file_d)
-            continue
-        rlist, wlist, _xlist = select.select(read_fds, write_fds, [], timeout)
-        for file_d in rlist:
-            channel.process_fd(file_d, no_file_d)
-        for file_d in wlist:
-            channel.process_fd(no_file_d, file_d)
-
-
-class DomainNameResolveException(Exception):
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __repr__(self):
-        return self.msg
-
-
-class PycaresCallback:  # pylint: disable=R0903
-    def __init__(self) -> None:
-        self.result = None
-        self.error = None
-
-    def __call__(self, result, error) -> None:
-        self.result = result
-        self.error = error
-
-
-def resolve_domain_name(name: str, iface: str) -> str:
-    channel = pycares.Channel()
-    channel.set_local_dev(iface.encode())
-    callback = PycaresCallback()
-    channel.gethostbyname(name, socket.AF_INET, callback)
-    wait_pycares_channel(channel)
-    if callback.error is None and callback.result is not None and len(callback.result.addresses) > 0:
-        logging.debug("%s resolves to %s", name, callback.result.addresses[0])
-        return callback.result.addresses[0]
-    raise DomainNameResolveException(
-        "Error during {} resolving: {}".format(name, "timeout" if callback.error is None else callback.error)
-    )
-
-
 def get_host_name(url: str) -> str:
     parsed_url = urlparse(url)
     return parsed_url.hostname if parsed_url.hostname is not None else url
 
 
-def replace_host_name_by_ip(url: str, iface: str) -> str:
+def replace_host_name_with_ip(url: str, iface: str, dns_resolver_fn) -> str:
     parsed_url = urlparse(url)
     if not parsed_url.hostname:
         return url
-    resolved_ip = resolve_domain_name(parsed_url.hostname, iface)
+    resolved_ip = dns_resolver_fn(parsed_url.hostname, iface)
+    logging.debug("%s resolves to %s", parsed_url.hostname, resolved_ip)
     if parsed_url.port is not None:
         return urlunparse(parsed_url._replace(netloc="{}:{}".format(resolved_ip, parsed_url.port)))
     return urlunparse(parsed_url._replace(netloc=resolved_ip))
 
 
-def curl_get(iface: str, url: str) -> str:
+def curl_get(iface: str, url: str, dns_resolver_fn) -> str:
     buffer = io.BytesIO()
     curl = pycurl.Curl()
-    curl.setopt(curl.URL, replace_host_name_by_ip(url, iface))
+    curl.setopt(curl.URL, replace_host_name_with_ip(url, iface, dns_resolver_fn))
     curl.setopt(curl.WRITEDATA, buffer)
     curl.setopt(curl.INTERFACE, iface)
     curl.setopt(pycurl.CONNECTTIMEOUT, CONNECTIVITY_CHECK_TIMEOUT)
@@ -354,14 +302,12 @@ def check_connectivity(active_cn: NMActiveConnection, config: ConfigFile = None)
     logging.debug("interfaces for %s: %s", active_cn.get_connection_id(), ", ".join([str(i) for i in ifaces]))
     if ifaces and ifaces[0]:
         try:
-            payload = curl_get(ifaces[0], config.connectivity_check_url)
+            payload = curl_get(ifaces[0], config.connectivity_check_url, resolve_domain_name)
             logging.debug("Payload is %s", payload)
             answer_is_ok = config.connectivity_check_payload in payload
             logging.debug("Connectivity via %s is %s", ifaces[0], answer_is_ok)
             return answer_is_ok
-        except pycurl.error as ex:
-            logging.debug("Error during %s connectivity check: %s", ifaces[0], ex)
-        except DomainNameResolveException as ex:
+        except (DomainNameResolveException, pycurl.error) as ex:
             logging.debug("Error during %s connectivity check: %s", ifaces[0], ex)
     else:
         logging.debug("Connection %s seems to have no interfaces", active_cn.get_connection_id())
