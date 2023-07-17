@@ -268,17 +268,18 @@ def wait_pycares_channel(channel):
         if not read_fds and not write_fds:
             break
         timeout = channel.timeout()
+        no_file_d = pycares.ARES_SOCKET_BAD  # pylint: disable=E1101
         if not timeout:
-            channel.process_fd(pycares.ARES_SOCKET_BAD, pycares.ARES_SOCKET_BAD)
+            channel.process_fd(no_file_d, no_file_d)
             continue
-        rlist, wlist, xlist = select.select(read_fds, write_fds, [], timeout)
-        for fd in rlist:
-            channel.process_fd(fd, pycares.ARES_SOCKET_BAD)
-        for fd in wlist:
-            channel.process_fd(pycares.ARES_SOCKET_BAD, fd)
+        rlist, wlist, _xlist = select.select(read_fds, write_fds, [], timeout)
+        for file_d in rlist:
+            channel.process_fd(file_d, no_file_d)
+        for file_d in wlist:
+            channel.process_fd(no_file_d, file_d)
 
 
-class PycaresCallback:
+class PycaresCallback:  # pylint: disable=R0903
     def __init__(self) -> None:
         self.result = None
         self.error = None
