@@ -261,6 +261,7 @@ def read_config_json():
         return json.load(file)
 
 
+# Taken from https://github.com/saghul/pycares/blob/master/examples/cares-select.py
 def wait_pycares_channel(channel):
     start = time.monotonic_ns()
     while time.monotonic_ns() - start < 5000000000:
@@ -277,6 +278,14 @@ def wait_pycares_channel(channel):
             channel.process_fd(file_d, no_file_d)
         for file_d in wlist:
             channel.process_fd(no_file_d, file_d)
+
+
+class DomainNameResolveException(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __repr__(self):
+        return self.msg
 
 
 class PycaresCallback:  # pylint: disable=R0903
@@ -298,11 +307,9 @@ def resolve_domain_name(name: str, iface: str) -> str:
     if callback.error is None and callback.result is not None and len(callback.result.addresses) > 0:
         logging.debug("%s resolves to %s", name, callback.result.addresses[0])
         return callback.result.addresses[0]
-    if callback.error is not None:
-        logging.debug("Error during %s resolving: %s", name, callback.error)
-    else:
-        logging.debug("Error during %s resolving: timeout", name)
-    return None
+    raise DomainNameResolveException(
+        "Error during {} resolving: {}".format(name, "timeout" if callback.error is None else callback.error)
+    )
 
 
 def get_host_name(url: str) -> str:
@@ -315,8 +322,6 @@ def replace_host_name_by_ip(url: str, iface: str) -> str:
     if not parsed_url.hostname:
         return url
     resolved_ip = resolve_domain_name(parsed_url.hostname, iface)
-    if resolved_ip is None:
-        return url
     if parsed_url.port is not None:
         return urlunparse(parsed_url._replace(netloc="{}:{}".format(resolved_ip, parsed_url.port)))
     return urlunparse(parsed_url._replace(netloc=resolved_ip))
@@ -355,6 +360,8 @@ def check_connectivity(active_cn: NMActiveConnection, config: ConfigFile = None)
             logging.debug("Connectivity via %s is %s", ifaces[0], answer_is_ok)
             return answer_is_ok
         except pycurl.error as ex:
+            logging.debug("Error during %s connectivity check: %s", ifaces[0], ex)
+        except DomainNameResolveException as ex:
             logging.debug("Error during %s connectivity check: %s", ifaces[0], ex)
     else:
         logging.debug("Connection %s seems to have no interfaces", active_cn.get_connection_id())
