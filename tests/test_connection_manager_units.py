@@ -543,7 +543,7 @@ class SingleFunctionTests(TestCase):
                 self.assertEqual(1, mock_load.call_count)
 
     def test_curl_get(self):
-        def dns_resolver_mock(url, iface):
+        def dns_resolver_mock(url, _iface):
             return url
 
         DummyCurl.setopt = MagicMock()
