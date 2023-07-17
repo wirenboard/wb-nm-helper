@@ -685,14 +685,14 @@ class SingleFunctionTests(TestCase):
             [call(level=logging.INFO, format=connection_manager.LOGGING_FORMAT)], mock_basic_config.mock_calls
         )
 
-    def test_replace_host_name_by_ip(self):
+    def test_replace_host_name_with_ip(self):
         def dsn_resolver_mock(url, iface):
             if iface == "wlan1":
                 return url
             return "1.1.1.1"
 
         self.assertEqual(
-            "bad_url", connection_manager.replace_host_name_by_ip("bad_url", "wlan1", dsn_resolver_mock)
+            "bad_url", connection_manager.replace_host_name_with_ip("bad_url", "wlan1", dsn_resolver_mock)
         )
         self.assertEqual(
             "http://1.1.1.1/params/some",
