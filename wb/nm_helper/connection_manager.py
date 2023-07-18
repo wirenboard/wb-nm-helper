@@ -188,8 +188,7 @@ class NetworkAwareConfigFile(ConfigFile):
         cn_id = con.get_connection_id()
         device = self.network_manager.find_device_for_connection(con)
         if not device:
-            logging.warning("No device for connection %s found, assuming unmnaged", cn_id)
-            return True
+            logging.warning("No device for connection %s found, will recheck later", cn_id)
         managed = device.get_property("Managed")
         iface_name = device.get_property("Interface")
         if managed in (True, 1):
@@ -380,6 +379,11 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
                 "Sticky connections timeout active until %s, not touching sticky connections",
                 self.timeouts.keep_sticky_connections_until.isoformat(),
             )
+            return False
+        con = self.network_manager.find_connection(cn_id)
+        device = self.network_manager.find_device_for_connection(con)
+        if not device:
+            logging.warning("No device for connection %s found, will recheck later", cn_id)
             return False
         logging.debug("It is ok to activate connection %s", cn_id)
         return True

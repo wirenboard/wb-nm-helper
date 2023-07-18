@@ -1,3 +1,9 @@
+wb-nm-helper (1.27.5) stable; urgency=medium
+
+  * Better device presense detection
+
+ -- Aleksandr Kazadaev <aleksandr.kazadaev@wirenboard.com>  Tue, 18 Jul 2023 15:35:00 +0600
+
 wb-nm-helper (1.27.4) stable; urgency=medium
 
   * Fix logging
