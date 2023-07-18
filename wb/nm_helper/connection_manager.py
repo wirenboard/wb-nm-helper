@@ -189,6 +189,7 @@ class NetworkAwareConfigFile(ConfigFile):
         device = self.network_manager.find_device_for_connection(con)
         if not device:
             logging.warning("No device for connection %s found, will recheck later", cn_id)
+            return False
         managed = device.get_property("Managed")
         iface_name = device.get_property("Interface")
         if managed in (True, 1):
