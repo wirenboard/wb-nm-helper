@@ -319,6 +319,8 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
             self.set_current_connection(new_connection, new_tier)
             self.deactivate_lesser_gsm_connections(new_connection, new_tier)
             self.apply_metrics()
+        else:
+            self.deactivate_lesser_gsm_connections(new_connection, new_tier)
 
     def current_connection_has_connectivity(self):
         logging.debug("checking currently active connection %s", self.current_connection)

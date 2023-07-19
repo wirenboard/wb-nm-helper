@@ -1662,9 +1662,9 @@ class ConnectionManagerTests(TestCase):
         self.assertEqual([call()], cn3.get_settings.mock_calls)
         self.assertEqual([active_cn2], result)
 
-    def test_cycle_loop(self):
+    def test_cycle_loop_01_no_change(self):
         sample_tier = connection_manager.ConnectionTier("DUMMY_TIER", 666, ["wb-eth1"])
-        self.con_man.check = MagicMock(side_effect=[(sample_tier, "wb-eth1"), (sample_tier, "wb-eth2")])
+        self.con_man.check = MagicMock(return_value=(sample_tier, "wb-eth1"))
         self.con_man.set_current_connection = MagicMock()
         self.con_man.deactivate_lesser_gsm_connections = MagicMock()
         self.con_man.apply_metrics = MagicMock()
@@ -1675,12 +1675,23 @@ class ConnectionManagerTests(TestCase):
 
         self.assertEqual([call()], self.con_man.check.mock_calls)
         self.assertEqual([], self.con_man.set_current_connection.mock_calls)
-        self.assertEqual([], self.con_man.deactivate_lesser_gsm_connections.mock_calls)
+        self.assertEqual(
+            [call("wb-eth1", sample_tier)], self.con_man.deactivate_lesser_gsm_connections.mock_calls
+        )
         self.assertEqual([], self.con_man.apply_metrics.mock_calls)
+
+    def test_cycle_loop_02_change(self):
+        sample_tier = connection_manager.ConnectionTier("DUMMY_TIER", 666, ["wb-eth1"])
+        self.con_man.check = MagicMock(return_value=(sample_tier, "wb-eth2"))
+        self.con_man.set_current_connection = MagicMock()
+        self.con_man.deactivate_lesser_gsm_connections = MagicMock()
+        self.con_man.apply_metrics = MagicMock()
+        self.con_man.current_tier = sample_tier
+        self.con_man.current_connection = "wb-eth1"
 
         self.con_man.cycle_loop()
 
-        self.assertEqual([call(), call()], self.con_man.check.mock_calls)
+        self.assertEqual([call()], self.con_man.check.mock_calls)
         self.assertEqual([call("wb-eth2", sample_tier)], self.con_man.set_current_connection.mock_calls)
         self.assertEqual(
             [call("wb-eth2", sample_tier)], self.con_man.deactivate_lesser_gsm_connections.mock_calls
