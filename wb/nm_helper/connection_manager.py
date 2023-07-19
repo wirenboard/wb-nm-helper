@@ -631,7 +631,9 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
         logging.debug("Current connection is the same (%s), not changing", cn_id)
 
     def deactivate_lesser_gsm_connections(self, cn_id: str, tier: ConnectionTier) -> None:
+        logging.debug("Deactivating lesser GSM connections")
         connections = list(self.find_lesser_gsm_connections(cn_id, tier))
+        logging.debug("Found lesser GSM connections: %s", connections)
         for connection in connections:
             data = {"cn_id": connection.get_connection_id()}
             self.deactivate_connection(connection)
