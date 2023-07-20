@@ -543,9 +543,7 @@ class SingleFunctionTests(TestCase):
                 self.assertEqual(1, mock_load.call_count)
 
     def test_curl_get(self):
-        def dns_resolver_mock(url, _iface):
-            return url
-
+        dns_resolver_mock = MagicMock()
         DummyCurl.setopt = MagicMock()
         DummyCurl.perform = MagicMock()
         DummyCurl.close = MagicMock()
@@ -686,14 +684,14 @@ class SingleFunctionTests(TestCase):
         )
 
     def test_replace_host_name_with_ip(self):
-        def dsn_resolver_mock(url, iface):
-            if iface == "wlan1":
-                return url
-            return "1.1.1.1"
+        dsn_resolver_mock = MagicMock()
 
+        dsn_resolver_mock.return_value = "bad_url"
         self.assertEqual(
             "bad_url", connection_manager.replace_host_name_with_ip("bad_url", "wlan1", dsn_resolver_mock)
         )
+
+        dsn_resolver_mock.return_value = "1.1.1.1"
         self.assertEqual(
             "http://1.1.1.1/params/some",
             connection_manager.replace_host_name_with_ip(
@@ -705,6 +703,14 @@ class SingleFunctionTests(TestCase):
             connection_manager.replace_host_name_with_ip(
                 "http://good_url.com:8080/params/some", "wlan2", dsn_resolver_mock
             ),
+        )
+
+        self.assertEqual(
+            [
+                call("good_url.com", "wlan2"),
+                call("good_url.com", "wlan2"),
+            ],
+            dsn_resolver_mock.mock_calls,
         )
 
 
