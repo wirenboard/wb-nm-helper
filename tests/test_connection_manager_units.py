@@ -544,14 +544,19 @@ class SingleFunctionTests(TestCase):
 
     def test_curl_get(self):
         dns_resolver_mock = MagicMock()
+        dns_resolver_mock.return_value = "1.1.1.1"
         DummyCurl.setopt = MagicMock()
         DummyCurl.perform = MagicMock()
         DummyCurl.close = MagicMock()
         DummyBytesIO.getvalue = MagicMock(return_value="ЖЖЖ".encode("UTF8"))
         with patch.object(pycurl, "Curl", DummyCurl), patch.object(io, "BytesIO", DummyBytesIO):
-            output = connection_manager.curl_get("dummy_if", "dummy_url", dns_resolver_mock)
+            output = connection_manager.curl_get(
+                "dummy_if", "http://good_url.com/params/some", dns_resolver_mock
+            )
             self.assertEqual(6, DummyCurl.setopt.call_count)
-            self.assertEqual(call(pycurl.Curl.URL, "dummy_url"), DummyCurl.setopt.mock_calls[0])
+            self.assertEqual(
+                call(pycurl.Curl.URL, "http://1.1.1.1/params/some"), DummyCurl.setopt.mock_calls[0]
+            )
             self.assertEqual(2, len(DummyCurl.setopt.mock_calls[1].args))
             self.assertEqual(pycurl.Curl.WRITEDATA, DummyCurl.setopt.mock_calls[1].args[0])
             self.assertTrue(isinstance(DummyCurl.setopt.mock_calls[1].args[1], DummyBytesIO))
@@ -565,12 +570,16 @@ class SingleFunctionTests(TestCase):
                 DummyCurl.setopt.mock_calls[4],
             )
             self.assertEqual(
-                call(pycurl.Curl.HTTPHEADER, ["Host: dummy_url"]),
+                call(pycurl.Curl.HTTPHEADER, ["Host: good_url.com"]),
                 DummyCurl.setopt.mock_calls[5],
             )
             self.assertEqual([call()], DummyCurl.perform.mock_calls)
             self.assertEqual([call()], DummyCurl.close.mock_calls)
             self.assertEqual("ЖЖЖ", output)
+            self.assertEqual(
+                [call("good_url.com", "dummy_if")],
+                dns_resolver_mock.mock_calls,
+            )
 
     def test_check_connectivity_01_with_auto_config(self):
         dummy_active_cn = DummyNMActiveConnection()
@@ -684,24 +693,24 @@ class SingleFunctionTests(TestCase):
         )
 
     def test_replace_host_name_with_ip(self):
-        dsn_resolver_mock = MagicMock()
+        dns_resolver_mock = MagicMock()
 
-        dsn_resolver_mock.return_value = "bad_url"
+        dns_resolver_mock.return_value = "bad_url"
         self.assertEqual(
-            "bad_url", connection_manager.replace_host_name_with_ip("bad_url", "wlan1", dsn_resolver_mock)
+            "bad_url", connection_manager.replace_host_name_with_ip("bad_url", "wlan1", dns_resolver_mock)
         )
 
-        dsn_resolver_mock.return_value = "1.1.1.1"
+        dns_resolver_mock.return_value = "1.1.1.1"
         self.assertEqual(
             "http://1.1.1.1/params/some",
             connection_manager.replace_host_name_with_ip(
-                "http://good_url.com/params/some", "wlan2", dsn_resolver_mock
+                "http://good_url.com/params/some", "wlan2", dns_resolver_mock
             ),
         )
         self.assertEqual(
             "http://1.1.1.1:8080/params/some",
             connection_manager.replace_host_name_with_ip(
-                "http://good_url.com:8080/params/some", "wlan2", dsn_resolver_mock
+                "http://good_url.com:8080/params/some", "wlan2", dns_resolver_mock
             ),
         )
 
@@ -710,7 +719,7 @@ class SingleFunctionTests(TestCase):
                 call("good_url.com", "wlan2"),
                 call("good_url.com", "wlan2"),
             ],
-            dsn_resolver_mock.mock_calls,
+            dns_resolver_mock.mock_calls,
         )
 
 
