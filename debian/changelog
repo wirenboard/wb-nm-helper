@@ -1,3 +1,9 @@
+wb-nm-helper (1.27.6) stable; urgency=medium
+
+  * Fix connectivity checking
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Thu, 20 Jul 2023 14:53:35 +0500
+
 wb-nm-helper (1.27.5) stable; urgency=medium
 
   * Do not restart NetworkManager on connection settings change

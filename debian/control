@@ -14,6 +14,7 @@ Build-Depends: debhelper (>= 10),
                python3-jsonschema,
                python3-pyparsing,
                python3-pycurl,
+               python3-pycares,
                python3-wb-common (>= 2.1.1)
 Standards-Version: 4.5.0
 Homepage: https://github.com/wirenboard/wb-nm-helper
