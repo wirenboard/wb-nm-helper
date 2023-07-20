@@ -25,11 +25,7 @@ def wait_pycares_channel(channel: pycares.Channel) -> None:
 
 
 class DomainNameResolveException(Exception):
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __repr__(self):
-        return self.msg
+    pass
 
 
 class PycaresCallback:  # pylint: disable=R0903
