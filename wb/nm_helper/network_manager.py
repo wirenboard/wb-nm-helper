@@ -145,8 +145,13 @@ class NetworkManager(NMObject, INetworkManager):
         settings.AddConnection(connection_settings)
 
     def activate_connection(self, con: NMConnection, dev: NMDevice) -> NMActiveConnection:
+        dev_obj = (
+            dev.get_object()
+            if dev is not None
+            else self.bus.get_object("org.freedesktop.NetworkManager", "/")
+        )
         return NMActiveConnection(
-            self.get_iface().ActivateConnection(con.get_object(), dev.get_object(), "/"),
+            self.get_iface().ActivateConnection(con.get_object(), dev_obj, "/"),
             self.bus,
         )
 
