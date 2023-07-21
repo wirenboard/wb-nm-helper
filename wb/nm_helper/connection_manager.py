@@ -203,7 +203,7 @@ class TimeoutManager:  # pylint: disable=too-many-instance-attributes
     def __init__(self, config: ConfigFile) -> None:
         self.config: ConfigFile = config
         self.connection_retry_timeouts = {}
-        self.keep_sticky_connections_until: Optional[datetime.datetime] = None
+        self.device_sticky_timeouts = {}
         self.connection_activation_timeout = CONNECTION_ACTIVATION_TIMEOUT
 
     @staticmethod
@@ -211,7 +211,8 @@ class TimeoutManager:  # pylint: disable=too-many-instance-attributes
         return datetime.datetime.now()
 
     def debug_log_timeouts(self):
-        logging.debug("Sticky Connections Timeout: %s", self.keep_sticky_connections_until)
+        for device, timeout in self.device_sticky_timeouts.items():
+            logging.debug("Device Sticky Timeout for %s: %s", device, timeout)
         for connection, timeout in self.connection_retry_timeouts.items():
             logging.debug("Connection Retry Timeout for %s: %s", connection, timeout)
 
@@ -226,14 +227,17 @@ class TimeoutManager:  # pylint: disable=too-many-instance-attributes
             NM_DEVICE_TYPE_MODEM,
             NM_DEVICE_TYPE_WIFI,
         ):
-            self.keep_sticky_connections_until = self.now() + self.config.sticky_connection_period
+            device = self.config.network_manager.find_device_for_connection(con)
+            device_name = device.get_property("IpInterface")
+            self.device_sticky_timeouts[device_name] = self.now() + self.config.sticky_connection_period
             logging.info(
-                "New active connection is Sticky (GSM/Wifi), not changing SIM/Wifi connections until %s",
-                self.keep_sticky_connections_until.isoformat(),
+                "Armed sticky timeout until %s for device %s",
+                self.device_sticky_timeouts.get(device_name).isoformat(),
+                device_name,
             )
         else:
-            self.keep_sticky_connections_until = None
-            logging.debug("Active connection is not Sticky (GSM/Wifi), sticky SIM/Wifi timeout cleared")
+            self.device_sticky_timeouts = {}
+            logging.debug("Active connection is not Sticky (GSM/Wifi), sticky SIM/Wifi timeouts cleared")
 
     def connection_retry_timeout_is_active(self, cn_id):
         if (
@@ -245,11 +249,16 @@ class TimeoutManager:  # pylint: disable=too-many-instance-attributes
         logging.debug("Connection retry timeout is active for connection %s", cn_id)
         return True
 
-    def sticky_timeout_is_active(self) -> bool:
-        if self.keep_sticky_connections_until and self.keep_sticky_connections_until > self.now():
-            logging.debug("Sticky connection timeout is active")
-            return True
-        return False
+    def sticky_timeout_is_active(self, dev: NMDevice) -> bool:
+        device_name = dev.get_property("IpInterface")
+        if (
+            device_name not in self.device_sticky_timeouts
+            or self.device_sticky_timeouts.get(device_name) < self.now()
+        ):
+            logging.debug("Sticky timeout is not active for device %s", device_name)
+            return False
+        logging.debug("Sticky timeout is active for device %s", device_name)
+        return True
 
 
 def read_config_json():
@@ -374,20 +383,30 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
         return self.current_tier, self.current_connection
 
     def ok_to_activate_connection(self, cn_id: str) -> bool:
+        # maybe retry timeout is armed?
         if self.timeouts.connection_retry_timeout_is_active(cn_id):
             logging.debug("Retry timeout is still effective for %s", cn_id)
             return False
-        if self.connection_is_sticky(cn_id) and self.timeouts.sticky_timeout_is_active():
-            logging.debug(
-                "Sticky connections timeout active until %s, not touching sticky connections",
-                self.timeouts.keep_sticky_connections_until.isoformat(),
-            )
-            return False
+        # find connection
         con = self.network_manager.find_connection(cn_id)
+        if not con:
+            logging.debug("Connection %s not found, will recheck later", cn_id)
+            return False
+        # find device
         device = self.network_manager.find_device_for_connection(con)
         if not device:
-            logging.warning("No device for connection %s found, will recheck later", cn_id)
+            logging.debug("No device for connection %s found, will recheck later", cn_id)
             return False
+        # maybe sticky timeout is armed?
+        device_name = device.get_property("IpInterface")
+        if self.connection_is_sticky(con) and self.timeouts.sticky_timeout_is_active(device):
+            logging.debug(
+                "Sticky device timeout active until %s for device %s, not touching this device connections",
+                self.timeouts.device_sticky_timeouts.get(device_name).isoformat(),
+                device_name,
+            )
+            return False
+        # ok, we can activate this connection
         logging.debug("It is ok to activate connection %s", cn_id)
         return True
 
@@ -612,15 +631,11 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
         logging.debug("Connection %s not found", cn_id)
         return False
 
-    def connection_is_sticky(self, cn_id: str) -> bool:
-        con = self.network_manager.find_connection(cn_id)
-        if con:
-            device_type = connection_type_to_device_type(con.get_connection_type())
-            value = device_type in (NM_DEVICE_TYPE_MODEM, NM_DEVICE_TYPE_WIFI)
-            logging.debug("Connection %s is sticky: %s", cn_id, value)
-            return value
-        logging.debug("Connection %s not found", cn_id)
-        return False
+    def connection_is_sticky(self, con: NMConnection) -> bool:
+        device_type = connection_type_to_device_type(con.get_connection_type())
+        value = device_type in (NM_DEVICE_TYPE_MODEM, NM_DEVICE_TYPE_WIFI)
+        logging.debug("Connection %s is sticky: %s", con.get_connection_id(), value)
+        return value
 
     def set_current_connection(self, cn_id: str, tier: ConnectionTier):
         if self.current_connection != cn_id:
