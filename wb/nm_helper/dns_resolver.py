@@ -46,6 +46,6 @@ def resolve_domain_name(name: str, iface: str) -> str:
         return callback.result.addresses[0]
     raise DomainNameResolveException(
         "Error during {} resolving: {}".format(
-            name, "timeout" if callback.error is None else pycares.errno.strerror(callback.error)
+            name, "can't get address" if callback.error is None else pycares.errno.strerror(callback.error)
         )
     )
