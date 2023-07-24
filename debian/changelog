@@ -1,3 +1,9 @@
+wb-nm-helper (1.28.0) stable; urgency=medium
+
+  * Fix PKG-INFO
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Mon, 24 Jul 2023 17:25:00 +0400
+
 wb-nm-helper (1.27.9) stable; urgency=medium
 
   * Fix connectivity checking
