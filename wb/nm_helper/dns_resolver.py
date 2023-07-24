@@ -1,16 +1,12 @@
 import select
 import socket
-import time
 
 import pycares
 
 
 # Taken from https://github.com/saghul/pycares/blob/master/examples/cares-select.py
 def wait_pycares_channel(channel: pycares.Channel) -> None:
-    # Calc time enough to ask every server
-    timeout = len(channel.servers) * 5000000000 + 1000000000
-    start = time.monotonic_ns()
-    while time.monotonic_ns() - start < timeout:
+    while True:
         read_fds, write_fds = channel.getsock()
         if not read_fds and not write_fds:
             break
@@ -41,7 +37,7 @@ class PycaresCallback:  # pylint: disable=R0903
 
 
 def resolve_domain_name(name: str, iface: str) -> str:
-    channel = pycares.Channel()
+    channel = pycares.Channel(tries=3, timeout=2)
     channel.set_local_dev(iface.encode())
     callback = PycaresCallback()
     channel.gethostbyname(name, socket.AF_INET, callback)
@@ -49,5 +45,7 @@ def resolve_domain_name(name: str, iface: str) -> str:
     if callback.error is None and callback.result is not None and len(callback.result.addresses) > 0:
         return callback.result.addresses[0]
     raise DomainNameResolveException(
-        "Error during {} resolving: {}".format(name, "timeout" if callback.error is None else callback.error)
+        "Error during {} resolving: {}".format(
+            name, "timeout" if callback.error is None else pycares.errno.strerror(callback.error)
+        )
     )
