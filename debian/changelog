@@ -1,3 +1,9 @@
+wb-nm-helper (1.27.9) stable; urgency=medium
+
+  * Fix PKG-INFO
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Mon, 24 Jul 2023 10:39:00 +0400
+
 wb-nm-helper (1.27.8) stable; urgency=medium
 
   * Fix domain name resolving timeout during connectivity checking
