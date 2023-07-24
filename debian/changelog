@@ -1,3 +1,9 @@
+wb-nm-helper (1.27.8) stable; urgency=medium
+
+  * Fix domain name resolving timeout during connectivity checking
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Mon, 24 Jul 2023 13:20:10 +0500
+
 wb-nm-helper (1.27.7) stable; urgency=medium
 
   * Fix package dependencies
