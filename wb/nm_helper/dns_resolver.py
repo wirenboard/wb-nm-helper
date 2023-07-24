@@ -8,7 +8,7 @@ import pycares
 # Taken from https://github.com/saghul/pycares/blob/master/examples/cares-select.py
 def wait_pycares_channel(channel: pycares.Channel) -> None:
     # Calc time enough to ask every server
-    timeout = channel.servers * 5000000000 + 1000000000
+    timeout = len(channel.servers) * 5000000000 + 1000000000
     start = time.monotonic_ns()
     while time.monotonic_ns() - start < timeout:
         read_fds, write_fds = channel.getsock()
