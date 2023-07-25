@@ -322,6 +322,14 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
             self.config.sticky_connection_period.total_seconds(),
         )
 
+    def get_device_name(self, dev: NMDevice):
+        name = dev.get_property("IpInterface")
+        if not name:
+            logging.debug("LPNAME Device %s has no IpInterface, using Interface", dev.get_path())
+            name = dev.get_property("Interface")
+        logging.debug("Device %s name is %s", dev.get_path(), name)
+        return name
+
     def cycle_loop(self):
         new_tier, new_connection = self.check()
         if new_connection != self.current_connection or new_tier != self.current_tier:
