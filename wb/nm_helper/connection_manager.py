@@ -228,7 +228,7 @@ class TimeoutManager:  # pylint: disable=too-many-instance-attributes
             NM_DEVICE_TYPE_WIFI,
         ):
             device = self.config.network_manager.find_device_for_connection(con)
-            device_name = device.get_property("IpInterface")
+            device_name = get_device_name(device)
             self.device_sticky_timeouts[device_name] = self.now() + self.config.sticky_connection_period
             logging.info(
                 "Armed sticky timeout until %s for device %s",
@@ -250,7 +250,7 @@ class TimeoutManager:  # pylint: disable=too-many-instance-attributes
         return True
 
     def sticky_timeout_is_active(self, dev: NMDevice) -> bool:
-        device_name = dev.get_property("IpInterface")
+        device_name = get_device_name(dev)
         if (
             device_name not in self.device_sticky_timeouts
             or self.device_sticky_timeouts.get(device_name) < self.now()
@@ -304,6 +304,15 @@ def check_connectivity(active_cn: NMActiveConnection, config: ConfigFile = None)
     return False
 
 
+def get_device_name(dev: NMDevice):
+    name = dev.get_property("IpInterface")
+    if not name:
+        logging.debug("LPNAME Device %s has no IpInterface, using Interface", dev.get_path())
+        name = dev.get_property("Interface")
+    logging.debug("Device %s name is %s", dev.get_path(), name)
+    return name
+
+
 class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable=too-many-public-methods
     def __init__(
         self,
@@ -321,14 +330,6 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
             "Initialized sticky_connection_period as %s seconds",
             self.config.sticky_connection_period.total_seconds(),
         )
-
-    def get_device_name(self, dev: NMDevice):
-        name = dev.get_property("IpInterface")
-        if not name:
-            logging.debug("LPNAME Device %s has no IpInterface, using Interface", dev.get_path())
-            name = dev.get_property("Interface")
-        logging.debug("Device %s name is %s", dev.get_path(), name)
-        return name
 
     def cycle_loop(self):
         new_tier, new_connection = self.check()
@@ -406,7 +407,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
             logging.debug("No device for connection %s found, will recheck later", cn_id)
             return False
         # maybe sticky timeout is armed?
-        device_name = device.get_property("IpInterface")
+        device_name = get_device_name(device)
         if self.connection_is_sticky(con) and self.timeouts.sticky_timeout_is_active(device):
             logging.debug(
                 "Sticky device timeout active until %s for device %s, not touching this device connections",
