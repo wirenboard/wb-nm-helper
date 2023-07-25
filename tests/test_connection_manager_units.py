@@ -31,7 +31,9 @@ class DummyNetworkManager:
 
 
 class DummyNMDevice:
-    pass
+    def __init__(self):
+        self.get_path = MagicMock()
+        self.get_property = MagicMock()
 
 
 class DummyNMConnection:
@@ -411,7 +413,7 @@ class NetworkAwareConfigFileTests(TestCase):
         self.config.network_manager.find_device_for_connection = MagicMock(
             side_effect=[None, test_dev, test_dev, test_dev]
         )
-        test_dev.get_property = MagicMock(side_effect=[True, "dev2", 1, "dev3", "dummy", "dev4"])
+        test_dev.get_property.side_effect = [True, "dev2", 1, "dev3", "dummy", "dev4"]
 
         value1 = self.config.is_connection_unmanaged(test_con)  # no device will be returned
         value2 = self.config.is_connection_unmanaged(test_con)  # True will be returned for managed
@@ -494,7 +496,7 @@ class TimeoutManagerTests(TestCase):
         test_con = DummyNMConnection("dummy", {})
         test_con.get_connection_type = MagicMock(side_effect=["CT1", "CT2", "CT3"])
         test_dev = DummyNMDevice()
-        test_dev.get_property = MagicMock(side_effect=["DEV2", "DEV3"])
+        test_dev.get_property.side_effect = ["DEV2", "DEV3"]
         self.timeout_man.config.network_manager.find_device_for_connection = MagicMock(return_value=test_dev)
         self.timeout_man.device_sticky_timeouts = {"dummy": 31337}
         self.timeout_man.config.sticky_connection_period = datetime.timedelta(seconds=1)
@@ -542,7 +544,7 @@ class TimeoutManagerTests(TestCase):
 
     def test_sticky_timeout_is_active(self):
         dev = DummyNMDevice()
-        dev.get_property = MagicMock(return_value="DEV1")
+        dev.get_property.return_value = "DEV1"
 
         self.timeout_man.keep_sticky_connections_until = {}
         self.assertFalse(self.timeout_man.sticky_timeout_is_active(dev))
@@ -1153,7 +1155,7 @@ class ConnectionManagerTests(TestCase):
     def test_apply_sim_slot_01_default_slot(self):
         con = DummyNMConnection("con_id", {})
         dev = DummyNMDevice()
-        dev.get_property = MagicMock(return_value="DUMMY_UDI")
+        dev.get_property.return_value = "DUMMY_UDI"
         self.con_man.modem_manager.get_primary_sim_slot = MagicMock(return_value=1)
         self.con_man.change_modem_sim_slot = MagicMock()
 
@@ -1168,7 +1170,7 @@ class ConnectionManagerTests(TestCase):
     def test_apply_sim_slot_02_current_slot(self):
         con = DummyNMConnection("con_id", {})
         dev = DummyNMDevice()
-        dev.get_property = MagicMock(return_value="DUMMY_UDI")
+        dev.get_property.return_value = "DUMMY_UDI"
         self.con_man.modem_manager.get_primary_sim_slot = MagicMock(return_value=1)
         self.con_man.change_modem_sim_slot = MagicMock()
 
@@ -1183,7 +1185,7 @@ class ConnectionManagerTests(TestCase):
     def test_apply_sim_slot_03_different_slot(self):
         con = DummyNMConnection("con_id", {})
         dev = DummyNMDevice()
-        dev.get_property = MagicMock(return_value="DUMMY_UDI")
+        dev.get_property.return_value = "DUMMY_UDI"
         self.con_man.modem_manager.get_primary_sim_slot = MagicMock(return_value=1)
         self.con_man.change_modem_sim_slot = MagicMock(return_value="CHANGE_RESULT")
 
