@@ -17,6 +17,7 @@ import dbus.types
 from gi.repository import GLib
 from wb_common.mqtt_client import DEFAULT_BROKER_URL, MQTTClient
 
+from wb.nm_helper.connection_checker import ConnectionChecker
 from wb.nm_helper.connection_manager import check_connectivity
 from wb.nm_helper.network_manager import NetworkManager
 
@@ -411,6 +412,7 @@ class ConnectivityUpdater:
         self._network_manager = None
         self._event_loop = EventLoop()
         self._futures = {}
+        self._connection_checker = ConnectionChecker()
 
     def run(self):
         self._event_loop.run()
@@ -442,7 +444,7 @@ class ConnectivityUpdater:
             name = connection.properties.get("name")
             active_connection = self._network_manager.get_active_connections().get(name)
             if active_connection is not None:
-                connectivity = check_connectivity(active_connection)
+                connectivity = check_connectivity(active_connection, self._connection_checker)
 
                 self._mediator.new_event(
                     Event(

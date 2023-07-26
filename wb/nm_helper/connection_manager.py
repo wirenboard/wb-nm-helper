@@ -1,5 +1,4 @@
 import datetime
-import io
 import json
 import logging
 import signal
@@ -7,13 +6,12 @@ import subprocess
 import sys
 import time
 from typing import Dict, Iterator, List, Optional
-from urllib.parse import urlparse, urlunparse
 
 import dbus
-import pycurl
 from dbus import DBusException
 
-from wb.nm_helper.dns_resolver import DomainNameResolveException, resolve_domain_name
+from wb.nm_helper.connection_checker import ConnectionChecker
+from wb.nm_helper.dns_resolver import resolve_domain_name
 from wb.nm_helper.logging_filter import ConnectionStateFilter
 from wb.nm_helper.modem_manager import ModemManager
 from wb.nm_helper.modem_manager_interfaces import IModemManager
@@ -34,7 +32,6 @@ from wb.nm_helper.network_manager_interfaces import INetworkManager
 
 EXIT_NOT_CONFIGURED = 6
 
-CONNECTIVITY_CHECK_TIMEOUT = 15
 LOGGING_FORMAT = "%(message)s"
 CONFIG_FILE = "/etc/wb-connection-manager.conf"
 CHECK_PERIOD = datetime.timedelta(seconds=5)
@@ -259,58 +256,17 @@ def read_config_json():
         return json.load(file)
 
 
-def get_host_name(url: str) -> str:
-    parsed_url = urlparse(url)
-    return parsed_url.hostname if parsed_url.hostname is not None else url
-
-
-def replace_host_name_with_ip(url: str, iface: str, dns_resolver_fn) -> str:
-    parsed_url = urlparse(url)
-    if not parsed_url.hostname:
-        return url
-    resolved_ip = dns_resolver_fn(parsed_url.hostname, iface)
-    logging.debug("%s resolves to %s", parsed_url.hostname, resolved_ip)
-    if parsed_url.port is not None:
-        return urlunparse(parsed_url._replace(netloc="{}:{}".format(resolved_ip, parsed_url.port)))
-    return urlunparse(parsed_url._replace(netloc=resolved_ip))
-
-
-def curl_get(iface: str, url: str, dns_resolver_fn) -> str:
-    buffer = io.BytesIO()
-    curl = pycurl.Curl()
-    curl.setopt(curl.URL, replace_host_name_with_ip(url, iface, dns_resolver_fn))
-    curl.setopt(curl.WRITEDATA, buffer)
-    curl.setopt(curl.INTERFACE, iface)
-    curl.setopt(pycurl.CONNECTTIMEOUT, CONNECTIVITY_CHECK_TIMEOUT)
-    curl.setopt(pycurl.TIMEOUT, CONNECTIVITY_CHECK_TIMEOUT)
-    curl.setopt(curl.HTTPHEADER, ["Host: {}".format(get_host_name(url))])
-    curl.perform()
-    curl.close()
-    return buffer.getvalue().decode("UTF-8")
-
-    # Simple implementation that mimics NM behavior
-    # NM reports limited connectivity for all gsm ppp connections
-    # https://wirenboard.bitrix24.ru/workgroups/group/218/tasks/task/view/53068/
-    # Use NM's implementation after fixing the bug
-
-
-def check_connectivity(active_cn: NMActiveConnection, config: ConfigFile = None) -> bool:
+def check_connectivity(
+    active_cn: NMActiveConnection, checker: ConnectionChecker, config: ConfigFile = None
+) -> bool:
     if not config:
         config = ConfigFile()
         config.load_config(read_config_json())
     ifaces = active_cn.get_ifaces()
     logging.debug("interfaces for %s: %s", active_cn.get_connection_id(), ", ".join([str(i) for i in ifaces]))
     if ifaces and ifaces[0]:
-        try:
-            payload = curl_get(ifaces[0], config.connectivity_check_url, resolve_domain_name)
-            logging.debug("Payload is %s", payload)
-            answer_is_ok = config.connectivity_check_payload in payload
-            logging.debug("Connectivity via %s is %s", ifaces[0], answer_is_ok)
-            return answer_is_ok
-        except (DomainNameResolveException, pycurl.error) as ex:
-            logging.debug("Error during %s connectivity check: %s", ifaces[0], ex)
-    else:
-        logging.debug("Connection %s seems to have no interfaces", active_cn.get_connection_id())
+        return checker.check(ifaces[0], config.connectivity_check_url, config.connectivity_check_payload)
+    logging.debug("Connection %s seems to have no interfaces", active_cn.get_connection_id())
     return False
 
 
@@ -327,6 +283,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
         self.timeouts: TimeoutManager = TimeoutManager(config)
         self.current_tier: Optional[ConnectionTier] = None
         self.current_connection: Optional[str] = None
+        self.connection_checker = ConnectionChecker(resolve_domain_name)
         logging.debug(
             "Initialized sticky_connection_period as %s seconds",
             self.config.sticky_connection_period.total_seconds(),
@@ -343,7 +300,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
         logging.debug("checking currently active connection %s", self.current_connection)
         try:
             active_cn = self.find_activated_connection(self.current_connection)
-            if active_cn and check_connectivity(active_cn, self.config):
+            if active_cn and check_connectivity(active_cn, self.connection_checker, self.config):
                 logging.debug(
                     "Current connection %s is most preferred and has connectivity",
                     self.current_connection,
@@ -367,7 +324,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
             if not active_cn and self.ok_to_activate_connection(cn_id):
                 active_cn = self.activate_connection(cn_id)
                 self.timeouts.touch_connection_retry_timeout(cn_id)
-            if active_cn and check_connectivity(active_cn, self.config):
+            if active_cn and check_connectivity(active_cn, self.connection_checker, self.config):
                 return True
         except dbus.exceptions.DBusException as ex:
             self._log_connection_check_error(cn_id, ex)
