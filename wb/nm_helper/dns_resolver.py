@@ -1,5 +1,6 @@
 import select
 import socket
+from typing import List
 
 import pycares
 
@@ -36,7 +37,7 @@ class PycaresCallback:  # pylint: disable=R0903
         self.error = error
 
 
-def resolve_domain_name(name: str, iface: str) -> str:
+def resolve_domain_name(name: str, iface: str) -> List[str]:
     # From c-ares docs:
     # timeout - the number of seconds each name server is given to respond to a query on the first try.
     # tries - the number of tries the resolver will try contacting each name server before giving up.
@@ -50,8 +51,8 @@ def resolve_domain_name(name: str, iface: str) -> str:
     callback = PycaresCallback()
     channel.gethostbyname(name, socket.AF_INET, callback)
     wait_pycares_channel(channel)
-    if callback.error is None and callback.result is not None and len(callback.result.addresses) > 0:
-        return callback.result.addresses[0]
+    if callback.error is None and callback.result is not None:
+        return callback.result.addresses
     raise DomainNameResolveException(
         "Error during {} resolving: {}".format(
             name, "can't get address" if callback.error is None else pycares.errno.strerror(callback.error)

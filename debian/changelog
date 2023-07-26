@@ -1,3 +1,9 @@
+wb-nm-helper (1.28.2) stable; urgency=medium
+
+  * Fix connectivity checking if domain name resolves to several IP's
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Wed, 26 Jul 2023 10:34:13 +0500
+
 wb-nm-helper (1.28.1) stable; urgency=medium
 
   * Fix domain name resolving timeout during connectivity checking
