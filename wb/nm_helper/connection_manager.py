@@ -257,8 +257,12 @@ class TimeoutManager:  # pylint: disable=too-many-instance-attributes
         ):
             logging.debug("Sticky timeout is not active for device %s", device_name)
             return False
-        logging.debug("Sticky timeout is active for device %s", device_name)
-        return True
+        if dev.get_active_connection():
+            logging.debug("Sticky timeout is active for device %s", device_name)
+            return True
+        else:
+            logging.debug("Sticky timeout is active for device %s, but device is not active", device_name)
+            return False
 
 
 def read_config_json():
