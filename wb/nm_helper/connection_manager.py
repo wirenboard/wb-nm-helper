@@ -308,10 +308,7 @@ def check_connectivity(active_cn: NMActiveConnection, config: ConfigFile = None)
 
 
 def get_device_name(dev: NMDevice):
-    name = dev.get_property("IpInterface")
-    if not name:
-        logging.debug("Device %s has no IpInterface, using Interface", dev.get_path())
-        name = dev.get_property("Interface")
+    name = dev.get_property("Interface")
     logging.debug("Device %s name is %s", dev.get_path(), name)
     return name
 
