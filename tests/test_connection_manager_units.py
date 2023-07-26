@@ -13,10 +13,8 @@ from unittest import TestCase
 from unittest.mock import MagicMock, call, patch
 
 import dbus
-import pycurl
 
 from wb.nm_helper import connection_manager
-from wb.nm_helper.dns_resolver import DomainNameResolveException, resolve_domain_name
 from wb.nm_helper.network_manager import (
     NM_DEVICE_TYPE_ETHERNET,
     NM_DEVICE_TYPE_MODEM,

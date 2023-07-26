@@ -10,14 +10,14 @@ from wb.nm_helper.dns_resolver import DomainNameResolveException, resolve_domain
 # DUMMY CLASSES
 
 
-class DummyCurl:
+class DummyCurl:  # pylint: disable=R0903
     URL = 10001
     WRITEDATA = 10002
     INTERFACE = 10003
     HTTPHEADER = 10023
 
 
-class DummyBytesIO:
+class DummyBytesIO:  # pylint: disable=R0903
     pass
 
 
@@ -102,8 +102,8 @@ class ConnectionCheckerTests(TestCase):
         checker = connection_checker.ConnectionChecker(dns_resolver_mock)
         with patch.object(connection_checker, "curl_get") as mock_curl_get:
 
-            def curl_get_side_effect_fn(_iface, _url, ip):
-                if ip == "1.1.1.1":
+            def curl_get_side_effect_fn(_iface: str, _url: str, host_ip: str) -> str:
+                if host_ip == "1.1.1.1":
                     raise pycurl.error()
                 return "payload"
 
@@ -168,8 +168,8 @@ class ConnectionCheckerTests(TestCase):
             dns_resolver_mock.reset_mock()
             mock_curl_get.reset_mock()
 
-            def curl_get_side_effect_fn(_iface, _url, ip):
-                if ip == "1.1.1.1":
+            def curl_get_side_effect_fn(_iface: str, _url: str, host_ip: str) -> str:
+                if host_ip == "1.1.1.1":
                     raise pycurl.error()
                 return "payload"
 
