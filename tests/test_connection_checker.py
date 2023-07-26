@@ -82,7 +82,7 @@ class ConnectionCheckerSingleFunctionTests(TestCase):
 class ConnectionCheckerTests(TestCase):
     def test_init(self):
         checker = connection_checker.ConnectionChecker()
-        self.assertEqual(resolve_domain_name, checker.dns_resolver_fn)
+        self.assertEqual(resolve_domain_name, checker._dns_resolver_fn)
 
     def test_check_first_time_one_ip(self):
         dns_resolver_mock = MagicMock()
