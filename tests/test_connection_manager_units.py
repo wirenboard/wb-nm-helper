@@ -656,7 +656,8 @@ class ConnectionManagerTests(TestCase):
             self.assertTrue(self.con_man.current_connection_has_connectivity())
             self.assertEqual([], self.con_man._log_connection_check_error.mock_calls)
             self.assertEqual(
-                [call("dummy_con1", self.config)], connection_manager.check_connectivity.mock_calls
+                [call("dummy_con1", self.con_man.connection_checker, self.config)],
+                connection_manager.check_connectivity.mock_calls,
             )
             self.assertEqual([call("wb_eth0")], self.con_man.find_activated_connection.mock_calls)
 
@@ -672,7 +673,8 @@ class ConnectionManagerTests(TestCase):
             self.assertFalse(self.con_man.current_connection_has_connectivity())
             self.assertEqual([], self.con_man._log_connection_check_error.mock_calls)
             self.assertEqual(
-                [call("dummy_con2", self.config)], connection_manager.check_connectivity.mock_calls
+                [call("dummy_con2", self.con_man.connection_checker, self.config)],
+                connection_manager.check_connectivity.mock_calls,
             )
             self.assertEqual([call("wb_eth0")], self.con_man.find_activated_connection.mock_calls)
 
