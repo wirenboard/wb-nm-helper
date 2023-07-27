@@ -1,6 +1,14 @@
+wb-nm-helper (1.29.0) stable; urgency=medium
+
+  * Better device presence detection
+  * Fixed unneeded GSM connections disconnection
+  * Better sticky Wi-Fi/GSM timeouts handling
+
+ -- Aleksandr Kazadaev <aleksandr.kazadaev@wirenboard.com>  Tue, 27 Jul 2023 14:08:00 +0600
+
 wb-nm-helper (1.28.2) stable; urgency=medium
 
-  * Fix connectivity checking if domain name resolves to several IP's
+  * Fix connectivity checking if domain name resolves to several IPs
 
  -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Wed, 26 Jul 2023 10:34:13 +0500
 
