@@ -1,9 +1,59 @@
+wb-nm-helper (1.29.0) stable; urgency=medium
+
+  * Better device presence detection
+  * Fixed unneeded GSM connections disconnection
+  * Better sticky Wi-Fi/GSM timeouts handling
+
+ -- Aleksandr Kazadaev <aleksandr.kazadaev@wirenboard.com>  Tue, 27 Jul 2023 14:08:00 +0600
+
+wb-nm-helper (1.28.2) stable; urgency=medium
+
+  * Fix connectivity checking if domain name resolves to several IPs
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Wed, 26 Jul 2023 10:34:13 +0500
+
+wb-nm-helper (1.28.1) stable; urgency=medium
+
+  * Fix domain name resolving timeout during connectivity checking
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Mon, 24 Jul 2023 20:39:35 +0500
+
+wb-nm-helper (1.28.0) stable; urgency=medium
+
+  * Fix PKG-INFO
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Mon, 24 Jul 2023 17:25:00 +0400
+
+wb-nm-helper (1.27.9) stable; urgency=medium
+
+  * Fix connectivity checking
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Mon, 24 Jul 2023 17:17:24 +0500
+
+wb-nm-helper (1.27.8) stable; urgency=medium
+
+  * Fix domain name resolving timeout during connectivity checking
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Mon, 24 Jul 2023 13:20:10 +0500
+
+wb-nm-helper (1.27.7) stable; urgency=medium
+
+  * Fix package dependencies
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Mon, 24 Jul 2023 10:09:30 +0500
+
+wb-nm-helper (1.27.6) stable; urgency=medium
+
+  * Fix connectivity checking
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Thu, 20 Jul 2023 14:53:35 +0500
+
 wb-nm-helper (1.27.5) stable; urgency=medium
 
-  * Better device presense detection
-  * Fixed unneeded GSM connections disconnection
+  * Do not restart NetworkManager on connection settings change
 
- -- Aleksandr Kazadaev <aleksandr.kazadaev@wirenboard.com>  Tue, 18 Jul 2023 15:35:00 +0600
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Wed, 12 Jul 2023 17:40:24 +0500
+>>>>>>> origin/main
 
 wb-nm-helper (1.27.4) stable; urgency=medium
 
