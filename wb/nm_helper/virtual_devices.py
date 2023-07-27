@@ -810,7 +810,7 @@ class ModemAccessTechnology(enum.Enum):
     MM_MODEM_ACCESS_TECHNOLOGY_ANY = 0xFFFFFFFF
 
 
-class ActiveConnection(Connection):
+class ActiveConnection(Connection):  # pylint: disable=R0902
     MM_MODEM_STATE_REGISTERED = 11
 
     def __init__(self, mediator: Mediator, dbus_bus: dbus.Bus, dbus_path):
