@@ -1,3 +1,9 @@
+wb-nm-helper (1.29.1) stable; urgency=medium
+
+  * Periodically check connectivity status to show it's changes in wb-mqtt-homeui
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Thu, 27 Jul 2023 12:11:18 +0500
+
 wb-nm-helper (1.29.0) stable; urgency=medium
 
   * Better device presence detection

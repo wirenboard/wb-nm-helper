@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import copy
 import enum
+import functools
 import json
 import logging
 import os
@@ -19,7 +20,26 @@ from wb_common.mqtt_client import DEFAULT_BROKER_URL, MQTTClient
 
 from wb.nm_helper.connection_checker import ConnectionChecker
 from wb.nm_helper.connection_manager import check_connectivity
-from wb.nm_helper.network_manager import NetworkManager
+from wb.nm_helper.network_manager import NetworkManager, NMActiveConnection
+
+CONNECTIVITY_CHECK_PERIOD = 20
+
+
+def has_permanent_connectivity(active_connection: NMActiveConnection) -> bool:
+    try:
+        connection_type = active_connection.get_connection_type()
+        if connection_type == "loopback":
+            return True
+        return (
+            active_connection.get_connection()
+            .get_settings()
+            .get("user", {})
+            .get("data", {})
+            .get("wb.read-only", False)
+        )
+    except dbus.exceptions.DBusException as ex:
+        logging.debug("Can't define if connection has permanent connectivity: %s", ex)
+        return False
 
 
 class EventLoop:
@@ -45,6 +65,9 @@ class EventLoop:
 
     def run_coroutine_threadsafe(self, coroutine):
         return asyncio.run_coroutine_threadsafe(coroutine, self._event_loop)
+
+    def call_later(self, delay, callback):
+        return self._event_loop.call_later(delay, callback)
 
 
 class Connection(ABC):
@@ -302,7 +325,8 @@ class ConnectionsMediator(Mediator):
                 common_connection = self._common_connections[connection_path]
                 common_connection.update(new_active_connection.properties)
 
-                self._connectivity_updater.update(new_active_connection)
+                if new_active_connection.properties["state"] == ConnectionState.ACTIVATED:
+                    self._connectivity_updater.update(new_active_connection)
 
                 self._active_connections[new_active_path] = new_active_connection
             except dbus.exceptions.DBusException:
@@ -329,13 +353,33 @@ class ConnectionsMediator(Mediator):
             return
 
         connection_path = connection.properties["connection"]
-        active_connection_path = connection.properties["path"]
-        if connection_path in self._common_connections and active_connection_path in self._active_connections:
-            self._common_connections[connection_path].update({"connectivity": connectivity})
+        if connection_path not in self._common_connections:
+            return
+
+        active_connection = self._active_connections.get(connection.properties["path"])
+        if not active_connection:
+            return
+
+        self._common_connections[connection_path].update({"connectivity": connectivity})
+
+        if active_connection.has_permanent_connectivity():
+            return
+
+        if active_connection.connectivity_check_timer is not None:
+            active_connection.connectivity_check_timer.cancel()
+            active_connection.connectivity_check_timer = None
+
+        def reload(updater, con):
+            updater.update(con)
+
+        active_connection.connectivity_check_timer = self._event_loop.call_later(
+            CONNECTIVITY_CHECK_PERIOD, functools.partial(reload, self._connectivity_updater, connection)
+        )
 
     # ActiveConnection have been updated by dbus
     def _active_connection_properties_updated(self, connection: Connection, properties):
         if connection in self._active_connections.values():
+            was_not_activated = connection.properties["state"] != ConnectionState.ACTIVATED
             connection.update(properties)
 
             connection_path = connection.properties["connection"]
@@ -343,7 +387,8 @@ class ConnectionsMediator(Mediator):
                 self._common_connections[connection_path].update(connection.properties)
 
                 if connection.properties["state"] == ConnectionState.ACTIVATED:
-                    self._connectivity_updater.update(connection)
+                    if was_not_activated:
+                        self._connectivity_updater.update(connection)
                 else:
                     self._common_connections[connection_path].update({"connectivity": False})
 
@@ -444,7 +489,9 @@ class ConnectivityUpdater:
             name = connection.properties.get("name")
             active_connection = self._network_manager.get_active_connections().get(name)
             if active_connection is not None:
-                connectivity = check_connectivity(active_connection, self._connection_checker)
+                connectivity = True
+                if not has_permanent_connectivity(active_connection):
+                    connectivity = check_connectivity(active_connection, self._connection_checker)
 
                 self._mediator.new_event(
                     Event(
@@ -763,7 +810,7 @@ class ModemAccessTechnology(enum.Enum):
     MM_MODEM_ACCESS_TECHNOLOGY_ANY = 0xFFFFFFFF
 
 
-class ActiveConnection(Connection):
+class ActiveConnection(Connection):  # pylint: disable=R0902
     MM_MODEM_STATE_REGISTERED = 11
 
     def __init__(self, mediator: Mediator, dbus_bus: dbus.Bus, dbus_path):
@@ -777,6 +824,8 @@ class ActiveConnection(Connection):
         self._update_handler_match = None
         self._ip4config_update_handler_match = None
         self._modem_update_handler_match = None
+
+        self.connectivity_check_timer = None
 
     @property
     def properties(self):
@@ -970,6 +1019,9 @@ class ActiveConnection(Connection):
         self._mediator.new_event(Event(EventType.ACTIVE_MODEM_STATE_UPDATED, connection=self))
 
     def stop(self):
+        if self.connectivity_check_timer is not None:
+            self.connectivity_check_timer.cancel()
+
         empty_properties = {
             "active": False,
             "state": None,
@@ -984,6 +1036,9 @@ class ActiveConnection(Connection):
         self._update_handler_match.remove()
 
         logging.info("Remove active connection %s %s", self.properties["connection"], self._path)
+
+    def has_permanent_connectivity(self) -> bool:
+        return has_permanent_connectivity(NMActiveConnection(self._path, self._bus))
 
 
 def main():
