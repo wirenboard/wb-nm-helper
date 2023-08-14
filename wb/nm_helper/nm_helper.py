@@ -17,9 +17,9 @@ from .network_manager_adapter import NetworkManagerAdapter
 def is_modem_enabled(modem_dt_alias: str) -> bool:
     dt_base = "/sys/firmware/devicetree/base"
     try:
-        with open("%s/aliases/%s" % (dt_base, modem_dt_alias), encoding="ascii") as dt_file:
+        with open(f"{dt_base}/aliases/{modem_dt_alias}", encoding="ascii") as dt_file:
             nodepath = dt_file.read().rstrip("\x00")
-            with open("%s%s/status" % (dt_base, nodepath), encoding="ascii") as dt_file:
+            with open(f"{dt_base}{nodepath}/status", encoding="ascii") as dt_file:
                 return dt_file.read().rstrip("\x00") == "okay"
     except FileNotFoundError:
         return False

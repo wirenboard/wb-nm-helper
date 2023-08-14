@@ -14,5 +14,5 @@ if action == "up":
     con = network_manager.find_connection(cn_id)
     if con:
         if con.get_settings().get("user", {}).get("data", {}).get("wb.disable-nat", "false") == "true":
-            print("Remove NAT for {} according to {} settings".format(iface, cn_id))
-            os.system("nft delete table ip nm-shared-{}".format(iface))
+            print(f"Remove NAT for {iface} according to {cn_id} settings")
+            os.system(f"nft delete table ip nm-shared-{iface}")
