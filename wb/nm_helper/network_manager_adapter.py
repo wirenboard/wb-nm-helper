@@ -241,7 +241,7 @@ def set_ipv4_dbus_options(con: DBUSSettings, iface: JSONSettings) -> None:
     con.set_opts(iface, ipv4_params)
     method = iface.get_opt("ipv4.method", "auto")
     ipv4_address = iface.get_opt("ipv4.address")
-    ipv4_netmask = iface.get_opt("ipv4.netmask")
+    ipv4_netmask = iface.get_opt("ipv4.netmask", "255.255.255.0")
     if (method == "manual") or (method == "shared" and ipv4_address is not None):
         net = IPv4Interface(f"{ipv4_address}/{ipv4_netmask}")
         parts = net.with_prefixlen.split("/")
