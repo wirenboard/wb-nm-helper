@@ -34,7 +34,7 @@ Description: Wirenboard network configuration python3 library
 Package: wb-nm-helper
 Architecture: all
 Depends: ${misc:Depends},
-         python3 (>= 3.6),
+         python3 (>= 3.9),
          python3-wb-nm-helper (= ${binary:Version}),
          wb-mqtt-homeui (>= 2.56.0~~),
          wb-mqtt-confed (>= 1.13.0~~),
