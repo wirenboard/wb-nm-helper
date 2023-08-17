@@ -17,7 +17,7 @@ def replace_host_name_with_ip(url: str, host_ip: str) -> str:
     if not parsed_url.hostname:
         return url
     if parsed_url.port is not None:
-        return urlunparse(parsed_url._replace(netloc="{}:{}".format(host_ip, parsed_url.port)))
+        return urlunparse(parsed_url._replace(netloc=f"{host_ip}:{parsed_url.port}"))
     return urlunparse(parsed_url._replace(netloc=host_ip))
 
 
@@ -34,7 +34,7 @@ def curl_get(iface: str, url: str, host_ip: str) -> str:
     curl.setopt(curl.INTERFACE, iface)
     curl.setopt(pycurl.CONNECTTIMEOUT, CONNECTIVITY_CHECK_TIMEOUT)
     curl.setopt(pycurl.TIMEOUT, CONNECTIVITY_CHECK_TIMEOUT)
-    curl.setopt(curl.HTTPHEADER, ["Host: {}".format(get_host_name(url))])
+    curl.setopt(curl.HTTPHEADER, [f"Host: {get_host_name(url)}"])
     curl.perform()
     curl.close()
     return buffer.getvalue().decode("UTF-8")

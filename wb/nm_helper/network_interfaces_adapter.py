@@ -169,14 +169,16 @@ class NetworkInterfacesAdapter:
         for iface in self.interfaces:
             name = iface["name"]
             if iface.get("auto"):
-                output += "auto %s\n" % name
+                output += f"auto {name}\n"
             if iface.get("allow-hotplug"):
-                output += "allow-hotplug %s\n" % name
-            output += "iface %s %s %s\n" % (name, iface.get("mode", "inet"), iface.get("method", "manual"))
+                output += f"allow-hotplug {name}\n"
+            inet = iface.get("mode", "inet")
+            manual = iface.get("method", "manual")
+            output += f"iface {name} {inet} {manual}\n"
             options = iface.get("options", {})
             for opt_key, opt_val in options_generator(options):
                 if opt_val not in ("", None):
-                    output += "  %s %s\n" % (opt_key, opt_val)
+                    output += f"  {opt_key} {opt_val}\n"
             output += "\n"
         return output
 
@@ -282,10 +284,11 @@ class NetworkInterfacesAdapter:
 
         new_iface_names = [c["name"] for c in self.interfaces]
         for i, iface in enumerate(old_interfaces):
-            if iface["name"] not in new_iface_names:
+            iface_name = iface["name"]
+            if iface_name not in new_iface_names:
                 if not dry_run:
-                    os.system("ifdown %s" % iface["name"])
-                res.released_interfaces.append(iface["name"])
+                    os.system(f"ifdown {iface_name}")
+                res.released_interfaces.append(iface_name)
                 del old_interfaces[i]
 
         res.is_changed = json.dumps(old_interfaces, sort_keys=True) != json.dumps(

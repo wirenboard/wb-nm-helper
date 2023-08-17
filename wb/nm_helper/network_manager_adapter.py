@@ -48,7 +48,7 @@ Param = namedtuple(
 
 
 def to_mac_string(mac_array):
-    return None if mac_array is None else ":".join(map(lambda item: "%0.2X" % item, mac_array))
+    return None if mac_array is None else ":".join(map(lambda item: f"{item:02X}", mac_array))
 
 
 def to_utf8_string(data):
@@ -240,10 +240,10 @@ def set_ipv4_dbus_options(con: DBUSSettings, iface: JSONSettings) -> None:
     con.set_value("ipv4.addresses", None)
     con.set_opts(iface, ipv4_params)
     method = iface.get_opt("ipv4.method", "auto")
-    if (method == "manual") or (method == "shared" and iface.get_opt("ipv4.address") is not None):
-        net = IPv4Interface(
-            "%s/%s" % (iface.get_opt("ipv4.address"), iface.get_opt("ipv4.netmask", "255.255.255.0"))
-        )
+    ipv4_address = iface.get_opt("ipv4.address")
+    ipv4_netmask = iface.get_opt("ipv4.netmask", "255.255.255.0")
+    if (method == "manual") or (method == "shared" and ipv4_address is not None):
+        net = IPv4Interface(f"{ipv4_address}/{ipv4_netmask}")
         parts = net.with_prefixlen.split("/")
         addr = dbus.Dictionary({"address": parts[0], "prefix": dbus.UInt32(parts[1])})
         con.set_value("ipv4.address-data", dbus.Array([addr], signature=dbus.Signature("a{sv}")))
@@ -255,7 +255,9 @@ def get_ipv4_dbus_options(res: JSONSettings, cfg: DBUSSettings) -> None:
     res.set_opts(cfg, ipv4_params)
     addr_data = cfg.get_opt("ipv4.address-data")
     if addr_data is not None and len(addr_data) > 0:
-        net = IPv4Interface("%s/%d" % (addr_data[0].get("address"), addr_data[0].get("prefix")))
+        address = addr_data[0].get("address")
+        prefix = addr_data[0].get("prefix")
+        net = IPv4Interface(f"{address}/{prefix}")
         parts = net.with_netmask.split("/")
         res.set_value("ipv4.address", parts[0], ParamPathType.TREE)
         res.set_value("ipv4.netmask", parts[1], ParamPathType.TREE)

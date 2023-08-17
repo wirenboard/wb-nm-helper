@@ -54,7 +54,6 @@ def resolve_domain_name(name: str, iface: str) -> List[str]:
     if callback.error is None and callback.result is not None:
         return callback.result.addresses
     raise DomainNameResolveException(
-        "Error during {} resolving: {}".format(
-            name, "can't get address" if callback.error is None else pycares.errno.strerror(callback.error)
-        )
+        f"Error during {name} resolving: "
+        + ("can't get address" if callback.error is None else pycares.errno.strerror(callback.error))
     )

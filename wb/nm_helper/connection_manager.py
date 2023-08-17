@@ -95,9 +95,7 @@ class ConfigFile:  # pylint: disable=too-many-instance-attributes
             try:
                 value = datetime.timedelta(seconds=int(seconds))
             except Exception as e:
-                raise ImproperlyConfigured(
-                    "Incorrect sticky_connection_period_s ({}): {}".format(seconds, e)
-                ) from e
+                raise ImproperlyConfigured(f"Incorrect sticky_connection_period_s ({seconds}): {e}") from e
         else:
             value = DEFAULT_STICKY_CONNECTION_PERIOD
         return value
@@ -106,7 +104,7 @@ class ConfigFile:  # pylint: disable=too-many-instance-attributes
     def get_connectivity_check_url(cfg: Dict) -> str:
         value = cfg.get("connectivity_check_url", DEFAULT_CONNECTIVITY_CHECK_URL)
         if not value.startswith("http://") and not value.startswith("https://"):
-            raise ImproperlyConfigured("Bad connectivity URL %s" % value)
+            raise ImproperlyConfigured(f"Bad connectivity URL {value}")
         return value
 
     @staticmethod

@@ -72,7 +72,7 @@ class FakeNMConnection(INMConnection):
         pass
 
     def get_property(self, property_name: str):
-        raise RuntimeError("Can't get property {}".format(property_name))
+        raise RuntimeError(f"Can't get property {property_name}")
 
     def get_prop_iface(self):
         pass
@@ -160,14 +160,15 @@ class FakeNMDevice(INMDevice):
 
     def get_property(self, property_name):
         if property_name == "Udi":
-            return "/fake/Devices/{}/{}".format(self.name, self._data().get("index"))
+            index = self._data().get("index")
+            return f"/fake/Devices/{self.name}/{index}"
         if property_name == "IpInterface":
             return self.net_man.fake_get_iface_for_device(self)
         if property_name == "Managed":
             return self._data().get("managed")
         if property_name == "Interface":
             return self.name
-        raise RuntimeError("Can't get property {}".format(property_name))
+        raise RuntimeError(f"Can't get property {property_name}")
 
     def get_active_connection(self):
         con = self.net_man.fake_get_connection_for_device(self)
@@ -215,7 +216,7 @@ class FakeNetworkManager(INetworkManager):  # pylint: disable=too-many-public-me
         device_type,
         device_connected=False,
         connection_state=NM_ACTIVE_CONNECTION_STATE_UNKNOWN,
-        **kwargs
+        **kwargs,
     ):
         device_name = kwargs.get("device_name")
         if not device_name:
@@ -279,7 +280,7 @@ class FakeNetworkManager(INetworkManager):  # pylint: disable=too-many-public-me
         device_connected=False,
         connection_state=NM_ACTIVE_CONNECTION_STATE_UNKNOWN,
         sim_slot=1,
-        **kwargs
+        **kwargs,
     ):
         if not kwargs.get("device_name"):
             kwargs["device_name"] = "ttyUSB1"
@@ -340,7 +341,7 @@ class FakeNetworkManager(INetworkManager):  # pylint: disable=too-many-public-me
     def activate_connection(self, con: FakeNMConnection, dev: FakeNMDevice):
         logging.warning("activate connection %s (%s)", con.name, dev.name)
         if con.name not in self.connections:
-            raise FakeNMError("No connection found: {}".format(con.name))
+            raise FakeNMError(f"No connection found: {con.name}")
         if not self.connections.get(con.name).get("device_connected"):
             self.connections[con.name]["connection_state"] = NM_ACTIVE_CONNECTION_STATE_DEACTIVATED
         if self.connections.get(con.name).get("device_type") == "gsm" and self.connections.get(con.name).get(
@@ -358,7 +359,7 @@ class FakeNetworkManager(INetworkManager):  # pylint: disable=too-many-public-me
         pass
 
     def get_property(self, property_name: str):
-        raise RuntimeError("Can't get property {}".format(property_name))
+        raise RuntimeError(f"Can't get property {property_name}")
 
     def get_prop_iface(self):
         pass
