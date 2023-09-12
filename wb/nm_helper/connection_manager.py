@@ -642,7 +642,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
     def find_lesser_gsm_connections(
         self, current_con_id: str, current_tier: ConnectionTier
     ) -> Iterator[NMActiveConnection]:
-        if not self.current_tier:
+        if not current_tier:
             logging.debug("Current tier is not set, no lesser connections")
             return
         logging.debug('Current tier is "%s"', current_tier)
