@@ -1991,11 +1991,8 @@ class ConnectionManagerTests(TestCase):
 
         result = list(self.con_man.find_lesser_gsm_connections("wb-gsm1", None))
 
-        self.assertEqual(
-            [], self.con_man.connection_is_gsm.mock_calls
-        )
+        self.assertEqual([], self.con_man.connection_is_gsm.mock_calls)
         self.assertEqual([], result)
-
 
     def test_find_lesser_gsm_connections_01_current_is_gsm(self):
         self.con_man.config.tiers = [
