@@ -1,6 +1,6 @@
 wb-nm-helper (1.29.3) stable; urgency=medium
 
-  * Bugfix for issue with no working connections
+  * Fix crash when no working connection was found
 
  -- Aleksandr Kazadaev <aleksandr.kazadaev@wirenboard.com>  Wed, 13 Sep 2023 13:47:00 +0600
 
