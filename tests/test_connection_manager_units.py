@@ -1980,6 +1980,20 @@ class ConnectionManagerTests(TestCase):
         self.assertEqual([call("wb-eth1", "dummy_tier")], self.con_man.find_lesser_gsm_connections.mock_calls)
         self.assertEqual([call(con), call(con2)], self.con_man.deactivate_connection.mock_calls)
 
+    def test_find_lesser_gsm_connections_00_no_current_tier(self):
+        self.con_man.config.tiers = [
+            connection_manager.ConnectionTier("first_tier", 3, ["wb-eth0", "wb-gsm0"]),
+            connection_manager.ConnectionTier("second_tier", 2, ["wb-eth1", "wb-gsm1"]),
+            connection_manager.ConnectionTier("third_tier", 1, ["wb-eth2", "wb-gsm2"]),
+        ]
+        self.con_man.connection_is_gsm = MagicMock(side_effect=[False, False, True])
+        self.con_man.find_active_connection = MagicMock(return_value="dummy_con")
+
+        result = list(self.con_man.find_lesser_gsm_connections("wb-gsm1", None))
+
+        self.assertEqual([], self.con_man.connection_is_gsm.mock_calls)
+        self.assertEqual([], result)
+
     def test_find_lesser_gsm_connections_01_current_is_gsm(self):
         self.con_man.config.tiers = [
             connection_manager.ConnectionTier("first_tier", 3, ["wb-eth0", "wb-gsm0"]),
