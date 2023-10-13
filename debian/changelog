@@ -1,3 +1,9 @@
+wb-nm-helper (1.29.4) stable; urgency=medium
+
+  * Fix pylint errors. No functional changes
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Fri, 13 Oct 2023 12:22:17 +0500
+
 wb-nm-helper (1.29.3) stable; urgency=medium
 
   * Fix crash when no working connection was found
