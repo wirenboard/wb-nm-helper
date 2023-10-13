@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from setuptools import setup
+import setuptools
 
 
 def get_version():
@@ -8,7 +8,7 @@ def get_version():
         return f.readline().split()[1][1:-1]
 
 
-setup(
+setuptools.setup(
     name="wb-nm-helper",
     version=get_version(),
     description="wb-mqtt-confed backend for network configuration",
