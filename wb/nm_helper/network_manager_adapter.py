@@ -409,6 +409,9 @@ class WiFiAp(WiFiConnection):
 
     def set_dbus_options(self, con: DBUSSettings, iface: JSONSettings):
         super().set_dbus_options(con, iface)
+        con.set_value("802-11-wireless.band", "bg")
+        con.set_value("802-11-wireless.channel", 1)
+        con.set_value("802-11-wireless.powersave", 2)
         if "802-11-wireless-security" in con.params:
             # Disable WPS as it can lead to connection problems with MacOS and Linux
             con.set_value("802-11-wireless-security.wps-method", 1)
