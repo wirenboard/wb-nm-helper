@@ -1977,12 +1977,20 @@ class ConnectionManagerTests(TestCase):
         self.assertEqual([call("wb-eth1")], self.con_man.network_manager.find_connection.mock_calls)
 
     def test_deactivate_lesser_gsm_connections(self):
-        settings = {"user": {"data": {"wb.close-by-priority": True}}}
-        con = DummyNMActiveConnection(DummyNMConnection("wb-gsm0", settings))
+        settings_close = {"user": {"data": {"wb.close-by-priority": "true"}}}
+        settings_do_not_close = {}
+        settings_do_not_close2 = {"user": {"data": {"wb.close-by-priority": "false"}}}
+
+        con = DummyNMActiveConnection(DummyNMConnection("wb-gsm0", settings_close))
         con.get_connection_id = MagicMock(return_value="wb-gsm0")
-        con2 = DummyNMActiveConnection(DummyNMConnection("wb-gsm1", settings))
+        con2 = DummyNMActiveConnection(DummyNMConnection("wb-gsm1", settings_close))
         con2.get_connection_id = MagicMock(return_value="wb-gsm1")
-        self.con_man.find_lesser_gsm_connections = MagicMock(return_value=[con, con2])
+        con3 = DummyNMActiveConnection(DummyNMConnection("wb-gsm2", settings_do_not_close))
+        con3.get_connection_id = MagicMock(return_value="wb-gsm2")
+        con4 = DummyNMActiveConnection(DummyNMConnection("wb-gsm3", settings_do_not_close2))
+        con4.get_connection_id = MagicMock(return_value="wb-gsm3")
+
+        self.con_man.find_lesser_gsm_connections = MagicMock(return_value=[con, con2, con3, con4])
         self.con_man.deactivate_connection = MagicMock()
 
         self.con_man.deactivate_lesser_gsm_connections("wb-eth1", "dummy_tier")
