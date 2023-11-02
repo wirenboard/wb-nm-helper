@@ -771,10 +771,6 @@ class ActiveConnection:  # pylint: disable=R0902
     def run(self):
         self._properties_changed_subscription.subscribe(self._path, active_connection_path=self._path)
         self._read_properties()
-        if self.state.state == ConnectionState.ACTIVATED and not has_permanent_connectivity(
-            NMActiveConnection(self._path, self._bus)
-        ):
-            self._connectivity_updater.update(self._path)
 
         logging.info(
             "New active connection %s %s %s %s",
@@ -786,6 +782,8 @@ class ActiveConnection:  # pylint: disable=R0902
 
     def update(self, properties):
         logging.debug("Update active connection %s: %s", self._path, properties)
+
+        was_not_activated = self.state.state != ConnectionState.ACTIVATED
 
         self._parse_dbus_properties(properties)
 
@@ -802,6 +800,13 @@ class ActiveConnection:  # pylint: disable=R0902
                 self._ipv4_config_changed_subscription.subscribe(
                     ip4config_path, active_connection_path=self._path
                 )
+
+        if (
+            was_not_activated
+            and self.state.state == ConnectionState.ACTIVATED
+            and not has_permanent_connectivity(NMActiveConnection(self._path, self._bus))
+        ):
+            self._connectivity_updater.update(self._path)
 
     def update_modem(self):
         if self._modem_path is None:
