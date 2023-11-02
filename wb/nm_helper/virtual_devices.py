@@ -185,7 +185,7 @@ class MqttConnectionState:  # pylint: disable=R0902
     access_tech: str = None
 
 
-class ConnectionsMediator(Mediator):
+class ConnectionsMediator(Mediator):  # pylint: disable=R0902
     def __init__(self, mqtt_client) -> None:
         super().__init__()
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
