@@ -951,10 +951,18 @@
                             },
                             "enum": ["02_nm_modem"]
                         },
+                        "close-by-priority": {
+                            "title": "Close if higher priority connection is active",
+                            "description": "Helps to avoid service traffic when metered connection is active",
+                            "type": "boolean",
+                            "default": false,
+                            "_format": "checkbox",
+                            "propertyOrder": 4
+                        },
                         "gsm_apn": {
                             "type": "string",
                             "title": "APN",
-                            "propertyOrder": 4,
+                            "propertyOrder": 5,
                             "options": {
                                 "inputAttributes": {
                                     "placeholder":  "gsm_auto-config_title"
@@ -967,7 +975,7 @@
                                 {"$ref": "#/definitions/nm_ipv4_auto"},
                                 {"$ref": "#/definitions/nm_ipv4_manual"}
                             ],
-                            "propertyOrder": 5,
+                            "propertyOrder": 6,
                             "options": {
                                 "keep_oneof_values": false
                             }
@@ -977,7 +985,7 @@
                             "title": "Only for SIM slot",
                             "enum": [1, 2],
                             "default": 1,
-                            "propertyOrder": 6,
+                            "propertyOrder": 7,
                             "options": {
                                 "inputAttributes": {
                                     "placeholder":  "any SIM-slot"
@@ -988,7 +996,7 @@
                         "connection_interface-name": {
                             "type": "string",
                             "title": "Only for device",
-                            "propertyOrder": 7,
+                            "propertyOrder": 8,
                             "options": {
                                 "inputAttributes": {
                                     "placeholder":  "use with any suitable device"
@@ -1546,7 +1554,9 @@
             "Medium-priority connections": "Соединения со средним приоритетом",
             "Low-priority connections": "Соединения с низким приоритетом",
             "Encryption": "Шифрование",
-            "For maximum compatibility set to Auto": "Для максимальной совместимости оставьте Auto"
+            "For maximum compatibility set to Auto": "Для максимальной совместимости оставьте Auto",
+            "Close if higher priority connection is active": "Отключать, если активно другое соединение с более высоким приоритетом",
+            "Helps to avoid service traffic when metered connection is active": "Позволяет избежать расходов на служебный трафик, если соединение не используется"
         }
     }
 }

@@ -1,3 +1,9 @@
+wb-nm-helper (1.30.0) stable; urgency=medium
+
+  * Add option to configure gsm connection deactivation by priority
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Wed, 01 Nov 2023 11:20:37 +0500
+
 wb-nm-helper (1.29.5) stable; urgency=medium
 
   * Fix Wi-Fi AP creation

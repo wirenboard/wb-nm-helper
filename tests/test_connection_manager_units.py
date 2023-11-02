@@ -51,7 +51,11 @@ class DummyNMConnection:
 
 
 class DummyNMActiveConnection:
-    pass
+    def __init__(self, connection=None):
+        self._connection = connection
+
+    def get_connection(self):
+        return self._connection
 
 
 class DummyConnectionChecker:
@@ -77,6 +81,11 @@ class DummyBytesIO:
 
 class DummyModemManager:
     pass
+
+
+class DummySystemBus:
+    def add_message_filter(self, _callback):
+        pass
 
 
 # TESTS
@@ -1968,9 +1977,10 @@ class ConnectionManagerTests(TestCase):
         self.assertEqual([call("wb-eth1")], self.con_man.network_manager.find_connection.mock_calls)
 
     def test_deactivate_lesser_gsm_connections(self):
-        con = DummyNMConnection("wb-gsm0", {})
+        settings = {"user": {"data": {"wb.close-by-priority": True}}}
+        con = DummyNMActiveConnection(DummyNMConnection("wb-gsm0", settings))
         con.get_connection_id = MagicMock(return_value="wb-gsm0")
-        con2 = DummyNMConnection("wb-gsm1", {})
+        con2 = DummyNMActiveConnection(DummyNMConnection("wb-gsm1", settings))
         con2.get_connection_id = MagicMock(return_value="wb-gsm1")
         self.con_man.find_lesser_gsm_connections = MagicMock(return_value=[con, con2])
         self.con_man.deactivate_connection = MagicMock()
@@ -2055,11 +2065,14 @@ class MainTests(TestCase):
         connection_manager.NetworkManager = DummyNetworkManager
         connection_manager.NetworkAwareConfigFile = DummyConfigFile
         connection_manager.ModemManager = DummyModemManager
+        connection_manager.dbus.SystemBus = DummySystemBus
+        connection_manager.request_dbus_name = MagicMock()
 
         self.dummy_json = DummyBytesIO()
 
     def tearDown(self) -> None:
         importlib.reload(connection_manager)
+        importlib.reload(dbus)
 
     def test_json_loading_errors_01_file_not_found(self):
         connection_manager.read_config_json = MagicMock(side_effect=FileNotFoundError())

@@ -13,6 +13,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 import dbus
+import dbus.lowlevel
 import dbus.mainloop.glib
 import dbus.types
 from gi.repository import GLib
@@ -20,7 +21,7 @@ from wb_common.mqtt_client import DEFAULT_BROKER_URL, MQTTClient
 
 from wb.nm_helper import wbmqtt
 from wb.nm_helper.connection_checker import ConnectionChecker
-from wb.nm_helper.connection_manager import check_connectivity
+from wb.nm_helper.connection_manager import DBUS_SERVICE_NAME, check_connectivity
 from wb.nm_helper.network_manager import NMActiveConnection
 
 CONNECTIVITY_CHECK_PERIOD = 20
@@ -70,18 +71,19 @@ class EventLoop:
 
 
 class EventType(enum.Enum):
-    COMMON_CREATE = 1
-    COMMON_SWITCH = 2
-    COMMON_REMOVE = 3
+    COMMON_CREATE = enum.auto()
+    COMMON_SWITCH = enum.auto()
+    COMMON_REMOVE = enum.auto()
 
-    ACTIVE_PROPERTIES_UPDATED = 4
-    ACTIVE_CONNECTIVITY_UPDATED = 5
-    ACTIVE_MODEM_STATE_UPDATED = 6
+    ACTIVE_PROPERTIES_UPDATED = enum.auto()
+    ACTIVE_CONNECTIVITY_UPDATED = enum.auto()
+    ACTIVE_MODEM_STATE_UPDATED = enum.auto()
+    ACTIVE_DEACTIVATED_BY_WB_CM = enum.auto()
 
-    ACTIVE_LIST_UPDATE = 7
-    CONNECTIVITY_REQUEST = 9
+    ACTIVE_LIST_UPDATE = enum.auto()
+    CONNECTIVITY_REQUEST = enum.auto()
 
-    RELOAD = 10
+    RELOAD = enum.auto()
 
 
 class Event:
@@ -198,6 +200,7 @@ class ConnectionsMediator(Mediator):
         self._connectivity_updater = ConnectivityUpdater(self, self._bus)
 
         self._set_connections_event_handlers()
+        self._deactivation_monitor = DeactivationMonitor(self)
 
     def run(self):
         self._event_loop.run()
@@ -392,6 +395,13 @@ class ConnectionsMediator(Mediator):
         if connection is not None:
             connection.update(state)
 
+    def _active_connection_deactivated_by_cm(self, active_connection_path: str) -> None:
+        active_connection = self._active_connections.get(active_connection_path)
+        if active_connection is not None and active_connection.type == "gsm":
+            connection = self._common_connections.get(active_connection.connection_path)
+            if connection is not None:
+                connection.set_deactivated_by_wb_cm()
+
     async def _run_async_event(self, event: Event):
         logging.debug("Execute event %s %s %s", event.number, event.type.name, event.kwargs)
         try:
@@ -422,7 +432,11 @@ class ConnectionsMediator(Mediator):
 
             elif event.type == EventType.RELOAD:
                 self._reload_connectivity()
-        except BaseException as ex:
+
+            elif event.type == EventType.ACTIVE_DEACTIVATED_BY_WB_CM:
+                self._active_connection_deactivated_by_cm(event.kwargs.get("active_connection_path"))
+
+        except BaseException as ex:  # pylint: disable=W0718
             logging.error(
                 "Error during event execution %s",
                 "\n".join(
@@ -570,6 +584,7 @@ class CommonConnection:  # pylint: disable=R0902
         self._name = None
         self._uuid = None
         self._mqtt_device = None
+        self._deactivated_by_wb_cm = False
 
         logging.info("New connection %s", self.dbus_path)
 
@@ -584,7 +599,17 @@ class CommonConnection:  # pylint: disable=R0902
         self._mqtt_device.set_control_value("Active", "1" if state.active else "0")
         self._mqtt_device.set_control_title("UpDown", "Down" if state.active else "Up")
         self._mqtt_device.set_control_value("Device", state.device)
-        self._mqtt_device.set_control_value("State", state.state.name.lower())
+
+        if state.state in (ConnectionState.ACTIVATED, ConnectionState.ACTIVATING):
+            self._deactivated_by_wb_cm = False
+        state_name = state.state.name.lower()
+        if self._deactivated_by_wb_cm and state.state in (
+            ConnectionState.DEACTIVATED,
+            ConnectionState.DEACTIVATING,
+        ):
+            state_name = state_name + " by wb-connection-manager"
+        self._mqtt_device.set_control_value("State", state_name)
+
         self._mqtt_device.set_control_value("Address", state.address)
         self._mqtt_device.set_control_value("Connectivity", "1" if state.connectivity else "0")
         if self._type == "gsm":
@@ -599,6 +624,9 @@ class CommonConnection:  # pylint: disable=R0902
         deactivated_state = MqttConnectionState()
         deactivated_state.state = ConnectionState.DEACTIVATED
         self.update(deactivated_state)
+
+    def set_deactivated_by_wb_cm(self) -> None:
+        self._deactivated_by_wb_cm = True
 
     def stop(self):
         self._remove_virtual_device()
@@ -661,6 +689,34 @@ class CommonConnection:  # pylint: disable=R0902
         logging.info("Remove virtual device %s %s %s", self._name, self._uuid, self.dbus_path)
 
 
+class DeactivationMonitor:
+    def __init__(self, mediator: Mediator) -> None:
+        self._mediator = mediator
+        self._private_bus = dbus.SystemBus(private=True)
+
+        obj_dbus = self._private_bus.get_object("org.freedesktop.DBus", "/org/freedesktop/DBus")
+        iface = dbus.Interface(obj_dbus, "org.freedesktop.DBus.Monitoring")
+        iface.BecomeMonitor(
+            [
+                "member=DeactivateConnection,sender=" + DBUS_SERVICE_NAME,
+            ],
+            dbus.UInt32(0),
+        )
+
+        self._private_bus.add_message_filter(self)
+
+    def __call__(self, _bus, msg: dbus.lowlevel.Message) -> None:
+        args = msg.get_args_list()
+        if args[0].startswith("/org/freedesktop/NetworkManager/ActiveConnection"):
+            logging.debug("Connection deactivation from %s\n%s", msg.get_sender(), args)
+            self._mediator.new_event(
+                Event(EventType.ACTIVE_DEACTIVATED_BY_WB_CM, active_connection_path=args[0])
+            )
+
+    def stop(self) -> None:
+        self._private_bus.close()
+
+
 class ModemAccessTechnology(enum.Enum):
     MM_MODEM_ACCESS_TECHNOLOGY_UNKNOWN = 0
     MM_MODEM_ACCESS_TECHNOLOGY_POTS = 1 << 0
@@ -707,7 +763,7 @@ class ActiveConnection:  # pylint: disable=R0902
 
         self.connection_path = None
         self.state = MqttConnectionState()
-        self._type = None
+        self.type = None
         self._name = None
         self._uuid = None
         self._modem_path = None
@@ -733,7 +789,7 @@ class ActiveConnection:  # pylint: disable=R0902
 
         self._parse_dbus_properties(properties)
 
-        if "Devices" in properties and self.state.device != "" and self._type == "gsm":
+        if "Devices" in properties and self.state.device != "" and self.type == "gsm":
             self._modem_path = self._find_modem_path_by_device(self.state.device)
             self._modem_state_changed_subscription.subscribe(
                 self._modem_path, active_connection_path=self._path
@@ -802,7 +858,7 @@ class ActiveConnection:  # pylint: disable=R0902
         if "Uuid" in dbus_properties:
             self._uuid = dbus_properties["Uuid"]
         if "Type" in dbus_properties:
-            self._type = dbus_properties["Type"]
+            self.type = dbus_properties["Type"]
         if "State" in dbus_properties:
             self.state.state = ConnectionState(dbus_properties["State"])
         if "Connection" in dbus_properties:
