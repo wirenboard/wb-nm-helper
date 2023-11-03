@@ -131,14 +131,14 @@ def remove_topics_by_device_prefix(mqtt_client, device_prefix: str) -> None:
         if message.topic.startswith(pattern):
             topics.append(message.topic)
 
-    DEVICES_PATTERN = "/devices/#"
-    mqtt_client.message_callback_add(DEVICES_PATTERN, on_message)
-    mqtt_client.subscribe(DEVICES_PATTERN)
+    devices_pattern = "/devices/#"
+    mqtt_client.message_callback_add(devices_pattern, on_message)
+    mqtt_client.subscribe(devices_pattern)
 
     retain_hack(mqtt_client)
 
-    mqtt_client.unsubscribe(DEVICES_PATTERN)
-    mqtt_client.message_callback_remove(DEVICES_PATTERN)
+    mqtt_client.unsubscribe(devices_pattern)
+    mqtt_client.message_callback_remove(devices_pattern)
 
     for topic in topics:
         logging.debug("Clear old topic %s", topic)
