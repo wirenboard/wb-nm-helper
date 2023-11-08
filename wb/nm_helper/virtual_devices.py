@@ -214,7 +214,6 @@ class ConnectionsMediator(Mediator):
         self._dbus_loop.quit()
         for connection in self._common_connections.values():
             connection.stop()
-        self._mqtt_client.stop()
 
     # Signals handlers
 
@@ -472,22 +471,23 @@ class ConnectivityUpdater:
 
         logging.debug("Check connectivity for %s", active_connection_path)
 
+        connectivity = False
         try:
-            connectivity = True
-
             nm_active_connection = NMActiveConnection(active_connection_path, self._bus)
-            if not has_permanent_connectivity(nm_active_connection):
+            if has_permanent_connectivity(nm_active_connection):
+                connectivity = True
+            else:
                 connectivity = check_connectivity(nm_active_connection, self._connection_checker)
+        except BaseException as ex:
+            logging.error("Unable to read connectivity for %s: %s", active_connection_path, ex)
 
-            self._mediator.new_event(
-                Event(
-                    EventType.ACTIVE_CONNECTIVITY_UPDATED,
-                    active_connection_path=active_connection_path,
-                    connectivity=connectivity,
-                )
+        self._mediator.new_event(
+            Event(
+                EventType.ACTIVE_CONNECTIVITY_UPDATED,
+                active_connection_path=active_connection_path,
+                connectivity=connectivity,
             )
-        except dbus.exceptions.DBusException:
-            logging.error("Unable to read connectivity for %s", active_connection_path)
+        )
 
 
 class CommonConnection:  # pylint: disable=R0902
@@ -919,14 +919,12 @@ class ActiveConnection:  # pylint: disable=R0902
             self._connectivity_check_timer.cancel()
             self._connectivity_check_timer = None
 
-        if self.state.state == ConnectionState.ACTIVATED:
+        def reload(updater, connection_path):
+            updater.update(connection_path)
 
-            def reload(updater, connection_path):
-                updater.update(connection_path)
-
-            self._connectivity_check_timer = self._mediator.call_later(
-                CONNECTIVITY_CHECK_PERIOD, functools.partial(reload, self._connectivity_updater, self._path)
-            )
+        self._connectivity_check_timer = self._mediator.call_later(
+            CONNECTIVITY_CHECK_PERIOD, functools.partial(reload, self._connectivity_updater, self._path)
+        )
 
 
 def main():
