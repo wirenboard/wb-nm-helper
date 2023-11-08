@@ -478,7 +478,7 @@ class ConnectivityUpdater:
                 connectivity = True
             else:
                 connectivity = check_connectivity(nm_active_connection, self._connection_checker)
-        except BaseException as ex:
+        except BaseException as ex:  # pylint: disable=W0718
             logging.error("Unable to read connectivity for %s: %s", active_connection_path, ex)
 
         self._mediator.new_event(
