@@ -122,15 +122,15 @@ successfully requested primary SIM switch in mode
 
 ```jsonc
 {
-    // Включение/выключение отладочных сообщений
-    "debug": false,
-
-    // Список названий соединений от в порядке убывания приоритета
-    "connections": [
-        "wb-eth1",
-        "wb-gsm-sim1",
-        "wb-gsm-sim2"
-    ]
+  "connectivity_check_url": "http://network-test.debian.org/nm",
+  "tiers": {
+    "high": [
+      "wb-eth0",
+      "wb-eth1"
+    ],
+    "low": [],
+    "medium": []
+  }
 }
 ```
 
