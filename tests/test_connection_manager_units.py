@@ -1968,11 +1968,24 @@ class ConnectionManagerTests(TestCase):
         self.assertEqual([call("wb-eth1")], self.con_man.network_manager.find_connection.mock_calls)
 
     def test_deactivate_lesser_gsm_connections(self):
-        con = DummyNMConnection("wb-gsm0", {})
+        settings_close = {"user": {"data": {"wb.close-by-priority": True}}}
+        settings_do_not_close = {}
+        settings_do_not_close2 = {"user": {"data": {"wb.close-by-priority": False}}}
+
+        con = DummyNMActiveConnection()
+        con.get_connection = MagicMock(return_value=DummyNMConnection("wb-gsm0", settings_close))
         con.get_connection_id = MagicMock(return_value="wb-gsm0")
-        con2 = DummyNMConnection("wb-gsm1", {})
+        con2 = DummyNMActiveConnection()
         con2.get_connection_id = MagicMock(return_value="wb-gsm1")
-        self.con_man.find_lesser_gsm_connections = MagicMock(return_value=[con, con2])
+        con2.get_connection = MagicMock(return_value=DummyNMConnection("wb-gsm1", settings_close))
+        con3 = DummyNMActiveConnection()
+        con3.get_connection_id = MagicMock(return_value="wb-gsm2")
+        con3.get_connection = MagicMock(return_value=DummyNMConnection("wb-gsm2", settings_do_not_close))
+        con4 = DummyNMActiveConnection()
+        con4.get_connection_id = MagicMock(return_value="wb-gsm3")
+        con4.get_connection = MagicMock(return_value=DummyNMConnection("wb-gsm3", settings_do_not_close2))
+
+        self.con_man.find_lesser_gsm_connections = MagicMock(return_value=[con, con2, con3, con4])
         self.con_man.deactivate_connection = MagicMock()
 
         self.con_man.deactivate_lesser_gsm_connections("wb-eth1", "dummy_tier")
@@ -2055,11 +2068,15 @@ class MainTests(TestCase):
         connection_manager.NetworkManager = DummyNetworkManager
         connection_manager.NetworkAwareConfigFile = DummyConfigFile
         connection_manager.ModemManager = DummyModemManager
+        connection_manager.dbus.SystemBus = MagicMock()
+        connection_manager.dbus.SystemBus.add_message_filter = MagicMock()
+        connection_manager.request_dbus_name = MagicMock()
 
         self.dummy_json = DummyBytesIO()
 
     def tearDown(self) -> None:
         importlib.reload(connection_manager)
+        importlib.reload(dbus)
 
     def test_json_loading_errors_01_file_not_found(self):
         connection_manager.read_config_json = MagicMock(side_effect=FileNotFoundError())

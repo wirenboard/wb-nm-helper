@@ -43,6 +43,7 @@ CONNECTION_DEACTIVATION_TIMEOUT = datetime.timedelta(seconds=30)
 LOG_RATE_LIMIT_DEFAULT = datetime.timedelta(seconds=600)
 DEFAULT_CONNECTIVITY_CHECK_URL = "http://network-test.debian.org/nm"
 DEFAULT_CONNECTIVITY_CHECK_PAYLOAD = "NetworkManager is online"
+DBUS_SERVICE_NAME = "com.wirenboard.wb-connection-manager"
 
 
 class ImproperlyConfigured(ValueError):
@@ -634,10 +635,19 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
         logging.debug("Found %s lesser GSM connections", len(connections))
         for connection in connections:
             data = {"cn_id": connection.get_connection_id()}
-            self.deactivate_connection(connection)
-            logging.info(
-                'Deactivated unneeded GSM connection "%s" to save GSM traffic', data["cn_id"], extra=data
-            )
+            if (
+                connection.get_connection()
+                .get_settings()
+                .get("user", {})
+                .get("data", {})
+                .get("wb.close-by-priority", False)
+            ):
+                self.deactivate_connection(connection)
+                logging.info(
+                    'Deactivated unneeded GSM connection "%s" to save GSM traffic', data["cn_id"], extra=data
+                )
+            else:
+                logging.debug('It is forbidden to close GSM connection "%s"', data["cn_id"], extra=data)
 
     def find_lesser_gsm_connections(
         self, current_con_id: str, current_tier: ConnectionTier
@@ -714,7 +724,15 @@ def init_logging(debug: bool):
     logging.basicConfig(level=log_level, format=LOGGING_FORMAT)
 
 
+def request_dbus_name(bus, name: str) -> None:
+    obj_dbus = bus.get_object("org.freedesktop.DBus", "/org/freedesktop/DBus")
+    iface = dbus.Interface(obj_dbus, "org.freedesktop.DBus")
+    iface.RequestName(name, dbus.UInt32(0))
+
+
 def main():
+    bus = dbus.SystemBus()
+    request_dbus_name(bus, DBUS_SERVICE_NAME)
     network_manager = NetworkManager()
     try:
         cfg_json = read_config_json()
