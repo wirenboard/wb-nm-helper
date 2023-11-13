@@ -640,7 +640,8 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
                 .get_settings()
                 .get("user", {})
                 .get("data", {})
-                .get("wb.close-by-priority", False)
+                .get("wb.close-by-priority", "false")
+                == "true"
             ):
                 self.deactivate_connection(connection)
                 logging.info(

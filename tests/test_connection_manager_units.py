@@ -1968,9 +1968,9 @@ class ConnectionManagerTests(TestCase):
         self.assertEqual([call("wb-eth1")], self.con_man.network_manager.find_connection.mock_calls)
 
     def test_deactivate_lesser_gsm_connections(self):
-        settings_close = {"user": {"data": {"wb.close-by-priority": True}}}
+        settings_close = {"user": {"data": {"wb.close-by-priority": "true"}}}
         settings_do_not_close = {}
-        settings_do_not_close2 = {"user": {"data": {"wb.close-by-priority": False}}}
+        settings_do_not_close2 = {"user": {"data": {"wb.close-by-priority": "false"}}}
 
         con = DummyNMActiveConnection()
         con.get_connection = MagicMock(return_value=DummyNMConnection("wb-gsm0", settings_close))
