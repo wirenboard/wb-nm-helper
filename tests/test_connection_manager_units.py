@@ -1968,22 +1968,22 @@ class ConnectionManagerTests(TestCase):
         self.assertEqual([call("wb-eth1")], self.con_man.network_manager.find_connection.mock_calls)
 
     def test_deactivate_lesser_gsm_connections(self):
-        settings_close = {"user": {"data": {"wb.close-by-priority": "true"}}}
-        settings_do_not_close = {}
-        settings_do_not_close2 = {"user": {"data": {"wb.close-by-priority": "false"}}}
+        settings_deactivate = {"user": {"data": {"wb.deactivate-by-priority": "true"}}}
+        settings_do_not_deactivate = {}
+        settings_do_not_deactivate2 = {"user": {"data": {"wb.deactivate-by-priority": "false"}}}
 
         con = DummyNMActiveConnection()
-        con.get_connection = MagicMock(return_value=DummyNMConnection("wb-gsm0", settings_close))
+        con.get_connection = MagicMock(return_value=DummyNMConnection("wb-gsm0", settings_deactivate))
         con.get_connection_id = MagicMock(return_value="wb-gsm0")
         con2 = DummyNMActiveConnection()
         con2.get_connection_id = MagicMock(return_value="wb-gsm1")
-        con2.get_connection = MagicMock(return_value=DummyNMConnection("wb-gsm1", settings_close))
+        con2.get_connection = MagicMock(return_value=DummyNMConnection("wb-gsm1", settings_deactivate))
         con3 = DummyNMActiveConnection()
         con3.get_connection_id = MagicMock(return_value="wb-gsm2")
-        con3.get_connection = MagicMock(return_value=DummyNMConnection("wb-gsm2", settings_do_not_close))
+        con3.get_connection = MagicMock(return_value=DummyNMConnection("wb-gsm2", settings_do_not_deactivate))
         con4 = DummyNMActiveConnection()
         con4.get_connection_id = MagicMock(return_value="wb-gsm3")
-        con4.get_connection = MagicMock(return_value=DummyNMConnection("wb-gsm3", settings_do_not_close2))
+        con4.get_connection = MagicMock(return_value=DummyNMConnection("wb-gsm3", settings_do_not_deactivate2))
 
         self.con_man.find_lesser_gsm_connections = MagicMock(return_value=[con, con2, con3, con4])
         self.con_man.deactivate_connection = MagicMock()

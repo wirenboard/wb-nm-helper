@@ -644,7 +644,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
                 .get_settings()
                 .get("user", {})
                 .get("data", {})
-                .get("wb.close-by-priority", "false")
+                .get("wb.deactivate-by-priority", "false")
                 == "true"
             ):
                 self.deactivate_connection(connection)
@@ -652,7 +652,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
                     'Deactivated unneeded GSM connection "%s" to save GSM traffic', data["cn_id"], extra=data
                 )
             else:
-                logging.debug('It is forbidden to close GSM connection "%s"', data["cn_id"], extra=data)
+                logging.debug('It is forbidden to deactivate GSM connection "%s"', data["cn_id"], extra=data)
 
     def find_lesser_gsm_connections(
         self, current_con_id: str, current_tier: ConnectionTier

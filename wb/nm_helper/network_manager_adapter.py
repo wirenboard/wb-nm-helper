@@ -444,14 +444,14 @@ class ModemConnection(Connection):
             con.set_value("gsm.auto-config", False)
         else:
             con.set_value("gsm.auto-config", True)
-        if iface.get_opt("close-by-priority", False):
+        if iface.get_opt("deactivate-by-priority", False):
             user_data = con.get_opt("user.data", dbus.Dictionary(signature="ss"))
-            user_data["wb.close-by-priority"] = "true"
+            user_data["wb.deactivate-by-priority"] = "true"
             con.set_value("user.data", user_data)
         else:
             user_data = con.get_opt("user.data")
-            if user_data is not None and user_data.get("wb.close-by-priority") is not None:
-                user_data["wb.close-by-priority"] = "false"
+            if user_data is not None and user_data.get("wb.deactivate-by-priority") is not None:
+                user_data["wb.deactivate-by-priority"] = "false"
                 con.set_value("user.data", user_data)
 
     def get_connection(self, con: NMConnection):
@@ -459,9 +459,9 @@ class ModemConnection(Connection):
         if res is not None:
             user_data = self.get_dbus_settings(con).get_opt("user.data")
             if user_data is None or not res["connection_autoconnect"]:
-                res["close-by-priority"] = False
+                res["deactivate-by-priority"] = False
             else:
-                res["close-by-priority"] = user_data.get("wb.close-by-priority", "false") == "true"
+                res["deactivate-by-priority"] = user_data.get("wb.deactivate-by-priority", "false") == "true"
         return res
 
 
