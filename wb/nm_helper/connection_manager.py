@@ -45,6 +45,10 @@ DEFAULT_CONNECTIVITY_CHECK_URL = "http://network-test.debian.org/nm"
 DEFAULT_CONNECTIVITY_CHECK_PAYLOAD = "NetworkManager is online"
 DBUS_SERVICE_NAME = "com.wirenboard.wb-connection-manager"
 
+DBUS_NAME_FLAG_ALLOW_REPLACEMENT = 1
+DBUS_NAME_FLAG_REPLACE_EXISTING = 2
+DBUS_NAME_FLAG_DO_NOT_QUEUE = 4
+
 
 class ImproperlyConfigured(ValueError):
     pass
@@ -728,7 +732,12 @@ def init_logging(debug: bool):
 def request_dbus_name(bus, name: str) -> None:
     obj_dbus = bus.get_object("org.freedesktop.DBus", "/org/freedesktop/DBus")
     iface = dbus.Interface(obj_dbus, "org.freedesktop.DBus")
-    iface.RequestName(name, dbus.UInt32(0))
+    iface.RequestName(
+        name,
+        dbus.UInt32(
+            DBUS_NAME_FLAG_ALLOW_REPLACEMENT | DBUS_NAME_FLAG_REPLACE_EXISTING | DBUS_NAME_FLAG_DO_NOT_QUEUE
+        ),
+    )
 
 
 def main():
