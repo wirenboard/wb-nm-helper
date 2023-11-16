@@ -1983,7 +1983,9 @@ class ConnectionManagerTests(TestCase):
         con3.get_connection = MagicMock(return_value=DummyNMConnection("wb-gsm2", settings_do_not_deactivate))
         con4 = DummyNMActiveConnection()
         con4.get_connection_id = MagicMock(return_value="wb-gsm3")
-        con4.get_connection = MagicMock(return_value=DummyNMConnection("wb-gsm3", settings_do_not_deactivate2))
+        con4.get_connection = MagicMock(
+            return_value=DummyNMConnection("wb-gsm3", settings_do_not_deactivate2)
+        )
 
         self.con_man.find_lesser_gsm_connections = MagicMock(return_value=[con, con2, con3, con4])
         self.con_man.deactivate_connection = MagicMock()
