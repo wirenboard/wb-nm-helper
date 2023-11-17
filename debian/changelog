@@ -1,3 +1,9 @@
+wb-nm-helper (1.31.0) stable; urgency=medium
+
+  * Add option to configure gsm connection deactivation by priority
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Fri, 10 Nov 2023 14:21:19 +0500
+
 wb-nm-helper (1.30.0) stable; urgency=medium
 
   * Source code refactoring. No functional changes

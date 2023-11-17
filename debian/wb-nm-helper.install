@@ -8,3 +8,4 @@ share/99-disable-if-not-configured.conf /usr/lib/systemd/system/hostapd.service.
 share/99-disable-if-not-configured.conf /usr/lib/systemd/system/dnsmasq.service.d
 bin/wb-disable-nat /usr/lib/NetworkManager/dispatcher.d
 bin/wb-mqtt-nm-helper /usr/bin
+share/wb-connection-manager.conf /usr/share/dbus-1/system.d
