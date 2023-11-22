@@ -19,7 +19,7 @@ iface eth1 inet dhcp
 
 allow-hotplug eth2
 iface eth2 inet dhcp
-  hwaddress ether 94:C6:91:91:4D:5A
+  hwaddress 94:C6:91:91:4D:5A
 
 auto wlan0
 allow-hotplug wlan0
