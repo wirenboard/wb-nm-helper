@@ -186,6 +186,9 @@ class NetworkInterfacesAdapter:
         """
         Convert iface options according to schema
         """
+        if "options" not in iface:
+            return
+
         for key, value in iface["options"].items():
             if key not in ("pre-up", "up", "post-up", "pre-down", "down", "post-down"):
                 iface["options"][key] = value[0] if len(value) == 1 else value
@@ -195,6 +198,10 @@ class NetworkInterfacesAdapter:
             iface["type"] = "can"
             if "options" in iface and "bitrate" in iface["options"]:
                 iface["options"]["bitrate"] = int(iface["options"]["bitrate"])
+
+        if "hwaddress" in iface["options"]:
+            # strip deprecated class attribute
+            iface["options"]["hwaddress"] = iface["options"]["hwaddress"].strip().split(" ")[-1]
 
     def get_interfaces(self):
         """

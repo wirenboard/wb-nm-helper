@@ -17,6 +17,10 @@ iface eth1 inet dhcp
   pre-up sleep 10   # comment2
   pre-up #test
 
+allow-hotplug eth2
+iface eth2 inet dhcp
+  hwaddress 94:C6:91:91:4D:5A
+
 auto wlan0
 allow-hotplug wlan0
 iface wlan0 inet static

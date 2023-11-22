@@ -131,6 +131,17 @@
         "type": "dhcp"
       },
       {
+        "name": "eth2",
+        "auto": false,
+        "mode": "inet",
+        "method": "dhcp",
+        "options": {
+          "hwaddress": "94:C6:91:91:4D:5A"
+        },
+        "allow-hotplug": true,
+        "type": "dhcp"
+      },
+      {
         "name": "wlan0",
         "auto": false,
         "mode": "inet",

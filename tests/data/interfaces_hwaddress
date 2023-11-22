@@ -1,0 +1,7 @@
+allow-hotplug eth0
+iface eth0 inet dhcp
+  hwaddress 94:C6:91:91:4D:5A
+
+allow-hotplug eth1
+iface eth1 inet dhcp
+  hwaddress ether  94:C6:91:91:4D:6A
