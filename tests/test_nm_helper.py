@@ -219,7 +219,7 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
         assert res["data"]["devices"][3]["iface"] == "wlan1"
         assert res["data"]["devices"][3]["type"] == "wifi"
         assert res["ui"]["con_switch"]["debug"] is False
-        assert len(res["ui"]["connections"]) == 9
+        assert len(res["ui"]["connections"]) == 10
         assert res["ui"]["connections"][0]["802-11-wireless-security"]["security"] == "none"
         assert res["ui"]["connections"][0]["802-11-wireless_mode"] == "ap"
         assert res["ui"]["connections"][0]["802-11-wireless_ssid"] == "WirenBoard-Тест"
@@ -287,11 +287,18 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
         assert res["ui"]["connections"][7]["type"] == "dhcp"
         assert res["ui"]["connections"][8]["allow-hotplug"] is True
         assert res["ui"]["connections"][8]["auto"] is False
-        assert res["ui"]["connections"][8]["method"] == "static"
-        assert res["ui"]["connections"][8]["mode"] == "can"
-        assert res["ui"]["connections"][8]["name"] == "can0"
-        assert res["ui"]["connections"][8]["options"]["bitrate"] == 125000
-        assert res["ui"]["connections"][8]["type"] == "can"
+        assert res["ui"]["connections"][8]["method"] == "dhcp"
+        assert res["ui"]["connections"][8]["mode"] == "inet"
+        assert res["ui"]["connections"][8]["name"] == "eth2"
+        assert res["ui"]["connections"][8]["options"]["hwaddress"] == "94:C6:91:91:4D:5A"
+        assert res["ui"]["connections"][8]["type"] == "dhcp"
+        assert res["ui"]["connections"][9]["allow-hotplug"] is True
+        assert res["ui"]["connections"][9]["auto"] is False
+        assert res["ui"]["connections"][9]["method"] == "static"
+        assert res["ui"]["connections"][9]["mode"] == "can"
+        assert res["ui"]["connections"][9]["name"] == "can0"
+        assert res["ui"]["connections"][9]["options"]["bitrate"] == 125000
+        assert res["ui"]["connections"][9]["type"] == "can"
 
 
 class FakeNMAdapter(NetworkManagerAdapter):

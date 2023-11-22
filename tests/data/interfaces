@@ -29,6 +29,10 @@ iface eth1 inet dhcp
    pre-up #test
    hostname WirenBoard
 
+allow-hotplug eth2
+iface eth2 inet dhcp
+  hwaddress ether 94:C6:91:91:4D:5A
+
 allow-hotplug can0
 iface can0 can static
    bitrate 125000
@@ -40,3 +44,6 @@ iface can0 can static
 #iface ppp0 inet ppp
 ## select provider: megafon, mts or beeline below
 #  provider megafon
+
+# filter interfaces without type
+auto eth3

@@ -178,7 +178,10 @@ class NetworkInterfacesAdapter:
             options = iface.get("options", {})
             for opt_key, opt_val in options_generator(options):
                 if opt_val not in ("", None):
-                    output += f"  {opt_key} {opt_val}\n"
+                    if opt_key == "hwaddress":
+                        output += f"  hwaddress ether {opt_val}\n"
+                    else:
+                        output += f"  {opt_key} {opt_val}\n"
             output += "\n"
         return output
 
@@ -186,6 +189,9 @@ class NetworkInterfacesAdapter:
         """
         Convert iface options according to schema
         """
+        if "options" not in iface:
+            return
+
         for key, value in iface["options"].items():
             if key not in ("pre-up", "up", "post-up", "pre-down", "down", "post-down"):
                 iface["options"][key] = value[0] if len(value) == 1 else value
@@ -195,6 +201,11 @@ class NetworkInterfacesAdapter:
             iface["type"] = "can"
             if "options" in iface and "bitrate" in iface["options"]:
                 iface["options"]["bitrate"] = int(iface["options"]["bitrate"])
+
+        if "hwaddress" in iface["options"]:
+            hwaddress_value = iface["options"]["hwaddress"]
+            if hwaddress_value.startswith("ether"):
+                iface["options"]["hwaddress"] = hwaddress_value[5:].strip()
 
     def get_interfaces(self):
         """
