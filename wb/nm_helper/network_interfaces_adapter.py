@@ -36,7 +36,7 @@ from pyparsing import (
     CharsNotIn,
     Forward,
     Group,
-    Literal,
+    LineEnd,
     Optional,
     Regex,
     SkipTo,
@@ -86,7 +86,7 @@ class NetworkInterfacesAdapter:
         "|mode|endpoint|dstaddr|local|ttl|provider|unit"
         "|options|frame|bitrate|netnum|media|wpa-[\\w-]*"
     )
-    _eol = Literal("\n").suppress()
+    _eol = LineEnd().suppress()
     option = Forward()
     option <<= Group(space + option_key + space + SkipTo(_eol))
     interface_block = Forward()

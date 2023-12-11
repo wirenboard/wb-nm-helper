@@ -14,7 +14,6 @@ from wb.nm_helper.connection_checker import ConnectionChecker
 from wb.nm_helper.dns_resolver import resolve_domain_name
 from wb.nm_helper.logging_filter import ConnectionStateFilter
 from wb.nm_helper.modem_manager import ModemManager
-from wb.nm_helper.modem_manager_interfaces import IModemManager
 from wb.nm_helper.network_manager import (
     NM_ACTIVE_CONNECTION_STATE_ACTIVATED,
     NM_ACTIVE_CONNECTION_STATE_DEACTIVATED,
@@ -28,7 +27,6 @@ from wb.nm_helper.network_manager import (
     NMDevice,
     connection_type_to_device_type,
 )
-from wb.nm_helper.network_manager_interfaces import INetworkManager
 
 EXIT_NOT_CONFIGURED = 6
 
@@ -127,7 +125,7 @@ class ConfigFile:  # pylint: disable=too-many-instance-attributes
 
 
 class NetworkAwareConfigFile(ConfigFile):
-    def __init__(self, network_manager: INetworkManager) -> None:
+    def __init__(self, network_manager: NetworkManager) -> None:
         super().__init__()
         self.network_manager = network_manager
 
@@ -294,12 +292,12 @@ def get_device_name(dev: NMDevice):
 class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable=too-many-public-methods
     def __init__(
         self,
-        network_manager: INetworkManager,
+        network_manager: NetworkManager,
         config: NetworkAwareConfigFile,
-        modem_manager: IModemManager,
+        modem_manager: ModemManager,
     ) -> None:
-        self.network_manager: INetworkManager = network_manager
-        self.modem_manager: IModemManager = modem_manager
+        self.network_manager: NetworkManager = network_manager
+        self.modem_manager: ModemManager = modem_manager
         self.config: NetworkAwareConfigFile = config
         self.timeouts: TimeoutManager = TimeoutManager(config)
         self.current_tier: Optional[ConnectionTier] = None

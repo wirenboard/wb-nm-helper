@@ -4,16 +4,6 @@ from typing import Dict, List, Optional
 
 import dbus
 
-from wb.nm_helper.network_manager_interfaces import (
-    INetworkManager,
-    INMAccessPoint,
-    INMActiveConnection,
-    INMConnection,
-    INMDevice,
-    INMObject,
-    INMWirelessDevice,
-)
-
 # NMActiveConnectionState
 NM_ACTIVE_CONNECTION_STATE_UNKNOWN = 0
 NM_ACTIVE_CONNECTION_STATE_ACTIVATING = 1
@@ -52,7 +42,7 @@ def connection_type_to_device_type(cn_type):
     return types.get(cn_type, 0)
 
 
-class NMObject(INMObject):
+class NMObject:
     def __init__(self, path: str, bus: dbus.SystemBus, interface_name: str):
         self.path = path
         self.bus = bus
@@ -83,7 +73,7 @@ class NMObject(INMObject):
         return self.path
 
 
-class NetworkManager(NMObject, INetworkManager):
+class NetworkManager(NMObject):
     def __init__(self):
         NMObject.__init__(
             self,
@@ -156,7 +146,7 @@ class NetworkManager(NMObject, INetworkManager):
         )
 
 
-class NMConnection(NMObject, INMConnection):
+class NMConnection(NMObject):
     def __init__(self, path: str, bus: dbus.SystemBus):
         NMObject.__init__(self, path, bus, "org.freedesktop.NetworkManager.Settings.Connection")
 
@@ -182,7 +172,7 @@ class NMConnection(NMObject, INMConnection):
         return self.get_iface().Update(settings)
 
 
-class NMDevice(NMObject, INMDevice):
+class NMDevice(NMObject):
     def __init__(self, path: str, bus: dbus.SystemBus):
         NMObject.__init__(self, path, bus, "org.freedesktop.NetworkManager.Device")
 
@@ -198,7 +188,7 @@ class NMDevice(NMObject, INMDevice):
         return NMActiveConnection(cn_path, self.bus)
 
 
-class NMActiveConnection(NMObject, INMActiveConnection):
+class NMActiveConnection(NMObject):
     def __init__(self, path: str, bus: dbus.SystemBus):
         NMObject.__init__(self, path, bus, "org.freedesktop.NetworkManager.Connection.Active")
 
@@ -233,12 +223,12 @@ class NMActiveConnection(NMObject, INMActiveConnection):
         return NM_CONNECTIVITY_UNKNOWN
 
 
-class NMAccessPoint(NMObject, INMAccessPoint):
+class NMAccessPoint(NMObject):
     def __init__(self, path: str, bus: dbus.SystemBus):
         NMObject.__init__(self, path, bus, "org.freedesktop.NetworkManager.AccessPoint")
 
 
-class NMWirelessDevice(NMObject, INMWirelessDevice):
+class NMWirelessDevice(NMObject):
     def __init__(self, dev: NMDevice):
         NMObject.__init__(
             self,
