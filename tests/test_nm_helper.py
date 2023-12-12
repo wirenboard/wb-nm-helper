@@ -1,7 +1,7 @@
 import argparse
 import json
 import subprocess
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import dbus
 import dbusmock
@@ -13,9 +13,7 @@ from dbusmock.templates.networkmanager import (
     DeviceState,
 )
 
-from tests.mm_mock import FakeNetworkManager
 from wb.nm_helper import nm_helper
-from wb.nm_helper.network_manager_adapter import NetworkManagerAdapter
 
 
 class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
@@ -301,22 +299,12 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
         assert res["ui"]["connections"][9]["type"] == "can"
 
 
-class FakeNMAdapter(NetworkManagerAdapter):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.network_manager = FakeNetworkManager()
-
-    def apply(self, interfaces, dry_run):
-        dry_run = False
-        super().apply(interfaces, dry_run)
-
-
 def test_from_json():
     with open("tests/data/ui.json", "r", encoding="utf-8") as f:
         cfg = json.load(f)
 
     # we need to unset dry_run only for "apply" method
-    with patch("wb.nm_helper.network_manager_adapter.NetworkManagerAdapter", FakeNMAdapter):
+    with patch("wb.nm_helper.network_manager_adapter.NetworkManagerAdapter", MagicMock):
         res = nm_helper.from_json(
             cfg,
             args=argparse.Namespace(
