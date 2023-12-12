@@ -1,7 +1,7 @@
 import argparse
 import json
 import subprocess
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import dbus
 import dbusmock
@@ -13,7 +13,7 @@ from dbusmock.templates.networkmanager import (
     DeviceState,
 )
 
-from wb.nm_helper import network_manager_adapter, nm_helper
+from wb.nm_helper import nm_helper
 
 
 class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
@@ -303,18 +303,17 @@ def test_from_json():
     with open("tests/data/ui.json", "r", encoding="utf-8") as f:
         cfg = json.load(f)
 
-    network_manager_adapter.NetworkManagerAdapter = MagicMock()
-
     # we need to unset dry_run only for "apply" method
-    res = nm_helper.from_json(
-        cfg,
-        args=argparse.Namespace(
-            interfaces_conf="tests/data/interfaces",
-            dnsmasq_conf="tests/data/dnsmasq.conf",
-            hostapd_conf="tests/data/hostapd.conf",
-            dry_run=True,
-        ),
-    )
+    with patch("wb.nm_helper.network_manager_adapter.NetworkManagerAdapter", MagicMock):
+        res = nm_helper.from_json(
+            cfg,
+            args=argparse.Namespace(
+                interfaces_conf="tests/data/interfaces",
+                dnsmasq_conf="tests/data/dnsmasq.conf",
+                hostapd_conf="tests/data/hostapd.conf",
+                dry_run=True,
+            ),
+        )
 
-    assert len(res["connections"]) == 0
-    assert res["debug"] is False
+        assert len(res["connections"]) == 0
+        assert res["debug"] is False
