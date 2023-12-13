@@ -896,6 +896,7 @@ class ConnectionManagerTests(TestCase):
 
         self.con_man.timeouts.debug_log_timeouts = MagicMock()
         self.con_man.current_connection_has_connectivity = MagicMock(return_value=False)
+        self.con_man.connection_has_connectivity = MagicMock(return_value=False)
         self.con_man.non_current_connection_has_connectivity = MagicMock(side_effect=[False, True])
         self.assertEqual((low_tier, "wb_wifi_client"), self.con_man.check())
         self.assertEqual([call()], self.con_man.current_connection_has_connectivity.mock_calls)
@@ -913,6 +914,7 @@ class ConnectionManagerTests(TestCase):
 
         self.con_man.timeouts.debug_log_timeouts = MagicMock()
         self.con_man.current_connection_has_connectivity = MagicMock(return_value=False)
+        self.con_man.connection_has_connectivity = MagicMock(return_value=False)
         self.con_man.non_current_connection_has_connectivity = MagicMock(side_effect=[False, False])
         self.assertEqual((high_tier, "wb_eth0"), self.con_man.check())
         self.assertEqual([call()], self.con_man.current_connection_has_connectivity.mock_calls)
