@@ -317,19 +317,24 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
         else:
             self.deactivate_lesser_gsm_connections(new_connection, new_tier)
 
-    def current_connection_has_connectivity(self):
-        logging.debug("checking currently active connection %s", self.current_connection)
+    def connection_has_connectivity(self, cn_id):
         try:
-            active_cn = self.find_activated_connection(self.current_connection)
+            active_cn = self.find_activated_connection(cn_id)
             if active_cn and check_connectivity(active_cn, self.connection_checker, self.config):
-                logging.debug(
-                    "Current connection %s is most preferred and has connectivity",
-                    self.current_connection,
-                )
                 return True
         except dbus.exceptions.DBusException as ex:
-            self._log_connection_check_error(self.current_connection, ex)
+            self._log_connection_check_error(cn_id, ex)
         return False
+
+    def current_connection_has_connectivity(self):
+        logging.debug("checking currently active connection %s", self.current_connection)
+        if not self.connection_has_connectivity(self.current_connection):
+            return False
+        logging.debug(
+            "Current connection %s is most preferred and has connectivity",
+            self.current_connection,
+        )
+        return True
 
     def non_current_connection_has_connectivity(self, tier, cn_id):
         if (
@@ -357,11 +362,18 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
         self.timeouts.debug_log_timeouts()
         for tier in self.config.tiers:
             logging.debug("checking tier %s", tier.name)
-            # first, if tier is current, check current connection
+            # if tier is current, check current connection
             if self.current_tier and self.current_connection and self.current_tier.priority == tier.priority:
                 if self.current_connection_has_connectivity():
                     return self.current_tier, self.current_connection
-            # second, iterate all connections in tier
+
+            # find already active connection in tier
+            for cn_id in tier.connections:
+                logging.debug("checking if connection %s is already active", cn_id)
+                if self.connection_has_connectivity(cn_id):
+                    return tier, cn_id
+
+            # try to activate all connections in tier
             for cn_id in tier.connections:
                 if self.non_current_connection_has_connectivity(tier, cn_id):
                     return tier, cn_id
