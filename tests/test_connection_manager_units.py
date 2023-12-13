@@ -1141,60 +1141,60 @@ class ConnectionManagerTests(TestCase):
         con = DummyNMConnection("con_id", {})
         dev = DummyNMDevice()
         dev.get_property.return_value = "DUMMY_UDI"
-        DummyModem = MagicMock()
-        DummyModem.get_primary_sim_slot = MagicMock(return_value=1)
-        DummyModemInit = MagicMock(return_value=DummyModem)
+        dummy_modem = MagicMock()
+        dummy_modem.get_primary_sim_slot = MagicMock(return_value=1)
+        dummy_modem_init = MagicMock(return_value=dummy_modem)
         self.con_man.change_modem_sim_slot = MagicMock()
 
         with patch.object(connection_manager, "NM_SETTINGS_GSM_SIM_SLOT_DEFAULT", 31337), patch.object(
-            connection_manager, "MMModem", DummyModemInit
+            connection_manager, "MMModem", dummy_modem_init
         ):
             result = self.con_man.apply_sim_slot(dev, con, 31337)
 
         self.assertEqual(dev, result)
         self.assertEqual([call("Udi")], dev.get_property.mock_calls)
-        DummyModemInit.assert_called_once_with("DUMMY_UDI", self.bus)
-        self.assertEqual([call()], DummyModem.get_primary_sim_slot.mock_calls)
+        dummy_modem_init.assert_called_once_with("DUMMY_UDI", self.bus)
+        self.assertEqual([call()], dummy_modem.get_primary_sim_slot.mock_calls)
         self.assertEqual([], self.con_man.change_modem_sim_slot.mock_calls)
 
     def test_apply_sim_slot_02_current_slot(self):
         con = DummyNMConnection("con_id", {})
         dev = DummyNMDevice()
         dev.get_property.return_value = "DUMMY_UDI"
-        DummyModem = MagicMock()
-        DummyModem.get_primary_sim_slot = MagicMock(return_value=1)
-        DummyModemInit = MagicMock(return_value=DummyModem)
+        dummy_modem = MagicMock()
+        dummy_modem.get_primary_sim_slot = MagicMock(return_value=1)
+        dummy_modem_init = MagicMock(return_value=dummy_modem)
         self.con_man.change_modem_sim_slot = MagicMock()
 
         with patch.object(connection_manager, "NM_SETTINGS_GSM_SIM_SLOT_DEFAULT", 31337), patch.object(
-            connection_manager, "MMModem", DummyModemInit
+            connection_manager, "MMModem", dummy_modem_init
         ):
             result = self.con_man.apply_sim_slot(dev, con, 1)
 
         self.assertEqual(dev, result)
         self.assertEqual([call("Udi")], dev.get_property.mock_calls)
-        DummyModemInit.assert_called_once_with("DUMMY_UDI", self.bus)
-        self.assertEqual([call()], DummyModem.get_primary_sim_slot.mock_calls)
+        dummy_modem_init.assert_called_once_with("DUMMY_UDI", self.bus)
+        self.assertEqual([call()], dummy_modem.get_primary_sim_slot.mock_calls)
         self.assertEqual([], self.con_man.change_modem_sim_slot.mock_calls)
 
     def test_apply_sim_slot_03_different_slot(self):
         con = DummyNMConnection("con_id", {})
         dev = DummyNMDevice()
         dev.get_property.return_value = "DUMMY_UDI"
-        DummyModem = MagicMock()
-        DummyModem.get_primary_sim_slot = MagicMock(return_value=1)
-        DummyModemInit = MagicMock(return_value=DummyModem)
+        dummy_modem = MagicMock()
+        dummy_modem.get_primary_sim_slot = MagicMock(return_value=1)
+        dummy_modem_init = MagicMock(return_value=dummy_modem)
         self.con_man.change_modem_sim_slot = MagicMock(return_value="CHANGE_RESULT")
 
         with patch.object(connection_manager, "NM_SETTINGS_GSM_SIM_SLOT_DEFAULT", 31337), patch.object(
-            connection_manager, "MMModem", DummyModemInit
+            connection_manager, "MMModem", dummy_modem_init
         ):
             result = self.con_man.apply_sim_slot(dev, con, 2)
 
         self.assertEqual("CHANGE_RESULT", result)
         self.assertEqual([call("Udi")], dev.get_property.mock_calls)
-        DummyModemInit.assert_called_once_with("DUMMY_UDI", self.bus)
-        self.assertEqual([call()], DummyModem.get_primary_sim_slot.mock_calls)
+        dummy_modem_init.assert_called_once_with("DUMMY_UDI", self.bus)
+        self.assertEqual([call()], dummy_modem.get_primary_sim_slot.mock_calls)
         self.assertEqual([call(dev, con, 2)], self.con_man.change_modem_sim_slot.mock_calls)
 
     def test_activate_gsm_connection_01_no_active_cn_sim_not_applied(self):
@@ -1349,18 +1349,18 @@ class ConnectionManagerTests(TestCase):
         dev = DummyNMDevice()
         dev.get_property = MagicMock(return_value="DUMMY_PATH")
         self.con_man._wait_gsm_sim_slot_to_change = MagicMock(return_value=None)
-        DummyModem = MagicMock()
-        DummyModem.get_id = MagicMock(return_value="AAA")
-        DummyModem.set_primary_sim_slot = MagicMock()
-        DummyModemInit = MagicMock(return_value=DummyModem)
+        dummy_modem = MagicMock()
+        dummy_modem.get_id = MagicMock(return_value="AAA")
+        dummy_modem.set_primary_sim_slot = MagicMock()
+        dummy_modem_init = MagicMock(return_value=dummy_modem)
 
-        with patch.object(connection_manager, "MMModem", DummyModemInit):
+        with patch.object(connection_manager, "MMModem", dummy_modem_init):
             result = self.con_man.change_modem_sim_slot(dev, "DUMMY_CON", 2)
 
         self.assertEqual([call("Udi")], dev.get_property.mock_calls)
-        DummyModemInit.assert_called_once_with("DUMMY_PATH", self.bus)
-        self.assertEqual([call()], DummyModem.get_id.mock_calls)
-        self.assertEqual([call(2)], DummyModem.set_primary_sim_slot.mock_calls)
+        dummy_modem_init.assert_called_once_with("DUMMY_PATH", self.bus)
+        self.assertEqual([call()], dummy_modem.get_id.mock_calls)
+        self.assertEqual([call(2)], dummy_modem.set_primary_sim_slot.mock_calls)
         self.assertEqual(
             [call("AAA", "DUMMY_CON", "2", self.con_man.timeouts.connection_activation_timeout)],
             self.con_man._wait_gsm_sim_slot_to_change.mock_calls,
@@ -1371,18 +1371,18 @@ class ConnectionManagerTests(TestCase):
         dev = DummyNMDevice()
         dev.get_property = MagicMock(return_value="DUMMY_PATH")
         self.con_man._wait_gsm_sim_slot_to_change = MagicMock(return_value="DUMMY_DEV")
-        DummyModem = MagicMock()
-        DummyModem.get_id = MagicMock(return_value="AAA")
-        DummyModem.set_primary_sim_slot = MagicMock()
-        DummyModemInit = MagicMock(return_value=DummyModem)
+        dummy_modem = MagicMock()
+        dummy_modem.get_id = MagicMock(return_value="AAA")
+        dummy_modem.set_primary_sim_slot = MagicMock()
+        dummy_modem_init = MagicMock(return_value=dummy_modem)
 
-        with patch.object(connection_manager, "MMModem", DummyModemInit):
+        with patch.object(connection_manager, "MMModem", dummy_modem_init):
             result = self.con_man.change_modem_sim_slot(dev, "DUMMY_CON", 2)
 
         self.assertEqual([call("Udi")], dev.get_property.mock_calls)
-        DummyModemInit.assert_called_once_with("DUMMY_PATH", self.bus)
-        self.assertEqual([call()], DummyModem.get_id.mock_calls)
-        self.assertEqual([call(2)], DummyModem.set_primary_sim_slot.mock_calls)
+        dummy_modem_init.assert_called_once_with("DUMMY_PATH", self.bus)
+        self.assertEqual([call()], dummy_modem.get_id.mock_calls)
+        self.assertEqual([call(2)], dummy_modem.set_primary_sim_slot.mock_calls)
         self.assertEqual(
             [call("AAA", "DUMMY_CON", "2", self.con_man.timeouts.connection_activation_timeout)],
             self.con_man._wait_gsm_sim_slot_to_change.mock_calls,
@@ -1441,24 +1441,24 @@ class ConnectionManagerTests(TestCase):
         dev.get_property = MagicMock(return_value="DUMMY_PATH")
         self.con_man.now = MagicMock(side_effect=[now, now + step, now + timeout + step])
         self.con_man.network_manager.find_devices_for_connection = MagicMock(return_value=[dev])
-        DummyModem = MagicMock()
-        DummyModem.get_primary_sim_slot = MagicMock(return_value=1)
-        DummyModem.get_id = MagicMock(return_value="Modem1")
-        DummyModemInit = MagicMock(return_value=DummyModem)
+        dummy_modem = MagicMock()
+        dummy_modem.get_primary_sim_slot = MagicMock(return_value=1)
+        dummy_modem.get_id = MagicMock(return_value="Modem1")
+        dummy_modem_init = MagicMock(return_value=dummy_modem)
 
         with patch.object(time, "sleep") as mock_sleep, patch.object(
-            connection_manager, "MMModem", DummyModemInit
+            connection_manager, "MMModem", dummy_modem_init
         ):
             result = self.con_man._wait_gsm_sim_slot_to_change("Modem1", "DUMMY_CON", "2", timeout)
 
         self.assertEqual([call(1)], mock_sleep.mock_calls)
         self.assertEqual([call("Udi")], dev.get_property.mock_calls)
-        DummyModemInit.assert_called_once_with("DUMMY_PATH", self.bus)
+        dummy_modem_init.assert_called_once_with("DUMMY_PATH", self.bus)
         self.assertEqual([call(), call(), call()], self.con_man.now.mock_calls)
         self.assertEqual(
             [call("DUMMY_CON")], self.con_man.network_manager.find_devices_for_connection.mock_calls
         )
-        self.assertEqual([call()], DummyModem.get_primary_sim_slot.mock_calls)
+        self.assertEqual([call()], dummy_modem.get_primary_sim_slot.mock_calls)
         self.assertEqual(None, result)
 
     def test_wait_gsm_sim_slot_to_change_02_no_dev_then_exception_then_same_slot_then_success(self):
@@ -1479,13 +1479,13 @@ class ConnectionManagerTests(TestCase):
         self.con_man.network_manager.find_devices_for_connection = MagicMock(
             side_effect=[[], dbus.exceptions.DBusException(), [dev], [dev]]
         )
-        DummyModem = MagicMock()
-        DummyModem.get_primary_sim_slot = MagicMock(side_effect=["1", "2"])
-        DummyModem.get_id = MagicMock(return_value="Modem1")
-        DummyModemInit = MagicMock(return_value=DummyModem)
+        dummy_modem = MagicMock()
+        dummy_modem.get_primary_sim_slot = MagicMock(side_effect=["1", "2"])
+        dummy_modem.get_id = MagicMock(return_value="Modem1")
+        dummy_modem_init = MagicMock(return_value=dummy_modem)
 
         with patch.object(time, "sleep") as mock_sleep, patch.object(
-            connection_manager, "MMModem", DummyModemInit
+            connection_manager, "MMModem", dummy_modem_init
         ):
             result = self.con_man._wait_gsm_sim_slot_to_change("Modem1", "DUMMY_CON", "2", timeout)
 
@@ -1496,8 +1496,8 @@ class ConnectionManagerTests(TestCase):
             [call("DUMMY_CON"), call("DUMMY_CON"), call("DUMMY_CON"), call("DUMMY_CON")],
             self.con_man.network_manager.find_devices_for_connection.mock_calls,
         )
-        self.assertEqual([call(), call()], DummyModem.get_primary_sim_slot.mock_calls)
-        DummyModemInit.assert_has_calls([call("OLD_PATH", self.bus), call("NEW_PATH", self.bus)])
+        self.assertEqual([call(), call()], dummy_modem.get_primary_sim_slot.mock_calls)
+        dummy_modem_init.assert_has_calls([call("OLD_PATH", self.bus), call("NEW_PATH", self.bus)])
         self.assertEqual(dev, result)
 
     def test_wait_connection_activation_01_instant_success(self):
