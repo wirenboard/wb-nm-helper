@@ -1,3 +1,9 @@
+wb-nm-helper (1.31.3) stable; urgency=medium
+
+  * Fix closing of already active connections during connectivity check
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Wed, 13 Dec 2023 12:25:11 +0500
+
 wb-nm-helper (1.31.2) stable; urgency=medium
 
   * Tests cleanup. No functional changes
