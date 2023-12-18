@@ -409,33 +409,33 @@ class NetworkAwareConfigFileTests(TestCase):
             self.config.is_connection_unmanaged(None)
 
         test_con = DummyNMConnection("dummy", {})
+        test_con.get_interface_name = MagicMock(side_effect=["eth0", "eth0", "eth0", "eth0", ""])
         test_dev = DummyNMDevice()
-        self.config.network_manager.find_device_for_connection = MagicMock(
+        self.config.network_manager.find_device_by_param = MagicMock(
             side_effect=[None, test_dev, test_dev, test_dev]
         )
-        test_dev.get_property.side_effect = [True, "dev2", 1, "dev3", "dummy", "dev4"]
+        test_dev.get_property.side_effect = [True, 1, "dummy"]
 
         value1 = self.config.is_connection_unmanaged(test_con)  # no device will be returned
         value2 = self.config.is_connection_unmanaged(test_con)  # True will be returned for managed
         value3 = self.config.is_connection_unmanaged(test_con)  # 1 will be returned for managed
         value4 = self.config.is_connection_unmanaged(test_con)  # random value will be returned for managed
+        value5 = self.config.is_connection_unmanaged(test_con)  # interface is not set for connection
 
-        self.assertEqual(
-            [call(test_con), call(test_con), call(test_con), call(test_con)],
-            self.config.network_manager.find_device_for_connection.mock_calls,
-        )
+        self.assertEqual([call(), call(), call(), call(), call()], test_con.get_interface_name.mock_calls)
         self.assertEqual(
             [
-                call("Managed"),
-                call("Interface"),
-                call("Managed"),
-                call("Interface"),
-                call("Managed"),
-                call("Interface"),
+                call("Interface", "eth0"),
+                call("Interface", "eth0"),
+                call("Interface", "eth0"),
+                call("Interface", "eth0"),
             ],
-            test_dev.get_property.mock_calls,
+            self.config.network_manager.find_device_by_param.mock_calls,
         )
-        self.assertEqual([False, False, False, True], [value1, value2, value3, value4])
+        self.assertEqual(
+            [call("Managed"), call("Managed"), call("Managed")], test_dev.get_property.mock_calls
+        )
+        self.assertEqual([False, False, False, True, False], [value1, value2, value3, value4, value5])
 
 
 class TimeoutManagerTests(TestCase):
@@ -493,28 +493,25 @@ class TimeoutManagerTests(TestCase):
         self.assertEqual({"dummy_con": self.fake_now}, self.timeout_man.connection_retry_timeouts)
 
     def test_touch_sticky_timeout(self):
-        test_con = DummyNMConnection("dummy", {})
-        test_con.get_connection_type = MagicMock(side_effect=["CT1", "CT2", "CT3"])
         test_dev = DummyNMDevice()
-        self.timeout_man.config.network_manager.find_device_for_connection = MagicMock(return_value=test_dev)
+        test_dev.get_property = MagicMock(
+            side_effect=[NM_DEVICE_TYPE_ETHERNET, NM_DEVICE_TYPE_WIFI, NM_DEVICE_TYPE_MODEM]
+        )
         self.timeout_man.device_sticky_timeouts = {"dummy": 31337}
         self.timeout_man.config.sticky_connection_period = datetime.timedelta(seconds=1)
 
-        with patch.object(
-            connection_manager, "connection_type_to_device_type"
-        ) as mock_ct_to_dt, patch.object(connection_manager, "get_device_name") as mock_get_device_name:
+        with patch.object(connection_manager, "get_device_name") as mock_get_device_name:
             mock_get_device_name.side_effect = ["DEV2", "DEV3"]
-            mock_ct_to_dt.side_effect = [NM_DEVICE_TYPE_ETHERNET, NM_DEVICE_TYPE_WIFI, NM_DEVICE_TYPE_MODEM]
 
-            self.timeout_man.touch_sticky_timeout(test_con)  # ethernet
+            self.timeout_man.touch_sticky_timeout(test_dev)  # ethernet
             self.assertEqual({}, self.timeout_man.device_sticky_timeouts)
 
-            self.timeout_man.touch_sticky_timeout(test_con)  # wifi
+            self.timeout_man.touch_sticky_timeout(test_dev)  # wifi
             self.assertEqual(
                 {"DEV2": self.fake_now + self.timeout_man.config.sticky_connection_period},
                 self.timeout_man.device_sticky_timeouts,
             )
-            self.timeout_man.touch_sticky_timeout(test_con)  # modem
+            self.timeout_man.touch_sticky_timeout(test_dev)  # modem
             self.assertEqual(
                 {
                     "DEV2": self.fake_now + self.timeout_man.config.sticky_connection_period,
@@ -522,10 +519,7 @@ class TimeoutManagerTests(TestCase):
                 },
                 self.timeout_man.device_sticky_timeouts,
             )
-            self.assertEqual([call("CT1"), call("CT2"), call("CT3")], mock_ct_to_dt.mock_calls)
             self.assertEqual([call(test_dev), call(test_dev)], mock_get_device_name.mock_calls)
-
-        self.assertEqual([call(), call(), call()], test_con.get_connection_type.mock_calls)
 
     def test_connection_retry_timeout_is_active(self):
         self.timeout_man.connection_retry_timeouts = {}
@@ -732,39 +726,14 @@ class ConnectionManagerTests(TestCase):
             self.assertFalse(self.con_man.current_connection_has_connectivity())
             self.assertEqual([call("wb_eth0")], self.con_man.connection_has_connectivity.mock_calls)
 
-    def test_check_non_current_connection_01_skip_current(self):
-        high_tier = connection_manager.ConnectionTier(name="high", priority=1, connections=["wb_eth0"])
-        self.con_man.config.tiers = [high_tier]
-        self.con_man.current_tier = high_tier
-        self.con_man.current_connection = "wb_eth0"
-
+    def test_try_to_activate_and_check_01_exception(self):
         with patch.object(connection_manager, "check_connectivity", MagicMock()):
             self.con_man._log_connection_check_error = MagicMock()
-            self.con_man.ok_to_activate_connection = MagicMock()
-            self.con_man.find_activated_connection = MagicMock()
-            self.con_man.activate_connection = MagicMock()
-            self.con_man.timeouts.touch_connection_retry_timeout = MagicMock()
-            self.assertFalse(self.con_man.non_current_connection_has_connectivity(high_tier, "wb_eth0"))
-            self.assertEqual([], self.con_man._log_connection_check_error.mock_calls)
-            self.assertEqual([], connection_manager.check_connectivity.mock_calls)
-            self.assertEqual([], self.con_man.find_activated_connection.mock_calls)
-            self.assertEqual([], self.con_man.activate_connection.mock_calls)
-            self.assertEqual([], self.con_man.ok_to_activate_connection.mock_calls)
-            self.assertEqual([], self.con_man.timeouts.touch_connection_retry_timeout.mock_calls)
-
-    def test_check_non_current_connection_02_exception(self):
-        high_tier = connection_manager.ConnectionTier(name="high", priority=1, connections=["wb_eth0"])
-        self.con_man.config.tiers = [high_tier]
-        self.con_man.current_tier = high_tier
-        self.con_man.current_connection = "wb_eth0"
-
-        with patch.object(connection_manager, "check_connectivity", MagicMock()):
-            self.con_man._log_connection_check_error = MagicMock()
-            self.con_man.ok_to_activate_connection = MagicMock()
+            self.con_man._get_device_for_connection_activation = MagicMock()
             self.con_man.find_activated_connection = MagicMock(side_effect=dbus.exceptions.DBusException())
             self.con_man.activate_connection = MagicMock()
             self.con_man.timeouts.touch_connection_retry_timeout = MagicMock()
-            self.assertFalse(self.con_man.non_current_connection_has_connectivity(high_tier, "wb_eth1"))
+            self.assertFalse(self.con_man.try_to_activate_and_check("wb_eth1"))
             self.assertEqual(
                 [call("wb_eth1", self.con_man.find_activated_connection.side_effect)],
                 self.con_man._log_connection_check_error.mock_calls,
@@ -772,52 +741,42 @@ class ConnectionManagerTests(TestCase):
             self.assertEqual([], connection_manager.check_connectivity.mock_calls)
             self.assertEqual([call("wb_eth1")], self.con_man.find_activated_connection.mock_calls)
             self.assertEqual([], self.con_man.activate_connection.mock_calls)
-            self.assertEqual([], self.con_man.ok_to_activate_connection.mock_calls)
+            self.assertEqual([], self.con_man._get_device_for_connection_activation.mock_calls)
             self.assertEqual(
                 [call("wb_eth1")], self.con_man.timeouts.touch_connection_retry_timeout.mock_calls
             )
 
-    def test_check_non_current_connection_03_active_and_has_connectivity(self):
-        high_tier = connection_manager.ConnectionTier(name="high", priority=1, connections=["wb_eth0"])
-        self.con_man.config.tiers = [high_tier]
-        self.con_man.current_tier = high_tier
-        self.con_man.current_connection = "wb_eth0"
-
+    def test_try_to_activate_and_check_02_active_and_has_connectivity(self):
         with patch.object(connection_manager, "check_connectivity", MagicMock(return_value=True)):
             self.con_man._log_connection_check_error = MagicMock()
-            self.con_man.ok_to_activate_connection = MagicMock()
+            self.con_man._get_device_for_connection_activation = MagicMock()
             self.con_man.find_activated_connection = MagicMock(return_value="dev1")
             self.con_man.activate_connection = MagicMock()
             self.con_man.timeouts.touch_connection_retry_timeout = MagicMock()
-            self.assertTrue(self.con_man.non_current_connection_has_connectivity(high_tier, "wb_eth1"))
+            self.assertTrue(self.con_man.try_to_activate_and_check("wb_eth1"))
             self.assertEqual([call("wb_eth1")], self.con_man.find_activated_connection.mock_calls)
             self.assertEqual(
                 [call("dev1", self.con_man.connection_checker, self.config)],
                 connection_manager.check_connectivity.mock_calls,
             )
             self.assertEqual([], self.con_man.activate_connection.mock_calls)
-            self.assertEqual([], self.con_man.ok_to_activate_connection.mock_calls)
+            self.assertEqual([], self.con_man._get_device_for_connection_activation.mock_calls)
             self.assertEqual([], self.con_man.timeouts.touch_connection_retry_timeout.mock_calls)
             self.assertEqual([], self.con_man._log_connection_check_error.mock_calls)
 
-    def test_check_non_current_connection_04_not_active_not_activated_and_has_connectivity(self):
-        high_tier = connection_manager.ConnectionTier(name="high", priority=1, connections=["wb_eth0"])
-        self.con_man.config.tiers = [high_tier]
-        self.con_man.current_tier = high_tier
-        self.con_man.current_connection = "wb_eth0"
-
+    def test_try_to_activate_and_check_03_not_active_not_activated_and_has_connectivity(self):
         with patch.object(connection_manager, "check_connectivity", MagicMock(return_value=True)):
             self.con_man._log_connection_check_error = MagicMock()
-            self.con_man.ok_to_activate_connection = MagicMock(return_value=True)
+            self.con_man._get_device_for_connection_activation = MagicMock(return_value="dev1")
             self.con_man.find_activated_connection = MagicMock(return_value=None)
-            self.con_man.activate_connection = MagicMock(return_value="dev1")
+            self.con_man.activate_connection = MagicMock(return_value="active_cn")
             self.con_man.timeouts.touch_connection_retry_timeout = MagicMock()
-            self.assertTrue(self.con_man.non_current_connection_has_connectivity(high_tier, "wb_eth1"))
+            self.assertTrue(self.con_man.try_to_activate_and_check("wb_eth1"))
             self.assertEqual([call("wb_eth1")], self.con_man.find_activated_connection.mock_calls)
-            self.assertEqual([call("wb_eth1")], self.con_man.ok_to_activate_connection.mock_calls)
-            self.assertEqual([call("wb_eth1")], self.con_man.activate_connection.mock_calls)
+            self.assertEqual([call("wb_eth1")], self.con_man._get_device_for_connection_activation.mock_calls)
+            self.assertEqual([call("dev1", "wb_eth1")], self.con_man.activate_connection.mock_calls)
             self.assertEqual(
-                [call("dev1", self.con_man.connection_checker, self.config)],
+                [call("active_cn", self.con_man.connection_checker, self.config)],
                 connection_manager.check_connectivity.mock_calls,
             )
             self.assertEqual(
@@ -825,42 +784,32 @@ class ConnectionManagerTests(TestCase):
             )
             self.assertEqual([], self.con_man._log_connection_check_error.mock_calls)
 
-    def test_check_non_current_connection_05_not_active_not_ok_to_activate(self):
-        high_tier = connection_manager.ConnectionTier(name="high", priority=1, connections=["wb_eth0"])
-        self.con_man.config.tiers = [high_tier]
-        self.con_man.current_tier = high_tier
-        self.con_man.current_connection = "wb_eth0"
-
+    def test_try_to_activate_and_check_04_not_active_not_ok_to_activate(self):
         with patch.object(connection_manager, "check_connectivity", MagicMock()):
             self.con_man._log_connection_check_error = MagicMock()
-            self.con_man.ok_to_activate_connection = MagicMock(return_value=False)
+            self.con_man._get_device_for_connection_activation = MagicMock(return_value=None)
             self.con_man.find_activated_connection = MagicMock(return_value=None)
-            self.con_man.activate_connection = MagicMock(return_value="dev1")
+            self.con_man.activate_connection = MagicMock(return_value="active_cn")
             self.con_man.timeouts.touch_connection_retry_timeout = MagicMock()
-            self.assertFalse(self.con_man.non_current_connection_has_connectivity(high_tier, "wb_eth1"))
+            self.assertFalse(self.con_man.try_to_activate_and_check("wb_eth1"))
             self.assertEqual([call("wb_eth1")], self.con_man.find_activated_connection.mock_calls)
-            self.assertEqual([call("wb_eth1")], self.con_man.ok_to_activate_connection.mock_calls)
+            self.assertEqual([call("wb_eth1")], self.con_man._get_device_for_connection_activation.mock_calls)
             self.assertEqual([], self.con_man.activate_connection.mock_calls)
             self.assertEqual([], connection_manager.check_connectivity.mock_calls)
             self.assertEqual([], self.con_man.timeouts.touch_connection_retry_timeout.mock_calls)
             self.assertEqual([], self.con_man._log_connection_check_error.mock_calls)
 
-    def test_check_non_current_connection_06_not_active_failed_to_activate(self):
-        high_tier = connection_manager.ConnectionTier(name="high", priority=1, connections=["wb_eth0"])
-        self.con_man.config.tiers = [high_tier]
-        self.con_man.current_tier = high_tier
-        self.con_man.current_connection = "wb_eth0"
-
+    def test_try_to_activate_and_check_05_not_active_failed_to_activate(self):
         with patch.object(connection_manager, "check_connectivity", MagicMock()):
             self.con_man._log_connection_check_error = MagicMock()
-            self.con_man.ok_to_activate_connection = MagicMock(return_value=True)
+            self.con_man._get_device_for_connection_activation = MagicMock(return_value="dev1")
             self.con_man.find_activated_connection = MagicMock(return_value=None)
             self.con_man.activate_connection = MagicMock(return_value=None)
             self.con_man.timeouts.touch_connection_retry_timeout = MagicMock()
-            self.assertFalse(self.con_man.non_current_connection_has_connectivity(high_tier, "wb_eth1"))
+            self.assertFalse(self.con_man.try_to_activate_and_check("wb_eth1"))
             self.assertEqual([call("wb_eth1")], self.con_man.find_activated_connection.mock_calls)
-            self.assertEqual([call("wb_eth1")], self.con_man.ok_to_activate_connection.mock_calls)
-            self.assertEqual([call("wb_eth1")], self.con_man.activate_connection.mock_calls)
+            self.assertEqual([call("wb_eth1")], self.con_man._get_device_for_connection_activation.mock_calls)
+            self.assertEqual([call("dev1", "wb_eth1")], self.con_man.activate_connection.mock_calls)
             self.assertEqual([], connection_manager.check_connectivity.mock_calls)
             self.assertEqual(
                 [call("wb_eth1")], self.con_man.timeouts.touch_connection_retry_timeout.mock_calls
@@ -891,12 +840,12 @@ class ConnectionManagerTests(TestCase):
         self.con_man.timeouts.debug_log_timeouts = MagicMock()
         self.con_man.current_connection_has_connectivity = MagicMock(return_value=False)
         self.con_man.connection_has_connectivity = MagicMock(return_value=False)
-        self.con_man.non_current_connection_has_connectivity = MagicMock(side_effect=[False, True])
+        self.con_man.try_to_activate_and_check = MagicMock(side_effect=[True])
         self.assertEqual((low_tier, "wb_wifi_client"), self.con_man.check())
         self.assertEqual([call()], self.con_man.current_connection_has_connectivity.mock_calls)
         self.assertEqual(
-            [call(high_tier, "wb_eth0"), call(low_tier, "wb_wifi_client")],
-            self.con_man.non_current_connection_has_connectivity.mock_calls,
+            [call("wb_wifi_client")],
+            self.con_man.try_to_activate_and_check.mock_calls,
         )
 
     def test_check_03_everything_is_down(self):
@@ -909,13 +858,10 @@ class ConnectionManagerTests(TestCase):
         self.con_man.timeouts.debug_log_timeouts = MagicMock()
         self.con_man.current_connection_has_connectivity = MagicMock(return_value=False)
         self.con_man.connection_has_connectivity = MagicMock(return_value=False)
-        self.con_man.non_current_connection_has_connectivity = MagicMock(side_effect=[False, False])
+        self.con_man.try_to_activate_and_check = MagicMock(side_effect=[False, False])
         self.assertEqual((high_tier, "wb_eth0"), self.con_man.check())
         self.assertEqual([call()], self.con_man.current_connection_has_connectivity.mock_calls)
-        self.assertEqual(
-            [call(high_tier, "wb_eth0"), call(low_tier, "wb_wifi_client")],
-            self.con_man.non_current_connection_has_connectivity.mock_calls,
-        )
+        self.assertEqual([call("wb_wifi_client")], self.con_man.try_to_activate_and_check.mock_calls)
 
     def test_check_04_already_active(self):
         high_tier = connection_manager.ConnectionTier(
@@ -928,14 +874,14 @@ class ConnectionManagerTests(TestCase):
         self.con_man.timeouts.debug_log_timeouts = MagicMock()
         self.con_man.current_connection_has_connectivity = MagicMock(return_value=False)
         self.con_man.connection_has_connectivity = MagicMock(side_effect=[False, True])
-        self.con_man.non_current_connection_has_connectivity = MagicMock(return_value=False)
+        self.con_man.try_to_activate_and_check = MagicMock(return_value=False)
         self.assertEqual((high_tier, "wb_eth1"), self.con_man.check())
         self.assertEqual([], self.con_man.current_connection_has_connectivity.mock_calls)
         self.assertEqual(
             [call("wb_eth0"), call("wb_eth1")],
             self.con_man.connection_has_connectivity.mock_calls,
         )
-        self.assertEqual([], self.con_man.non_current_connection_has_connectivity.mock_calls)
+        self.assertEqual([], self.con_man.try_to_activate_and_check.mock_calls)
 
     def test_log_connection_check_error(self):
         with patch.object(logging, "warning") as mock_warning:
@@ -947,42 +893,25 @@ class ConnectionManagerTests(TestCase):
         dummy_con = DummyNMConnection("wb_eth6", {})
         dummy_con.get_connection_type = MagicMock()
         self.con_man.find_connection = MagicMock(return_value=None)
-        self.con_man._find_device_for_connection = MagicMock()
+        dummy_dev = DummyNMDevice()
         self.con_man._activate_connection_with_type = MagicMock()
         with patch.object(connection_manager, "connection_type_to_device_type") as dummy_ct_to_dt:
-            result = self.con_man.activate_connection("wb_eth6")
+            result = self.con_man.activate_connection(dummy_dev, "wb_eth6")
         self.assertEqual(None, result)
         self.assertEqual([call("wb_eth6")], self.con_man.find_connection.mock_calls)
-        self.assertEqual([], self.con_man._find_device_for_connection.mock_calls)
         self.assertEqual([], dummy_ct_to_dt.mock_calls)
         self.assertEqual([], self.con_man._activate_connection_with_type.mock_calls)
 
-    def test_activate_connection_02_dev_not_found(self):
-        dummy_con = DummyNMConnection("wb_eth6", {})
-        dummy_con.get_connection_type = MagicMock()
-        self.con_man.find_connection = MagicMock(return_value=dummy_con)
-        self.con_man._find_device_for_connection = MagicMock(return_value=None)
-        self.con_man._activate_connection_with_type = MagicMock()
-        with patch.object(connection_manager, "connection_type_to_device_type") as dummy_ct_to_dt:
-            result = self.con_man.activate_connection("wb_eth6")
-        self.assertEqual(None, result)
-        self.assertEqual([call("wb_eth6")], self.con_man.find_connection.mock_calls)
-        self.assertEqual([call(dummy_con, "wb_eth6")], self.con_man._find_device_for_connection.mock_calls)
-        self.assertEqual([], dummy_ct_to_dt.mock_calls)
-        self.assertEqual([], self.con_man._activate_connection_with_type.mock_calls)
-
-    def test_activate_connection_03_success(self):
+    def test_activate_connection_02_success(self):
         dummy_con = DummyNMConnection("wb_eth6", {})
         dummy_con.get_connection_type = MagicMock(return_value="DUMMY_CON_TYPE")
         self.con_man.find_connection = MagicMock(return_value=dummy_con)
-        self.con_man._find_device_for_connection = MagicMock(return_value="DUMMY_DEV")
         self.con_man._activate_connection_with_type = MagicMock(return_value="ACTIVATION_RESULT")
         with patch.object(connection_manager, "connection_type_to_device_type") as dummy_ct_to_dt:
             dummy_ct_to_dt.return_value = "DUMMY_DEV_TYPE"
-            result = self.con_man.activate_connection("wb_eth6")
+            result = self.con_man.activate_connection("DUMMY_DEV", "wb_eth6")
         self.assertEqual("ACTIVATION_RESULT", result)
         self.assertEqual([call("wb_eth6")], self.con_man.find_connection.mock_calls)
-        self.assertEqual([call(dummy_con, "wb_eth6")], self.con_man._find_device_for_connection.mock_calls)
         self.assertEqual([call("DUMMY_CON_TYPE")], dummy_ct_to_dt.mock_calls)
         self.assertEqual(
             [call("DUMMY_DEV", dummy_con, "DUMMY_DEV_TYPE", "wb_eth6")],
@@ -1060,26 +989,6 @@ class ConnectionManagerTests(TestCase):
             result = self.con_man.find_connection("DUMMY_CON_ID")
         self.assertEqual("DUMMY_CON", result)
         self.assertEqual([call("DUMMY_CON_ID")], self.con_man.network_manager.find_connection.mock_calls)
-        self.assertEqual(0, mock_warning.call_count)
-
-    def test_find_device_for_connection_01_not_found(self):
-        self.con_man.network_manager.find_device_for_connection = MagicMock(return_value=None)
-        with patch.object(logging, "warning") as mock_warning:
-            result = self.con_man._find_device_for_connection("DUMMY_CON", "DUMMY_CON_ID")
-        self.assertEqual(None, result)
-        self.assertEqual(
-            [call("DUMMY_CON")], self.con_man.network_manager.find_device_for_connection.mock_calls
-        )
-        self.assertEqual(1, mock_warning.call_count)
-
-    def test_find_device_for_connection_02_found(self):
-        self.con_man.network_manager.find_device_for_connection = MagicMock(return_value="DUMMY_DEV")
-        with patch.object(logging, "warning") as mock_warning:
-            result = self.con_man._find_device_for_connection("DUMMY_CON", "DUMMY_CON_ID")
-        self.assertEqual("DUMMY_DEV", result)
-        self.assertEqual(
-            [call("DUMMY_CON")], self.con_man.network_manager.find_device_for_connection.mock_calls
-        )
         self.assertEqual(0, mock_warning.call_count)
 
     def test_activate_generic_connection_01_wait_ok(self):
@@ -1737,6 +1646,9 @@ class ConnectionManagerTests(TestCase):
         sample_tier = connection_manager.ConnectionTier("DUMMY_TIER", 666, ["wb-eth1"])
         self.con_man.check = MagicMock(return_value=(sample_tier, "wb-eth2"))
         self.con_man.set_current_connection = MagicMock()
+        active_cn = MagicMock()
+        active_cn.get_devices = MagicMock(return_value=["dev1"])
+        self.con_man.find_active_connection = MagicMock(return_value=active_cn)
         self.con_man.deactivate_lesser_gsm_connections = MagicMock()
         self.con_man.apply_metrics = MagicMock()
         self.con_man.current_tier = sample_tier
@@ -1745,135 +1657,53 @@ class ConnectionManagerTests(TestCase):
         self.con_man.cycle_loop()
 
         self.assertEqual([call()], self.con_man.check.mock_calls)
-        self.assertEqual([call("wb-eth2", sample_tier)], self.con_man.set_current_connection.mock_calls)
+        self.assertEqual(
+            [call("wb-eth2", sample_tier, "dev1")], self.con_man.set_current_connection.mock_calls
+        )
         self.assertEqual(
             [call("wb-eth2", sample_tier)], self.con_man.deactivate_lesser_gsm_connections.mock_calls
         )
         self.assertEqual([call()], self.con_man.apply_metrics.mock_calls)
 
-    def test_ok_to_activate_connection_00_con_not_found(self):
+    def test_get_device_for_connection_activation_00_con_not_found(self):
         self.con_man.timeouts.connection_retry_timeout_is_active = MagicMock(return_value=False)
-        self.con_man.connection_is_sticky = MagicMock()
         self.con_man.timeouts.sticky_timeout_is_active = MagicMock()
         self.con_man.network_manager.find_connection = MagicMock(return_value=None)
 
-        result = self.con_man.ok_to_activate_connection("wb-eth0")
+        result = self.con_man._get_device_for_connection_activation("wb-eth0")
 
-        self.assertEqual(False, result)
+        self.assertEqual(None, result)
         self.assertEqual(
             [call("wb-eth0")], self.con_man.timeouts.connection_retry_timeout_is_active.mock_calls
         )
         self.assertEqual([call("wb-eth0")], self.con_man.network_manager.find_connection.mock_calls)
-        self.assertEqual([], self.con_man.connection_is_sticky.mock_calls)
         self.assertEqual([], self.con_man.timeouts.sticky_timeout_is_active.mock_calls)
 
-    def test_ok_to_activate_connection_01_con_retry_is_active(self):
+    def test_get_device_for_connection_activation_01_con_retry_is_active(self):
         self.con_man.timeouts.connection_retry_timeout_is_active = MagicMock(return_value=True)
-        self.con_man.connection_is_sticky = MagicMock()
         self.con_man.timeouts.sticky_timeout_is_active = MagicMock()
 
-        result = self.con_man.ok_to_activate_connection("wb-eth0")
+        result = self.con_man._get_device_for_connection_activation("wb-eth0")
 
-        self.assertEqual(False, result)
+        self.assertEqual(None, result)
         self.assertEqual(
             [call("wb-eth0")], self.con_man.timeouts.connection_retry_timeout_is_active.mock_calls
         )
-        self.assertEqual([], self.con_man.connection_is_sticky.mock_calls)
         self.assertEqual([], self.con_man.timeouts.sticky_timeout_is_active.mock_calls)
 
-    def test_ok_to_activate_connection_02_con_not_sticky_but_sticky_timeout_is_active(self):
+    def test_get_device_for_connection_activation_02_dev_not_found(self):
         con = DummyNMConnection(name="wb-eth0", settings={})
-        dev = DummyNMDevice()
-        dev.get_property = MagicMock(return_value="eth0")
         self.con_man.timeouts.connection_retry_timeout_is_active = MagicMock(return_value=False)
-        self.con_man.connection_is_sticky = MagicMock(return_value=False)
         self.con_man.timeouts.sticky_timeout_is_active = MagicMock(return_value=True)
         self.con_man.network_manager.find_connection = MagicMock(return_value=con)
+        self.con_man.find_free_devices_for_connection = MagicMock(return_value=None)
 
-        self.con_man.network_manager.find_device_for_connection = MagicMock(return_value=dev)
+        result = self.con_man._get_device_for_connection_activation("wb-eth0")
 
-        result = self.con_man.ok_to_activate_connection("wb-eth0")
-
-        self.assertEqual(True, result)
+        self.assertEqual(None, result)
         self.assertEqual(
             [call("wb-eth0")], self.con_man.timeouts.connection_retry_timeout_is_active.mock_calls
         )
-        self.assertEqual([call(con)], self.con_man.connection_is_sticky.mock_calls)
-        self.assertEqual([], self.con_man.timeouts.sticky_timeout_is_active.mock_calls)
-
-    def test_ok_to_activate_connection_03_dev_not_found(self):
-        con = DummyNMConnection(name="wb-eth0", settings={})
-        self.con_man.timeouts.connection_retry_timeout_is_active = MagicMock(return_value=False)
-        self.con_man.connection_is_sticky = MagicMock(return_value=False)
-        self.con_man.timeouts.sticky_timeout_is_active = MagicMock(return_value=True)
-        self.con_man.network_manager.find_connection = MagicMock(return_value=con)
-        self.con_man.network_manager.find_device_for_connection = MagicMock(return_value=None)
-
-        result = self.con_man.ok_to_activate_connection("wb-eth0")
-
-        self.assertEqual(False, result)
-        self.assertEqual(
-            [call("wb-eth0")], self.con_man.timeouts.connection_retry_timeout_is_active.mock_calls
-        )
-        self.assertEqual([], self.con_man.connection_is_sticky.mock_calls)
-        self.assertEqual([], self.con_man.timeouts.sticky_timeout_is_active.mock_calls)
-
-    def test_ok_to_activate_connection_04_con_is_sticky_but_sticky_timeout_not_active(self):
-        con = DummyNMConnection(name="wb-eth0", settings={})
-        dev = DummyNMDevice()
-        dev.get_property = MagicMock(return_value="eth0")
-        self.con_man.timeouts.connection_retry_timeout_is_active = MagicMock(return_value=False)
-        self.con_man.connection_is_sticky = MagicMock(return_value=True)
-        self.con_man.timeouts.sticky_timeout_is_active = MagicMock(return_value=False)
-        self.con_man.network_manager.find_connection = MagicMock(return_value=con)
-        self.con_man.network_manager.find_device_for_connection = MagicMock(return_value=dev)
-
-        result = self.con_man.ok_to_activate_connection("wb-eth0")
-
-        self.assertEqual(True, result)
-        self.assertEqual(
-            [call("wb-eth0")], self.con_man.timeouts.connection_retry_timeout_is_active.mock_calls
-        )
-        self.assertEqual([call(con)], self.con_man.connection_is_sticky.mock_calls)
-        self.assertEqual([call(dev)], self.con_man.timeouts.sticky_timeout_is_active.mock_calls)
-
-    def test_ok_to_activate_connection_05_con_is_sticky_and_sticky_timeout_is_active(self):
-        con = DummyNMConnection(name="wb-eth0", settings={})
-        dev = DummyNMDevice()
-        dev.get_property = MagicMock(return_value="eth0")
-        self.con_man.timeouts.connection_retry_timeout_is_active = MagicMock(return_value=False)
-        self.con_man.connection_is_sticky = MagicMock(return_value=True)
-        self.con_man.timeouts.sticky_timeout_is_active = MagicMock(return_value=True)
-        self.con_man.network_manager.find_connection = MagicMock(return_value=con)
-        self.con_man.network_manager.find_device_for_connection = MagicMock(return_value=dev)
-        self.con_man.timeouts.device_sticky_timeouts = {"eth0": datetime.datetime(year=2000, month=1, day=2)}
-
-        result = self.con_man.ok_to_activate_connection("wb-eth0")
-
-        self.assertEqual(False, result)
-        self.assertEqual(
-            [call("wb-eth0")], self.con_man.timeouts.connection_retry_timeout_is_active.mock_calls
-        )
-        self.assertEqual([call(con)], self.con_man.connection_is_sticky.mock_calls)
-        self.assertEqual([call(dev)], self.con_man.timeouts.sticky_timeout_is_active.mock_calls)
-
-    def test_ok_to_activate_connection_06_con_not_sticky_and_all_timeouts_false(self):
-        con = DummyNMConnection(name="wb-eth0", settings={})
-        dev = DummyNMDevice()
-        dev.get_property = MagicMock(return_value="eth0")
-        self.con_man.timeouts.connection_retry_timeout_is_active = MagicMock(return_value=False)
-        self.con_man.connection_is_sticky = MagicMock(return_value=False)
-        self.con_man.timeouts.sticky_timeout_is_active = MagicMock(return_value=False)
-        self.con_man.network_manager.find_connection = MagicMock(return_value=con)
-        self.con_man.network_manager.find_device_for_connection = MagicMock(return_value=dev)
-
-        result = self.con_man.ok_to_activate_connection("wb-eth0")
-
-        self.assertEqual(True, result)
-        self.assertEqual(
-            [call("wb-eth0")], self.con_man.timeouts.connection_retry_timeout_is_active.mock_calls
-        )
-        self.assertEqual([call(con)], self.con_man.connection_is_sticky.mock_calls)
         self.assertEqual([], self.con_man.timeouts.sticky_timeout_is_active.mock_calls)
 
     def test_find_active_connection(self):
@@ -1985,27 +1815,23 @@ class ConnectionManagerTests(TestCase):
         self.con_man.current_connection = "wb-eth0"
         self.con_man.current_tier = "first_tier"
         self.con_man.timeouts.touch_sticky_timeout = MagicMock()
-        self.con_man.network_manager.find_connection = MagicMock(return_value="dummy_con")
 
-        self.con_man.set_current_connection("wb-eth0", "dummy_tier")
+        self.con_man.set_current_connection("wb-eth0", "dummy_tier", "dummy_device")
 
         self.assertEqual("wb-eth0", self.con_man.current_connection)
         self.assertEqual("first_tier", self.con_man.current_tier)
         self.assertEqual([], self.con_man.timeouts.touch_sticky_timeout.mock_calls)
-        self.assertEqual([], self.con_man.network_manager.find_connection.mock_calls)
 
     def test_set_current_connection_02_changed(self):
         self.con_man.current_connection = "wb-eth0"
         self.con_man.current_tier = "first_tier"
         self.con_man.timeouts.touch_sticky_timeout = MagicMock()
-        self.con_man.network_manager.find_connection = MagicMock(return_value="dummy_con")
 
-        self.con_man.set_current_connection("wb-eth1", "dummy_tier")
+        self.con_man.set_current_connection("wb-eth1", "dummy_tier", "dummy_device")
 
         self.assertEqual("wb-eth1", self.con_man.current_connection)
         self.assertEqual("dummy_tier", self.con_man.current_tier)
-        self.assertEqual([call("dummy_con")], self.con_man.timeouts.touch_sticky_timeout.mock_calls)
-        self.assertEqual([call("wb-eth1")], self.con_man.network_manager.find_connection.mock_calls)
+        self.assertEqual([call("dummy_device")], self.con_man.timeouts.touch_sticky_timeout.mock_calls)
 
     def test_deactivate_lesser_gsm_connections(self):
         settings_deactivate = {"user": {"data": {"wb.deactivate-by-priority": "true"}}}
