@@ -111,6 +111,19 @@ class NetworkManager(NMObject):
             value = connection_type_to_device_type(settings["connection"]["type"])
         return self.find_device_by_param(param, value)
 
+    def find_devices_for_connection(self, cn_obj: NMConnection) -> List[NMDevice]:
+        settings = cn_obj.get_settings()
+        value = settings["connection"].get("interface-name", "")
+        if value:
+            device = self.find_device_by_param("Interface", value)
+            return [device] if device else []
+        res = []
+        value = connection_type_to_device_type(settings["connection"]["type"])
+        for device in self.get_devices():
+            if device.get_property("DeviceType") == value:
+                res.append(device)
+        return res
+
     def deactivate_connection(self, con: NMActiveConnection) -> None:
         self.get_iface().DeactivateConnection(con.get_object())
 

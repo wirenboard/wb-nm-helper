@@ -8,12 +8,11 @@ import time
 from typing import Dict, Iterator, List, Optional
 
 import dbus
-from dbus import DBusException
 
 from wb.nm_helper.connection_checker import ConnectionChecker
 from wb.nm_helper.dns_resolver import resolve_domain_name
 from wb.nm_helper.logging_filter import ConnectionStateFilter
-from wb.nm_helper.modem_manager import ModemManager
+from wb.nm_helper.modem_manager import MMModem
 from wb.nm_helper.network_manager import (
     NM_ACTIVE_CONNECTION_STATE_ACTIVATED,
     NM_ACTIVE_CONNECTION_STATE_DEACTIVATED,
@@ -294,10 +293,10 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
         self,
         network_manager: NetworkManager,
         config: NetworkAwareConfigFile,
-        modem_manager: ModemManager,
+        bus: dbus.SystemBus,
     ) -> None:
         self.network_manager: NetworkManager = network_manager
-        self.modem_manager: ModemManager = modem_manager
+        self.bus: dbus.SystemBus = bus
         self.config: NetworkAwareConfigFile = config
         self.timeouts: TimeoutManager = TimeoutManager(config)
         self.current_tier: Optional[ConnectionTier] = None
@@ -499,7 +498,8 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
         dev_path = dev.get_property("Udi")
         logging.debug('Device path "%s"', dev_path)
         logging.debug("SIM slot for connection %s is %s", con.get_connection_id(), sim_slot)
-        current_sim_slot = self.modem_manager.get_primary_sim_slot(dev_path)
+        modem = MMModem(dev_path, self.bus)
+        current_sim_slot = modem.get_primary_sim_slot()
         logging.debug("Current SIM slot: %s, new SIM slot: %s", str(current_sim_slot), str(sim_slot))
         if sim_slot in (NM_SETTINGS_GSM_SIM_SLOT_DEFAULT, current_sim_slot):
             logging.debug("No need to change SIM slot")
@@ -549,11 +549,11 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
 
     def change_modem_sim_slot(self, dev: NMDevice, con: NMConnection, sim_slot: str) -> Optional[NMDevice]:
         dev_path = dev.get_property("Udi")
-        if not self.modem_manager.set_primary_sim_slot(dev_path, sim_slot):
-            logging.debug("It seems that SIM slot was not changed by MM")
-            return None
+        modem = MMModem(dev_path, self.bus)
+        modem_id = modem.get_id()
+        modem.set_primary_sim_slot(sim_slot)
         # After switching SIM card MM recreates device with new path
-        dev = self._wait_gsm_sim_slot_to_change(con, str(sim_slot), DEVICE_WAITING_TIMEOUT)
+        dev = self._wait_gsm_sim_slot_to_change(modem_id, con, str(sim_slot), DEVICE_WAITING_TIMEOUT)
         if not dev:
             logging.debug("Failed to get new device after changing SIM slot")
         return dev
@@ -572,22 +572,26 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
         else:
             logging.debug("We deactivated non-current connection")
 
+    def _is_modem_with_changed_slot(self, device: NMDevice, modem_id: str, sim_slot: str) -> bool:
+        try:
+            modem = MMModem(device.get_property("Udi"), self.bus)
+            return modem_id == modem.get_id() and str(sim_slot) == str(modem.get_primary_sim_slot())
+        except dbus.exceptions.DBusException as ex:
+            # Some exceptions can be raised during waiting, because MM and NM remove and create devices
+            logging.debug("Error during device waiting: %s", ex)
+        return False
+
     def _wait_gsm_sim_slot_to_change(
-        self, con: NMConnection, sim_slot: str, timeout: datetime.timedelta
+        self, modem_id: str, con: NMConnection, sim_slot: str, timeout: datetime.timedelta
     ) -> Optional[NMDevice]:
         logging.debug("Waiting for SIM slot to change")
         start = self.now()
         while start + timeout >= self.now():
             try:
-                dev = self.network_manager.find_device_for_connection(con)
-                if not dev:
-                    continue
-                dev_path = dev.get_property("Udi")
-                current_sim_slot = self.modem_manager.get_primary_sim_slot(dev_path)
-                logging.debug("Current sim slot: %s", current_sim_slot)
-                if str(sim_slot) == str(current_sim_slot):
-                    logging.info("Changed SIM slot to %s to check connectivity", sim_slot)
-                    return dev
+                for device in self.network_manager.find_devices_for_connection(con):
+                    if self._is_modem_with_changed_slot(device, modem_id, sim_slot):
+                        logging.info("Changed SIM slot to %s to check connectivity", sim_slot)
+                        return device
             except dbus.exceptions.DBusException as ex:
                 # Some exceptions can be raised during waiting, because MM and NM remove and create devices
                 logging.debug("Error during device waiting: %s", ex)
@@ -777,15 +781,7 @@ def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     if config.has_connections():
-        try:
-            modem_manager = ModemManager()
-        except DBusException as ex:
-            modem_manager = None
-            logging.warning("Unable to initialize ModemManager, GSM connections will be unavailable (%s)", ex)
-
-        manager = ConnectionManager(
-            network_manager=network_manager, config=config, modem_manager=modem_manager
-        )
+        manager = ConnectionManager(network_manager=network_manager, config=config, bus=bus)
         while True:
             manager.cycle_loop()
             time.sleep(CHECK_PERIOD.total_seconds())

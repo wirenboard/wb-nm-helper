@@ -1,3 +1,9 @@
+wb-nm-helper (1.31.4) stable; urgency=medium
+
+  * Fix SIM switching when several modems are available
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Mon, 18 Dec 2023 15:10:00 +0500
+
 wb-nm-helper (1.31.3) stable; urgency=medium
 
   * Fix closing of already active connections during connectivity check

@@ -1,31 +1,46 @@
 import dbus
 
 
-class ModemManager:
-    def __init__(self):
-        self.bus = dbus.SystemBus()
-        self.mm_proxy = self.bus.get_object("org.freedesktop.ModemManager1", "/org/freedesktop/ModemManager1")
+class MMObject:
+    def __init__(self, path: str, bus: dbus.SystemBus, interface_name: str):
+        self.path = path
+        self.bus = bus
+        self.interface_name = interface_name
+        self.obj = None
+        self.iface = None
+        self.prop_iface = None
 
-    def get_modem(self, modem_path):
-        objects = dbus.Interface(self.mm_proxy, "org.freedesktop.DBus.ObjectManager")
-        for obj in objects.GetManagedObjects():
-            if obj == modem_path:
-                modem_proxy = self.bus.get_object("org.freedesktop.ModemManager1", obj)
-                modem = dbus.Interface(modem_proxy, "org.freedesktop.ModemManager1.Modem")
-                return modem
-        return None
+    def get_object(self):
+        if self.obj is None:
+            self.obj = self.bus.get_object("org.freedesktop.ModemManager1", self.path)
+        return self.obj
 
-    def get_primary_sim_slot(self, modem_path):
-        modem = self.get_modem(modem_path)
-        if modem:
-            modem_properties = dbus.Interface(modem, "org.freedesktop.DBus.Properties")
-            current_sim = modem_properties.Get("org.freedesktop.ModemManager1.Modem", "PrimarySimSlot")
-            return current_sim
-        return None
+    def get_iface(self):
+        if self.iface is None:
+            self.iface = dbus.Interface(self.get_object(), self.interface_name)
+        return self.iface
 
-    def set_primary_sim_slot(self, modem_path, slot_index):
-        modem = self.get_modem(modem_path)
-        if modem:
-            modem.SetPrimarySimSlot(slot_index)
-            return True
-        return False
+    def get_prop_iface(self):
+        if self.prop_iface is None:
+            self.prop_iface = dbus.Interface(self.get_object(), "org.freedesktop.DBus.Properties")
+        return self.prop_iface
+
+    def get_property(self, property_name: str):
+        return self.get_prop_iface().Get(self.interface_name, property_name)
+
+    def get_path(self) -> str:
+        return self.path
+
+
+class MMModem(MMObject):
+    def __init__(self, path: str, bus: dbus.SystemBus):
+        MMObject.__init__(self, path, bus, "org.freedesktop.ModemManager1.Modem")
+
+    def get_primary_sim_slot(self) -> int:
+        return self.get_property("PrimarySimSlot")
+
+    def get_id(self) -> str:
+        return self.get_property("DeviceIdentifier")
+
+    def set_primary_sim_slot(self, slot_index: int) -> None:
+        self.get_iface().SetPrimarySimSlot(slot_index)
