@@ -1,3 +1,9 @@
+wb-nm-helper (1.31.5) stable; urgency=medium
+
+  * Fix active Wi-Fi connection deactivation after creation of a new one
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Mon, 18 Dec 2023 15:15:12 +0500
+
 wb-nm-helper (1.31.4) stable; urgency=medium
 
   * Fix SIM switching when several modems are available
