@@ -261,7 +261,7 @@ class NetworkAwareConfigFileTests(TestCase):
         )
         self.config.tiers = [test_tier]
 
-        self.config.is_connection_unmanaged = MagicMock(side_effect=[False, False, False])
+        self.config.connection_is_bound_to_unmanaged_device = MagicMock(side_effect=[False, False, False])
         self.config.network_manager.find_connection = MagicMock(side_effect=["DEV1", "DEV2", "DEV3"])
         test_tier.update_connections = MagicMock()
 
@@ -272,7 +272,8 @@ class NetworkAwareConfigFileTests(TestCase):
             self.config.network_manager.find_connection.mock_calls,
         )
         self.assertEqual(
-            [call("DEV1"), call("DEV2"), call("DEV3")], self.config.is_connection_unmanaged.mock_calls
+            [call("DEV1"), call("DEV2"), call("DEV3")],
+            self.config.connection_is_bound_to_unmanaged_device.mock_calls,
         )
         self.assertEqual([], test_tier.update_connections.mock_calls)
 
@@ -282,7 +283,7 @@ class NetworkAwareConfigFileTests(TestCase):
         )
         self.config.tiers = [test_tier]
 
-        self.config.is_connection_unmanaged = MagicMock(side_effect=[False, True, False])
+        self.config.connection_is_bound_to_unmanaged_device = MagicMock(side_effect=[False, True, False])
         self.config.network_manager.find_connection = MagicMock(side_effect=["DEV1", "DEV2", "DEV3"])
         test_tier.update_connections = MagicMock()
 
@@ -293,7 +294,8 @@ class NetworkAwareConfigFileTests(TestCase):
             self.config.network_manager.find_connection.mock_calls,
         )
         self.assertEqual(
-            [call("DEV1"), call("DEV2"), call("DEV3")], self.config.is_connection_unmanaged.mock_calls
+            [call("DEV1"), call("DEV2"), call("DEV3")],
+            self.config.connection_is_bound_to_unmanaged_device.mock_calls,
         )
         self.assertEqual([call(["wb_eth0", "wb_eth2"])], test_tier.update_connections.mock_calls)
 
@@ -303,7 +305,7 @@ class NetworkAwareConfigFileTests(TestCase):
         )
         self.config.tiers = [test_tier]
 
-        self.config.is_connection_unmanaged = MagicMock(side_effect=[False, False])
+        self.config.connection_is_bound_to_unmanaged_device = MagicMock(side_effect=[False, False])
         self.config.network_manager.find_connection = MagicMock(side_effect=["DEV1", "DEV2", None])
         test_tier.update_connections = MagicMock()
 
@@ -313,7 +315,9 @@ class NetworkAwareConfigFileTests(TestCase):
             [call("wb_eth0"), call("wb_eth1"), call("wb_eth2")],
             self.config.network_manager.find_connection.mock_calls,
         )
-        self.assertEqual([call("DEV1"), call("DEV2")], self.config.is_connection_unmanaged.mock_calls)
+        self.assertEqual(
+            [call("DEV1"), call("DEV2")], self.config.connection_is_bound_to_unmanaged_device.mock_calls
+        )
         self.assertEqual([call(["wb_eth0", "wb_eth1"])], test_tier.update_connections.mock_calls)
 
     def test_get_default_tiers(self):
@@ -348,7 +352,7 @@ class NetworkAwareConfigFileTests(TestCase):
         )
         test_connections = [con_eth, con_not_ac, con_nd, con_unm, con_wifi, con_wifi_ap, con_gsm, con_unk]
 
-        self.config.is_connection_unmanaged = MagicMock(
+        self.config.connection_is_bound_to_unmanaged_device = MagicMock(
             side_effect=(False, False, False, True, False, False, False, False)
         )
         self.config.network_manager.get_connections = MagicMock(return_value=test_connections)
@@ -378,7 +382,7 @@ class NetworkAwareConfigFileTests(TestCase):
                 call(con_gsm),
                 call(con_unk),
             ],
-            self.config.is_connection_unmanaged.mock_calls,
+            self.config.connection_is_bound_to_unmanaged_device.mock_calls,
         )
         self.assertEqual(3, len(output))
         self.assertEqual("high", output[0].name)
@@ -406,7 +410,7 @@ class NetworkAwareConfigFileTests(TestCase):
 
     def test_is_connection_unmanaged(self):
         with self.assertRaises(ValueError):
-            self.config.is_connection_unmanaged(None)
+            self.config.connection_is_bound_to_unmanaged_device(None)
 
         test_con = DummyNMConnection("dummy", {})
         test_con.get_interface_name = MagicMock(side_effect=["eth0", "eth0", "eth0", "eth0", ""])
@@ -416,11 +420,19 @@ class NetworkAwareConfigFileTests(TestCase):
         )
         test_dev.get_property.side_effect = [True, 1, "dummy"]
 
-        value1 = self.config.is_connection_unmanaged(test_con)  # no device will be returned
-        value2 = self.config.is_connection_unmanaged(test_con)  # True will be returned for managed
-        value3 = self.config.is_connection_unmanaged(test_con)  # 1 will be returned for managed
-        value4 = self.config.is_connection_unmanaged(test_con)  # random value will be returned for managed
-        value5 = self.config.is_connection_unmanaged(test_con)  # interface is not set for connection
+        value1 = self.config.connection_is_bound_to_unmanaged_device(test_con)  # no device will be returned
+        value2 = self.config.connection_is_bound_to_unmanaged_device(
+            test_con
+        )  # True will be returned for managed
+        value3 = self.config.connection_is_bound_to_unmanaged_device(
+            test_con
+        )  # 1 will be returned for managed
+        value4 = self.config.connection_is_bound_to_unmanaged_device(
+            test_con
+        )  # random value will be returned for managed
+        value5 = self.config.connection_is_bound_to_unmanaged_device(
+            test_con
+        )  # interface is not set for connection
 
         self.assertEqual([call(), call(), call(), call(), call()], test_con.get_interface_name.mock_calls)
         self.assertEqual(

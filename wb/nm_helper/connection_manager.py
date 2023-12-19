@@ -148,7 +148,7 @@ class NetworkAwareConfigFile(ConfigFile):
                 if not con:
                     logging.warning("Connection %s not found, skipping", cn_id)
                     continue
-                if self.is_connection_unmanaged(con):
+                if self.connection_is_bound_to_unmanaged_device(con):
                     logging.warning("Connection %s is unmanaged, skipping", cn_id)
                     continue
                 new_items.append(cn_id)
@@ -165,7 +165,7 @@ class NetworkAwareConfigFile(ConfigFile):
             connection_type = item.get_connection_type()
             device_type = connection_type_to_device_type(connection_type)
             connection_id = item.get_connection_id()
-            unmanaged = self.is_connection_unmanaged(item)
+            unmanaged = self.connection_is_bound_to_unmanaged_device(item)
             if not autoconnect or never_default or unmanaged:
                 continue
             if device_type == NM_DEVICE_TYPE_MODEM:
@@ -187,12 +187,13 @@ class NetworkAwareConfigFile(ConfigFile):
         )
         return tiers
 
-    def is_connection_unmanaged(self, con: NMConnection) -> bool:
+    def connection_is_bound_to_unmanaged_device(self, con: NMConnection) -> bool:
         if not con:
             raise ValueError("Connection cannot be empty")
         cn_id = con.get_connection_id()
         iface_name = con.get_interface_name()
         if not iface_name:
+            logging.warning("Connection %s does not specify an interface, will recheck later", cn_id)
             return False
         device = self.network_manager.find_device_by_param("Interface", iface_name)
         if not device:
