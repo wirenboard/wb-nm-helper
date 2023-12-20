@@ -327,7 +327,9 @@ class WiFiDBUSSettings(DBUSSettings):
 
 
 class WiFiConnection(Connection):
-    def __init__(self, additional_params: List[Param] = []) -> None:
+    def __init__(self, additional_params: List[Param] = None) -> None:
+        if additional_params is None:
+            additional_params = []
         params = [
             Param("802-11-wireless.mtu"),
             Param("802-11-wireless.ssid", to_dbus_byte_array, to_utf8_string),
