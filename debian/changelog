@@ -1,3 +1,9 @@
+wb-nm-helper (1.32.0) stable; urgency=medium
+
+  * Add Wi-Fi AP band and channel configuration 
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Wed, 20 Dec 2023 09:01:02 +0500
+
 wb-nm-helper (1.31.5) stable; urgency=medium
 
   * Fix active Wi-Fi connection deactivation after creation of a new one

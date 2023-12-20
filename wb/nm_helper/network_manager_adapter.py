@@ -327,7 +327,7 @@ class WiFiDBUSSettings(DBUSSettings):
 
 
 class WiFiConnection(Connection):
-    def __init__(self) -> None:
+    def __init__(self, additional_params: List[Param] = []) -> None:
         params = [
             Param("802-11-wireless.mtu"),
             Param("802-11-wireless.ssid", to_dbus_byte_array, to_utf8_string),
@@ -335,7 +335,7 @@ class WiFiConnection(Connection):
             Param("802-11-wireless-security.key-mgmt", json_path_type=ParamPathType.TREE),
             Param("802-11-wireless-security.psk", json_path_type=ParamPathType.TREE),
         ]
-        Connection.__init__(self, "802-11-wireless", METHOD_WIFI, params)
+        Connection.__init__(self, "802-11-wireless", METHOD_WIFI, params + additional_params)
 
     def set_dbus_options(self, con: DBUSSettings, iface: JSONSettings):
         super().set_dbus_options(con, iface)
@@ -401,7 +401,11 @@ class WiFiConnection(Connection):
 
 class WiFiAp(WiFiConnection):
     def __init__(self) -> None:
-        WiFiConnection.__init__(self)
+        params = [
+            Param("802-11-wireless.band"),
+            Param("802-11-wireless.channel"),
+        ]
+        WiFiConnection.__init__(self, params)
         self.ui_type = METHOD_WIFI_AP
 
     def can_manage(self, cfg: DBUSSettings) -> bool:
@@ -409,8 +413,6 @@ class WiFiAp(WiFiConnection):
 
     def set_dbus_options(self, con: DBUSSettings, iface: JSONSettings):
         super().set_dbus_options(con, iface)
-        con.set_value("802-11-wireless.band", "bg")
-        con.set_value("802-11-wireless.channel", 1)
         con.set_value("802-11-wireless.powersave", 2)
         if "802-11-wireless-security" in con.params:
             # Disable WPS as it can lead to connection problems with MacOS and Linux

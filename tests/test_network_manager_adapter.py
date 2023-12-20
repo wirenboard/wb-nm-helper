@@ -44,8 +44,6 @@ from wb.nm_helper.network_manager_adapter import (
                             dbus.String("mode"): dbus.String("ap", variant_level=1),
                             dbus.String("security"): dbus.String("802-11-wireless-security", variant_level=1),
                             dbus.String("ssid"): dbus.ByteArray(b"WirenBoard-APT6KWYK"),
-                            dbus.String("band"): dbus.String("bg", variant_level=1),
-                            dbus.String("channel"): dbus.Int32(1, variant_level=1),
                             dbus.String("powersave"): dbus.Int32(2, variant_level=1),
                         },
                         signature=dbus.Signature("sv"),
@@ -85,8 +83,6 @@ from wb.nm_helper.network_manager_adapter import (
                         {
                             dbus.String("mode"): "ap",
                             dbus.String("ssid"): dbus.ByteArray(b"WirenBoard-APT6KWYK"),
-                            dbus.String("band"): dbus.String("bg", variant_level=1),
-                            dbus.String("channel"): dbus.Int32(1, variant_level=1),
                             dbus.String("powersave"): dbus.Int32(2, variant_level=1),
                         },
                         signature=dbus.Signature("sv"),
@@ -140,8 +136,6 @@ from wb.nm_helper.network_manager_adapter import (
                         {
                             dbus.String("mode"): dbus.String("ap", variant_level=1),
                             dbus.String("ssid"): dbus.ByteArray(b"WirenBoard-APT6KWYK"),
-                            dbus.String("band"): dbus.String("bg", variant_level=1),
-                            dbus.String("channel"): dbus.Int32(1, variant_level=1),
                             dbus.String("powersave"): dbus.Int32(2, variant_level=1),
                         },
                         signature=dbus.Signature("sv"),
@@ -177,8 +171,6 @@ from wb.nm_helper.network_manager_adapter import (
                         {
                             dbus.String("mode"): "ap",
                             dbus.String("ssid"): dbus.ByteArray(b"WirenBoard-APT6KWYK"),
-                            dbus.String("band"): dbus.String("bg", variant_level=1),
-                            dbus.String("channel"): dbus.Int32(1, variant_level=1),
                             dbus.String("powersave"): dbus.Int32(2, variant_level=1),
                         },
                         signature=dbus.Signature("sv"),
