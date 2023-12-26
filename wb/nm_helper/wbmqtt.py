@@ -98,9 +98,12 @@ class Device:
         }
         if meta.title is not None:
             meta_dict["title"] = {"en": meta.title}
-        for key in ["order", "min_value", "max_value"]:
-            if getattr(meta, key) is not None:
-                meta_dict[key] = getattr(meta, key)
+        if meta.order is not None:
+            meta_dict["order"] = meta.order
+        if meta.min_value is not None:
+            meta_dict["min"] = meta.min_value
+        if meta.max_value is not None:
+            meta_dict["max"] = meta.max_value
 
         if meta_dict:
             meta_json = json.dumps(meta_dict)
