@@ -6,12 +6,20 @@ import threading
 
 class ControlMeta:  # pylint: disable=R0903
     def __init__(
-        self, title: str = None, control_type: str = "value", order: int = None, read_only: bool = False
+        self,
+        title: str = None,
+        control_type: str = "value",
+        order: int = None,
+        read_only: bool = False,
+        min: int = None,
+        max: int = None,
     ) -> None:
         self.title = title
         self.control_type = control_type
         self.order = order
         self.read_only = read_only
+        self.min = min
+        self.max = max
 
 
 class ControlState:  # pylint: disable=R0903
@@ -90,8 +98,9 @@ class Device:
         }
         if meta.title is not None:
             meta_dict["title"] = {"en": meta.title}
-        if meta.order is not None:
-            meta_dict["order"] = meta.order
+        for key in ["order", "min", "max"]:
+            if getattr(meta, key) is not None:
+                meta_dict[key] = getattr(meta, key)
 
         if meta_dict:
             meta_json = json.dumps(meta_dict)
