@@ -4,22 +4,22 @@ import random
 import threading
 
 
-class ControlMeta:  # pylint: disable=R0903
+class ControlMeta:  # pylint: disable=R0903,disable=R0913
     def __init__(
         self,
         title: str = None,
         control_type: str = "value",
         order: int = None,
         read_only: bool = False,
-        min: int = None,
-        max: int = None,
+        min_value: int = None,
+        max_value: int = None,
     ) -> None:
         self.title = title
         self.control_type = control_type
         self.order = order
         self.read_only = read_only
-        self.min = min
-        self.max = max
+        self.min_value = min_value
+        self.max_value = max_value
 
 
 class ControlState:  # pylint: disable=R0903
@@ -98,7 +98,7 @@ class Device:
         }
         if meta.title is not None:
             meta_dict["title"] = {"en": meta.title}
-        for key in ["order", "min", "max"]:
+        for key in ["order", "min_value", "max_value"]:
             if getattr(meta, key) is not None:
                 meta_dict[key] = getattr(meta, key)
 
