@@ -922,15 +922,22 @@
                             "type": "string",
                             "title": "Band",
                             "description": "802-11-wireless_band_desc",
-                            "enum": ["bg", "a"],
                             "propertyOrder": 9,
                             "options": {
                                 "wb": {
                                     "disabledEditorText":  "auto"
                                 },
-                                "show_opt_in": true,
-                                "enum_titles": ["2.4GHz", "5GHz"]
+                                "show_opt_in": true
                             },
+                            "watch": {
+                                "bands": "data.wifi_bands"
+                            },
+                            "enumSource": [
+                                {
+                                    "source": "bands",
+                                    "value": "{{item}}"
+                                }
+                            ],
                             "_format": "slWb"
                         },
                         "802-11-wireless_channel": {
@@ -1477,6 +1484,9 @@
                 },
                 "devices": {
                     "type": "array"
+                },
+                "wifi_bands": {
+                    "type": "array"
                 }
             },
             "options": {
@@ -1501,7 +1511,9 @@
             "old_interface_deprecated_description": "Management via NetworkManager is available - this is a modern configuration service, support for which is currently being developed in Wiren Board. To switch to NetworkManager, <b>remove this connection</b> and use a pre-defined one (or create a new connection from scratch)",
             "loopback_deprecated_description": "Manual loopback definitions <b>should be removed</b>, systemd handles loopback automatically",
             "802-11-wireless_channel_desc": "The device will only create a Wi-Fi AP on the specified wireless channel. This property also requires the \"Band\" property to be set",
-            "802-11-wireless_band_desc": "802.11 frequency band of the network"
+            "802-11-wireless_band_desc": "802.11 frequency band of the network",
+            "a": "5GHz",
+            "bg": "2.4GHz"
         },
         "ru": {
             "Network connections": "Сетевые соединения",
@@ -1590,8 +1602,8 @@
             "Helps to avoid service traffic when metered connection is active": "Позволяет избежать расходов на служебный трафик, если соединение не используется",
             "Channel": "Канал",
             "Band": "Диапазон частот",
-            "5GHz": "5ГГц",
-            "2.4GHz": "2.4ГГц",
+            "a": "5ГГц",
+            "bg": "2.4ГГц",
             "802-11-wireless_channel_desc": "Создать точку доступа на заданном беспроводном канале. Для корректной работы необходимо также указать диапазон частот",
             "802-11-wireless_band_desc": "Диапазон частот согласно стандарту 802.11. Установка этого параметра может помешать подключению к сетям, использующим другой диапазон частот"
         }
