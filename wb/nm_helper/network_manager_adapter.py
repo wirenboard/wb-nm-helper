@@ -507,12 +507,18 @@ def apply(iface, c_handler, network_manager: NetworkManager, dry_run: bool) -> N
         return
     c_handler.set_dbus_options(dbus_settings, json_settings)
     reactivate = deactivate_connection(network_manager, con)
-    con.update_settings(dbus_settings.params)
+    update_exception = None
+    try:
+        con.update_settings(dbus_settings.params)
+    except dbus.exceptions.DBusException as ex:
+        update_exception = ex
     if reactivate:
         try:
             network_manager.activate_connection(con, None)
         except dbus.exceptions.DBusException:
             pass
+    if update_exception is not None:
+        raise update_exception
 
 
 class NetworkManagerAdapter:
