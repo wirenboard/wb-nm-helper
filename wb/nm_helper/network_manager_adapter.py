@@ -604,3 +604,16 @@ class NetworkManagerAdapter:
         if free_device:
             return scan(NMWirelessDevice(free_device), scan_timeout)
         return []
+
+    def get_wifi_bands(self) -> List[str]:
+        bands = ["bg"]
+        has_rtl8723bu = False
+        # rtl8723bu driver reports that it supports both 2.4GHz and 5GHz,
+        # so we can't rely here on WirelessCapabilities property
+        # of org.freedesktop.NetworkManager.Device.Wireless interface
+        for dev in self.network_manager.get_devices():
+            if dev.get_property("Driver") == "rtl8723bu":
+                has_rtl8723bu = True
+        if not has_rtl8723bu:
+            bands.append("a")
+        return bands

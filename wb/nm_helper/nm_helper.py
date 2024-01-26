@@ -83,6 +83,7 @@ def to_json(args) -> Dict:
         "data": {
             "ssids": ssids,
             "devices": devices,
+            "wifi_bands": network_manager.get_wifi_bands(),
         },
     }
 
