@@ -208,7 +208,7 @@ def test_wifiap_set_dbus_options(json, dbus_old, dbus_new):
     json_settings = JSONSettings(json)
     dbus_old_settings = DBUSSettings(dbus_old)
     dbus_new_settings = DBUSSettings(dbus_new)
-    access_point.set_dbus_options(dbus_old_settings, json_settings)
+    assert access_point.set_dbus_options(dbus_old_settings, json_settings)["clear_secrets"] is False
     assert dbus_old_settings.params == dbus_new_settings.params
 
 
@@ -290,5 +290,5 @@ def test_modem_set_dbus_options(json, dbus_old, dbus_new):
     json_settings = JSONSettings(json)
     dbus_old_settings = DBUSSettings(dbus_old)
     dbus_new_settings = DBUSSettings(dbus_new)
-    access_point.set_dbus_options(dbus_old_settings, json_settings)
+    assert access_point.set_dbus_options(dbus_old_settings, json_settings)["clear_secrets"] is False
     assert dbus_old_settings.params == dbus_new_settings.params

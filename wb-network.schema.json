@@ -1005,13 +1005,23 @@
                                 }
                             }
                         },
+                        "gsm_username": {
+                            "type": "string",
+                            "title": "Username used to authenticate with the network",
+                            "propertyOrder": 6
+                        },
+                        "gsm_password": {
+                            "type": "string",
+                            "title": "Password used to authenticate with the network",
+                            "propertyOrder": 7
+                        },
                         "ipv4": {
                             "title": "IPv4",
                             "oneOf": [
                                 {"$ref": "#/definitions/nm_ipv4_auto"},
                                 {"$ref": "#/definitions/nm_ipv4_manual"}
                             ],
-                            "propertyOrder": 6,
+                            "propertyOrder": 8,
                             "options": {
                                 "keep_oneof_values": false
                             }
@@ -1021,7 +1031,7 @@
                             "title": "Only for SIM slot",
                             "enum": [1, 2],
                             "default": 1,
-                            "propertyOrder": 7,
+                            "propertyOrder": 9,
                             "options": {
                                 "wb": {
                                     "disabledEditorText":  "any SIM-slot"
@@ -1032,7 +1042,7 @@
                         "connection_interface-name": {
                             "type": "string",
                             "title": "Only for device",
-                            "propertyOrder": 8,
+                            "propertyOrder": 10,
                             "options": {
                                 "inputAttributes": {
                                     "placeholder":  "use with any suitable device"
@@ -1605,7 +1615,9 @@
             "a": "5ГГц",
             "bg": "2.4ГГц",
             "802-11-wireless_channel_desc": "Создать точку доступа на заданном беспроводном канале. Для корректной работы необходимо также указать диапазон частот",
-            "802-11-wireless_band_desc": "Диапазон частот согласно стандарту 802.11. Установка этого параметра может помешать подключению к сетям, использующим другой диапазон частот"
+            "802-11-wireless_band_desc": "Диапазон частот согласно стандарту 802.11. Установка этого параметра может помешать подключению к сетям, использующим другой диапазон частот",
+            "Username used to authenticate with the network": "Имя пользователя для аутентификации в сети",
+            "Password used to authenticate with the network": "Пароль для аутентификации в сети"
         }
     }
 }

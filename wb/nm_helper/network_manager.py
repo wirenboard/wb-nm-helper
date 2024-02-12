@@ -178,6 +178,9 @@ class NMConnection(NMObject):
     def update_settings(self, settings):
         return self.get_iface().Update(settings)
 
+    def clear_secrets(self) -> None:
+        self.get_iface().ClearSecrets()
+
 
 class NMDevice(NMObject):
     def __init__(self, path: str, bus: dbus.SystemBus):
