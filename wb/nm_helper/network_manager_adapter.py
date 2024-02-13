@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import datetime
 import json
 import time
@@ -42,9 +43,9 @@ class DeviceDesc(TypedDict):
     iface: str
 
 
-class SetDbusOptionsResult(TypedDict):
-    clear_secrets: bool
-
+SetDbusOptionsResult = namedtuple(
+    "SetDbusOptionsResult", ["settings", "clear_secrets"], defaults=[None, False]
+)
 
 Param = namedtuple(
     "Param", ["path", "to_dbus", "from_dbus", "json_path_type"], defaults=[None, None, ParamPathType.FLAT]
@@ -278,13 +279,13 @@ class Connection:
         self.params = connection_params + additional_params
 
     def set_dbus_options(self, con: DBUSSettings, iface: JSONSettings) -> SetDbusOptionsResult:
-        con.set_opts(iface, self.params)
+        res = copy.deepcopy(con)
+        res.set_opts(iface, self.params)
         set_ipv4_dbus_options(con, iface)
-        return {"clear_secrets": False}
+        return SetDbusOptionsResult(res, False)
 
     def create(self, iface: JSONSettings) -> dbus.Dictionary:
-        con = DBUSSettings()
-        self.set_dbus_options(con, iface)
+        (con, _) = self.set_dbus_options(DBUSSettings(), iface)
         con.set_value("connection.type", self.dbus_type)
         return con.params
 
@@ -349,7 +350,7 @@ class WiFiConnection(Connection):
         Connection.__init__(self, "802-11-wireless", METHOD_WIFI, params + additional_params)
 
     def set_dbus_options(self, con: DBUSSettings, iface: JSONSettings) -> SetDbusOptionsResult:
-        res = super().set_dbus_options(con, iface)
+        (con, clear_secrets) = super().set_dbus_options(con, iface)
         if "802-11-wireless-security" in con.params:
             if iface.get_opt("802-11-wireless-security.security") == "none":
                 del con.params["802-11-wireless-security"]
@@ -357,7 +358,7 @@ class WiFiConnection(Connection):
                     del con.params["802-11-wireless"]["security"]
 
             self.set_encryption(con, iface.get_opt("802-11-wireless-security.encryption"))
-        return res
+        return SetDbusOptionsResult(con, clear_secrets)
 
     @staticmethod
     def get_dbus_settings(con: NMConnection) -> DBUSSettings:
@@ -424,7 +425,7 @@ class WiFiAp(WiFiConnection):
         return Connection.can_manage(self, cfg) and (cfg.get_opt("802-11-wireless.mode") == "ap")
 
     def set_dbus_options(self, con: DBUSSettings, iface: JSONSettings) -> SetDbusOptionsResult:
-        res = super().set_dbus_options(con, iface)
+        (con, clear_secrets) = super().set_dbus_options(con, iface)
         con.set_value("802-11-wireless.powersave", 2)
         if "802-11-wireless-security" in con.params:
             # Disable WPS as it can lead to connection problems with MacOS and Linux
@@ -432,7 +433,7 @@ class WiFiAp(WiFiConnection):
         user_data = con.get_opt("user.data", dbus.Dictionary(signature="ss"))
         user_data["wb.disable-nat"] = "false" if iface.get_opt("nat", True) else "true"
         con.set_value("user.data", user_data)
-        return res
+        return SetDbusOptionsResult(con, clear_secrets)
 
     def get_connection(self, con: NMConnection):
         res = super().get_connection(con)
@@ -475,7 +476,7 @@ class ModemConnection(Connection):
 
     def set_dbus_options(self, con: DBUSSettings, iface: JSONSettings) -> SetDbusOptionsResult:
         had_password = con.get_opt("gsm.password") is not None
-        res = super().set_dbus_options(con, iface)
+        (con, clear_secrets) = super().set_dbus_options(con, iface)
         if con.get_opt("gsm.apn"):
             con.set_value("gsm.auto-config", False)
         else:
@@ -491,8 +492,8 @@ class ModemConnection(Connection):
                 con.set_value("user.data", user_data)
         # password is removed
         if is_empty_or_none(iface.get_opt("gsm.password")) and had_password:
-            res["clear_secrets"] = True
-        return res
+            clear_secrets = True
+        return SetDbusOptionsResult(con, clear_secrets)
 
     def get_connection(self, con: NMConnection):
         res = super().get_connection(con)
@@ -548,11 +549,11 @@ def apply(iface, c_handler, network_manager: NetworkManager, dry_run: bool) -> N
         con.delete()
         network_manager.add_connection(c_handler.create(json_settings))
         return
-    set_res = c_handler.set_dbus_options(dbus_settings, json_settings)
+    (dbus_settings, clear_secrets) = c_handler.set_dbus_options(dbus_settings, json_settings)
     reactivate = deactivate_connection(network_manager, con)
     update_exception = None
     try:
-        if set_res["clear_secrets"] is True:
+        if clear_secrets:
             con.clear_secrets()
         con.update_settings(dbus_settings.params)
     except dbus.exceptions.DBusException as ex:

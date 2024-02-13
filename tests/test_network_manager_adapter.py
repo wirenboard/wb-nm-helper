@@ -208,8 +208,9 @@ def test_wifiap_set_dbus_options(json, dbus_old, dbus_new):
     json_settings = JSONSettings(json)
     dbus_old_settings = DBUSSettings(dbus_old)
     dbus_new_settings = DBUSSettings(dbus_new)
-    assert access_point.set_dbus_options(dbus_old_settings, json_settings)["clear_secrets"] is False
-    assert dbus_old_settings.params == dbus_new_settings.params
+    (updated_settings, clear_secrets) = access_point.set_dbus_options(dbus_old_settings, json_settings)
+    assert clear_secrets is False
+    assert updated_settings.params == dbus_new_settings.params
 
 
 @pytest.mark.parametrize(
@@ -290,5 +291,6 @@ def test_modem_set_dbus_options(json, dbus_old, dbus_new):
     json_settings = JSONSettings(json)
     dbus_old_settings = DBUSSettings(dbus_old)
     dbus_new_settings = DBUSSettings(dbus_new)
-    assert access_point.set_dbus_options(dbus_old_settings, json_settings)["clear_secrets"] is False
-    assert dbus_old_settings.params == dbus_new_settings.params
+    (updated_settings, clear_secrets) = access_point.set_dbus_options(dbus_old_settings, json_settings)
+    assert clear_secrets is False
+    assert updated_settings.params == dbus_new_settings.params
