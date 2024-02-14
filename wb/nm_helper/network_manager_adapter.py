@@ -43,6 +43,10 @@ class DeviceDesc(TypedDict):
     iface: str
 
 
+# `clear_secrets` flag in this tuple is used by caller of `set_dbus_options`
+# to explicitly call `clear_secrets()` method of NM connection object.
+# NetworkManager wants it when password or any other secret is removed,
+# just assigning empty string to a secret is not enough
 SetDbusOptionsResult = namedtuple(
     "SetDbusOptionsResult", ["settings", "clear_secrets"], defaults=[None, False]
 )
@@ -50,10 +54,6 @@ SetDbusOptionsResult = namedtuple(
 Param = namedtuple(
     "Param", ["path", "to_dbus", "from_dbus", "json_path_type"], defaults=[None, None, ParamPathType.FLAT]
 )
-
-
-def is_empty_or_none(string) -> bool:
-    return string is None or len(string) == 0
 
 
 def to_mac_string(mac_array):
@@ -97,7 +97,7 @@ def to_dns_search_string(array):
 
 
 def not_empty_string(val):
-    return None if is_empty_or_none(val) else val
+    return None if not val else val
 
 
 def to_string_default_empty(val):
@@ -281,7 +281,7 @@ class Connection:
     def set_dbus_options(self, con: DBUSSettings, iface: JSONSettings) -> SetDbusOptionsResult:
         res = copy.deepcopy(con)
         res.set_opts(iface, self.params)
-        set_ipv4_dbus_options(con, iface)
+        set_ipv4_dbus_options(res, iface)
         return SetDbusOptionsResult(res, False)
 
     def create(self, iface: JSONSettings) -> dbus.Dictionary:
@@ -491,7 +491,7 @@ class ModemConnection(Connection):
                 user_data["wb.deactivate-by-priority"] = "false"
                 con.set_value("user.data", user_data)
         # password is removed
-        if is_empty_or_none(iface.get_opt("gsm.password")) and had_password:
+        if not iface.get_opt("gsm.password") and had_password:
             clear_secrets = True
         return SetDbusOptionsResult(con, clear_secrets)
 

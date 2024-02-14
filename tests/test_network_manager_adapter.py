@@ -214,7 +214,7 @@ def test_wifiap_set_dbus_options(json, dbus_old, dbus_new):
 
 
 @pytest.mark.parametrize(
-    "json,dbus_old,dbus_new",
+    "json,dbus_old,dbus_new,clear_secrets",
     [
         # Set GSM APN
         (
@@ -283,14 +283,84 @@ def test_wifiap_set_dbus_options(json, dbus_old, dbus_new):
                 },
                 signature=dbus.Signature("sa{sv}"),
             ),
+            False,
+        ),
+        # Reset password
+        (
+            {
+                "connection_autoconnect": False,
+                "connection_id": "wb-gsm-sim1",
+                "connection_uuid": "5d4297ba-c319-4c05-a153-17cb42e6e196",
+                "gsm_auto-config": False,
+                "gsm_sim-slot": 1,
+                "gsm_password": "",
+                "ipv4": {"method": "auto"},
+                "type": "02_nm_modem",
+            },
+            dbus.Dictionary(
+                {
+                    dbus.String("connection"): dbus.Dictionary(
+                        {
+                            dbus.String("autoconnect"): False,
+                            dbus.String("id"): "wb-gsm-sim1",
+                            dbus.String("type"): "gsm",
+                            dbus.String("uuid"): "5d4297ba-c319-4c05-a153-17cb42e6e196",
+                        },
+                        signature=dbus.Signature("sv"),
+                    ),
+                    dbus.String("gsm"): dbus.Dictionary(
+                        {
+                            dbus.String("auto-config"): dbus.Boolean(True, variant_level=1),
+                            dbus.String("sim-slot"): dbus.Int32(1, variant_level=1),
+                            dbus.String("password"): "password",
+                        },
+                        signature=dbus.Signature("sv"),
+                    ),
+                    dbus.String("ipv4"): dbus.Dictionary(
+                        {
+                            dbus.String("method"): "auto",
+                        },
+                        signature=dbus.Signature("sv"),
+                    ),
+                },
+                signature=dbus.Signature("sa{sv}"),
+            ),
+            dbus.Dictionary(
+                {
+                    dbus.String("connection"): dbus.Dictionary(
+                        {
+                            dbus.String("autoconnect"): False,
+                            dbus.String("id"): "wb-gsm-sim1",
+                            dbus.String("type"): "gsm",
+                            dbus.String("uuid"): "5d4297ba-c319-4c05-a153-17cb42e6e196",
+                        },
+                        signature=dbus.Signature("sv"),
+                    ),
+                    dbus.String("gsm"): dbus.Dictionary(
+                        {
+                            dbus.String("auto-config"): True,
+                            dbus.String("sim-slot"): dbus.Int32(1, variant_level=1),
+                        },
+                        signature=dbus.Signature("sv"),
+                    ),
+                    dbus.String("ipv4"): dbus.Dictionary(
+                        {
+                            dbus.String("method"): "auto",
+                        },
+                        signature=dbus.Signature("sv"),
+                    ),
+                },
+                signature=dbus.Signature("sa{sv}"),
+            ),
+            True,
         ),
     ],
 )
-def test_modem_set_dbus_options(json, dbus_old, dbus_new):
+def test_modem_set_dbus_options(json, dbus_old, dbus_new, clear_secrets):
     access_point = ModemConnection()
     json_settings = JSONSettings(json)
     dbus_old_settings = DBUSSettings(dbus_old)
     dbus_new_settings = DBUSSettings(dbus_new)
-    (updated_settings, clear_secrets) = access_point.set_dbus_options(dbus_old_settings, json_settings)
-    assert clear_secrets is False
+    (updated_settings, must_clear_secrets) = access_point.set_dbus_options(dbus_old_settings, json_settings)
+    assert clear_secrets == must_clear_secrets
     assert updated_settings.params == dbus_new_settings.params
