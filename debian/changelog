@@ -1,3 +1,9 @@
+wb-nm-helper (1.33.0) stable; urgency=medium
+
+  * Add GSM username and password configuration
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Fri, 02 Feb 2024 11:27:23 +0500
+
 wb-nm-helper (1.32.2) stable; urgency=medium
 
   * Remove 5GHz band from Wi-Fi AP configuration interface for RTL8723BU 
