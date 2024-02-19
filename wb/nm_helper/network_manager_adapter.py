@@ -279,7 +279,7 @@ class Connection:
         self.params = connection_params + additional_params
 
     def set_dbus_options(self, con: DBUSSettings, iface: JSONSettings) -> SetDbusOptionsResult:
-        res = copy.deepcopy(con)
+        res = DBUSSettings(con.params.copy())
         res.set_opts(iface, self.params)
         set_ipv4_dbus_options(res, iface)
         return SetDbusOptionsResult(res, False)
