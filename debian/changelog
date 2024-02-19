@@ -1,3 +1,9 @@
+wb-nm-helper (1.33.1) stable; urgency=medium
+
+  * Fix connection settings updating error 
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Mon, 19 Feb 2024 10:52:12 +0500
+
 wb-nm-helper (1.33.0) stable; urgency=medium
 
   * Add GSM username and password configuration
