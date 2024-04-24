@@ -281,7 +281,8 @@ class Connection:
         return SetDbusOptionsResult(False)
 
     def create(self, iface: JSONSettings) -> dbus.Dictionary:
-        (con, _) = self.set_dbus_options(DBUSSettings(), iface)
+        con = DBUSSettings()
+        self.set_dbus_options(con, iface)
         con.set_value("connection.type", self.dbus_type)
         return con.params
 
@@ -545,7 +546,7 @@ def apply(iface, c_handler, network_manager: NetworkManager, dry_run: bool) -> N
         con.delete()
         network_manager.add_connection(c_handler.create(json_settings))
         return
-    (clear_secrets) = c_handler.set_dbus_options(dbus_settings, json_settings)
+    clear_secrets = getattr(c_handler.set_dbus_options(dbus_settings, json_settings), "clear_secrets")
     reactivate = deactivate_connection(network_manager, con)
     update_exception = None
     try:
