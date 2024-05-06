@@ -27,12 +27,13 @@ from wb.nm_helper.network_manager import NMActiveConnection
 CONNECTIVITY_CHECK_PERIOD = 20
 MQTT_DRIVER_NAME = "wb-nm-helper"
 MQTT_DEVICE_TOPIC_PREFIX = "system__networks__"
+PERMANENT_CONNECTED_TYPES = ["loopback", "bridge", "tun"]
 
 
 def has_permanent_connectivity(active_connection: NMActiveConnection) -> bool:
     try:
         settings = active_connection.get_connection().get_settings()
-        if settings["connection"]["type"] == "loopback":
+        if settings["connection"]["type"] in PERMANENT_CONNECTED_TYPES:
             return True
         if settings.get("802-11-wireless", {}).get("mode") == "ap":
             return True
