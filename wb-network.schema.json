@@ -1017,7 +1017,7 @@
                         },
                         "gsm_pin": {
                             "type": "string",
-                            "title": "If the SIM is locked with a PIN",
+                            "title": "PIN if the SIM is locked",
                             "propertyOrder": 8
                         },
                         "ipv4": {
@@ -1627,7 +1627,7 @@
             "802-11-wireless_band_desc": "Диапазон частот согласно стандарту 802.11. Установка этого параметра может помешать подключению к сетям, использующим другой диапазон частот",
             "Username used to authenticate with the network": "Имя пользователя для аутентификации в сети",
             "Password used to authenticate with the network": "Пароль для аутентификации в сети",
-            "If the SIM is locked with a PIN": "Если SIM-карта заблокирована PIN-кодом"
+            "PIN if the SIM is locked": "PIN-код, если SIM-карта заблокирована"
         }
     }
 }
