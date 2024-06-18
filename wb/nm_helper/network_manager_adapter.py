@@ -464,10 +464,12 @@ class ModemDBUSSettings(DBUSSettings):
 class ModemConnection(Connection):
     def __init__(self) -> None:
         params = [
+            Param("gsm.mtu"),
             Param("gsm.sim-slot", from_dbus=minus_one_is_none),
             Param("gsm.apn", to_dbus=not_empty_string, from_dbus=to_string_default_empty),
             Param("gsm.username", to_dbus=not_empty_string, from_dbus=to_string_default_empty),
             Param("gsm.password", to_dbus=not_empty_string, from_dbus=to_string_default_empty),
+            Param("gsm.pin", to_dbus=not_empty_string, from_dbus=to_string_default_empty),
         ]
         Connection.__init__(self, "gsm", METHOD_MODEM, params)
 

@@ -1,3 +1,9 @@
+wb-nm-helper (1.33.5) stable; urgency=medium
+
+  * Add GSM pin and mtu configuration
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Thu, 02 May 2024 16:00:00 +0400
+
 wb-nm-helper (1.33.4) stable; urgency=medium
 
   * Do not check connectivity for bridge and tun
