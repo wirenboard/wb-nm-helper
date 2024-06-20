@@ -449,10 +449,10 @@ class ModemDBUSSettings(DBUSSettings):
         self.con = con
 
     def get_opt(self, path: str, default=None):
-        if path == "gsm.password":
-            name = "gsm"
+        if path in ("gsm.password", "gsm.pin"):
+            name, opt = path.split(".")
             try:
-                return self.con.get_iface().GetSecrets(name)[name]["password"]
+                return self.con.get_iface().GetSecrets(name)[name][opt]
             except dbus.exceptions.DBusException as ex:
                 if ex.get_dbus_name() == "org.freedesktop.NetworkManager.Settings.Connection.SettingNotFound":
                     return None
@@ -464,15 +464,18 @@ class ModemDBUSSettings(DBUSSettings):
 class ModemConnection(Connection):
     def __init__(self) -> None:
         params = [
+            Param("gsm.mtu"),
             Param("gsm.sim-slot", from_dbus=minus_one_is_none),
             Param("gsm.apn", to_dbus=not_empty_string, from_dbus=to_string_default_empty),
             Param("gsm.username", to_dbus=not_empty_string, from_dbus=to_string_default_empty),
             Param("gsm.password", to_dbus=not_empty_string, from_dbus=to_string_default_empty),
+            Param("gsm.pin", to_dbus=not_empty_string, from_dbus=to_string_default_empty),
         ]
         Connection.__init__(self, "gsm", METHOD_MODEM, params)
 
     def set_dbus_options(self, con: DBUSSettings, iface: JSONSettings) -> SetDbusOptionsResult:
         had_password = con.get_opt("gsm.password") is not None
+        had_pin = con.get_opt("gsm.pin") is not None
         clear_secrets = getattr(super().set_dbus_options(con, iface), "clear_secrets")
         if con.get_opt("gsm.apn"):
             con.set_value("gsm.auto-config", False)
@@ -489,6 +492,9 @@ class ModemConnection(Connection):
                 con.set_value("user.data", user_data)
         # password is removed
         if not iface.get_opt("gsm.password") and had_password:
+            clear_secrets = True
+        # pin is removed
+        if not iface.get_opt("gsm.pin") and had_pin:
             clear_secrets = True
         return SetDbusOptionsResult(clear_secrets)
 
