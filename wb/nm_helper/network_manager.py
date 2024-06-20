@@ -50,10 +50,11 @@ class NMObject:
         self.obj = None
         self.iface = None
         self.prop_iface = None
+        self.dbus_name = "org.freedesktop.NetworkManager"
 
     def get_object(self):
         if self.obj is None:
-            self.obj = self.bus.get_object("org.freedesktop.NetworkManager", self.path)
+            self.obj = self.bus.get_object(self.dbus_name, self.path)
         return self.obj
 
     def get_iface(self):
@@ -69,7 +70,7 @@ class NMObject:
     def get_property(self, property_name: str):
         return self.get_prop_iface().Get(self.interface_name, property_name)
 
-    def get_path(self):
+    def get_path(self) -> str:
         return self.path
 
 
