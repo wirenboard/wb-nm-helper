@@ -1,12 +1,11 @@
 import dbus
 
-from wb.nm_helper.network_manager import NMObject
+from wb.nm_helper.network_manager import DbusObject
 
 
-class MMObject(NMObject):
+class MMObject(DbusObject):
     def __init__(self, path: str, bus: dbus.SystemBus, interface_name: str):
-        NMObject.__init__(self, path, bus, interface_name)
-        self.dbus_name = "org.freedesktop.ModemManager1"
+        DbusObject.__init__(self, path, bus, interface_name, "org.freedesktop.ModemManager1")
 
 
 class MMModem(MMObject):
