@@ -108,11 +108,7 @@ def get_systemd_manager(dry_run: bool):
     return dbus.Interface(systemd1, "org.freedesktop.systemd1.Manager")
 
 
-def from_json(cfg, args) -> Dict:
-    connections = cfg["ui"]["connections"]
-
-    manager = get_systemd_manager(args.dry_run)
-
+def apply_network_interfaces(connections, args, manager):
     managed_interfaces = []
     released_interfaces = []
     network_interfaces = NetworkInterfacesAdapter.probe(args.interfaces_conf)
@@ -133,6 +129,10 @@ def from_json(cfg, args) -> Dict:
 
         connections = apply_res.unmanaged_connections
 
+    return released_interfaces, connections
+
+
+def apply_network_manager(connections, released_interfaces, args, manager):
     network_manager = NetworkManagerAdapter.probe()
     if network_manager is not None:
         # wb-connection-manager will be later restarted by wb-mqtt-confed
@@ -143,7 +143,15 @@ def from_json(cfg, args) -> Dict:
         if res or len(released_interfaces) > 0:
             manager.RestartUnit("NetworkManager.service", "fail")
 
-    return cfg["ui"]["con_switch"] if "con_switch" in cfg["ui"] else {}
+
+def from_json(cfg, args) -> Dict:
+    connections = cfg["ui"]["connections"]
+    manager = get_systemd_manager(args.dry_run)
+
+    released_interfaces, connections = apply_network_interfaces(connections, args, manager)
+    apply_network_manager(connections, released_interfaces, args, manager)
+
+    return cfg["ui"].get("con_switch", {})
 
 
 def main() -> None:

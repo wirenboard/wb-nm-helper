@@ -1,35 +1,11 @@
 import dbus
 
+from wb.nm_helper.network_manager import DbusObject
 
-class MMObject:
+
+class MMObject(DbusObject):
     def __init__(self, path: str, bus: dbus.SystemBus, interface_name: str):
-        self.path = path
-        self.bus = bus
-        self.interface_name = interface_name
-        self.obj = None
-        self.iface = None
-        self.prop_iface = None
-
-    def get_object(self):
-        if self.obj is None:
-            self.obj = self.bus.get_object("org.freedesktop.ModemManager1", self.path)
-        return self.obj
-
-    def get_iface(self):
-        if self.iface is None:
-            self.iface = dbus.Interface(self.get_object(), self.interface_name)
-        return self.iface
-
-    def get_prop_iface(self):
-        if self.prop_iface is None:
-            self.prop_iface = dbus.Interface(self.get_object(), "org.freedesktop.DBus.Properties")
-        return self.prop_iface
-
-    def get_property(self, property_name: str):
-        return self.get_prop_iface().Get(self.interface_name, property_name)
-
-    def get_path(self) -> str:
-        return self.path
+        DbusObject.__init__(self, path, bus, interface_name, "org.freedesktop.ModemManager1")
 
 
 class MMModem(MMObject):

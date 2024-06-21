@@ -42,18 +42,19 @@ def connection_type_to_device_type(cn_type):
     return types.get(cn_type, 0)
 
 
-class NMObject:
-    def __init__(self, path: str, bus: dbus.SystemBus, interface_name: str):
+class DbusObject:
+    def __init__(self, path: str, bus: dbus.SystemBus, interface_name: str, dbus_name: str):
         self.path = path
         self.bus = bus
         self.interface_name = interface_name
         self.obj = None
         self.iface = None
         self.prop_iface = None
+        self.dbus_name = dbus_name
 
     def get_object(self):
         if self.obj is None:
-            self.obj = self.bus.get_object("org.freedesktop.NetworkManager", self.path)
+            self.obj = self.bus.get_object(self.dbus_name, self.path)
         return self.obj
 
     def get_iface(self):
@@ -69,8 +70,13 @@ class NMObject:
     def get_property(self, property_name: str):
         return self.get_prop_iface().Get(self.interface_name, property_name)
 
-    def get_path(self):
+    def get_path(self) -> str:
         return self.path
+
+
+class NMObject(DbusObject):
+    def __init__(self, path: str, bus: dbus.SystemBus, interface_name: str):
+        DbusObject.__init__(self, path, bus, interface_name, "org.freedesktop.NetworkManager")
 
 
 class NetworkManager(NMObject):
