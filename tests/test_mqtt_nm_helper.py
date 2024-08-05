@@ -1,7 +1,7 @@
-# from dbusmock.pytest_fixtures import dbusmock_system
+# pylint: disable=too-many-instance-attributes disable=consider-using-with
+# pylint: disable=no-member disable=protected-access
 import subprocess
 import time
-import unittest
 from multiprocessing import Process
 from multiprocessing.managers import BaseManager
 from unittest.mock import Mock
@@ -17,50 +17,12 @@ from dbusmock.templates.networkmanager import (
     SETTINGS_OBJ,
     DeviceState,
 )
-from gi.repository import GLib
 from wb_common.mqtt_client import MQTTClient
 
 import wb.nm_helper.virtual_devices
 
+from . import connections_settings as connections
 from . import mqtt_publications as publications
-
-ETH0_DBUS_SETTINGS = dbus.Dictionary(
-    {
-        "connection": dbus.Dictionary(
-            {
-                "id": dbus.String("wb-eth0", variant_level=1),
-                "interface-name": dbus.String("eth0", variant_level=1),
-                "type": "802-3-ethernet",
-                "uuid": dbus.String("91f1c71d-2d97-4675-886f-ecbe52b8451e", variant_level=1),
-            },
-            signature=dbus.Signature("sv"),
-        ),
-        "ipv4": dbus.Dictionary(
-            {"method": dbus.String("auto", variant_level=1)},
-            signature=dbus.Signature("sv"),
-        ),
-    },
-    signature=dbus.Signature("sa{sv}"),
-)
-
-ETH1_DBUS_SETTINGS = dbus.Dictionary(
-    {
-        "connection": dbus.Dictionary(
-            {
-                "id": dbus.String("wb-eth1", variant_level=1),
-                "interface-name": dbus.String("eth1", variant_level=1),
-                "type": "802-3-ethernet",
-                "uuid": dbus.String("c3e38405-9c17-4155-ad70-664311b49066", variant_level=1),
-            },
-            signature=dbus.Signature("sv"),
-        ),
-        "ipv4": dbus.Dictionary(
-            {"method": dbus.String("auto", variant_level=1)},
-            signature=dbus.Signature("sv"),
-        ),
-    },
-    signature=dbus.Signature("sa{sv}"),
-)
 
 
 class MemoryManager(BaseManager):
@@ -68,16 +30,14 @@ class MemoryManager(BaseManager):
 
 
 class MQTTNetworkManagerTest(dbusmock.DBusTestCase):
-
     def setUp(self):
         self.start_system_bus()
         self.system_bus = self.get_dbus(system_bus=True)
 
-        (self.p_mock, self.obj_networkmanager) = self.spawn_server_template(
+        (self.io_mock, self.obj_networkmanager) = self.spawn_server_template(
             "networkmanager",
             {"NetworkingEnabled": True},
             stdout=subprocess.PIPE,
-            system_bus=True,
         )
         self.networkmanager_mock = dbus.Interface(self.obj_networkmanager, dbusmock.MOCK_IFACE)
         self.networkmanager = dbus.Interface(
@@ -88,15 +48,14 @@ class MQTTNetworkManagerTest(dbusmock.DBusTestCase):
         )
 
         self.connections = {}
-        self.connections.update({"eth0": self.settings.AddConnection(ETH0_DBUS_SETTINGS)})
-        self.connections.update({"eth1": self.settings.AddConnection(ETH1_DBUS_SETTINGS)})
+        self.connections.update({"eth0": self.settings.AddConnection(connections.ETH0_DBUS_SETTINGS)})
+        self.connections.update({"eth1": self.settings.AddConnection(connections.ETH1_DBUS_SETTINGS)})
 
-        self.devices = {}
-        self.devices.update(
-            {"eth0": self.networkmanager_mock.AddEthernetDevice("mock_eth0", "eth0", DeviceState.ACTIVATED)}
-        )
+        self.networkmanager_mock.AddEthernetDevice("mock_eth0", "eth0", DeviceState.ACTIVATED)
 
         self.networkmanager.ActivateConnection(self.connections["eth0"], "/", "/")
+
+        self.mediator = None
 
         MemoryManager.register("list", list)
         self.manager = MemoryManager()
@@ -108,23 +67,22 @@ class MQTTNetworkManagerTest(dbusmock.DBusTestCase):
         self.proc.start()
 
     def start_mediator(self):
-        self.mqtt_mock = Mock(MQTTClient)
-        self.mqtt_mock.publish.side_effect = self.publish
+        mqtt_mock = Mock(MQTTClient)
+        mqtt_mock.publish.side_effect = self.publish
 
-        self.mediator = wb.nm_helper.virtual_devices.ConnectionsMediator(self.mqtt_mock)
+        self.mediator = wb.nm_helper.virtual_devices.ConnectionsMediator(mqtt_mock)
         self.mediator.run()
 
-    def publish(self, topic, value, retain):
+    def publish(self, topic, value, retain):  # pylint: disable=unused-argument
         self.mqtt_publications.append((topic, value))
-        print(f"('{topic}','{value}'),")
 
     def tearDown(self):
         self.proc.kill()
-        if self.p_mock:
-            self.p_mock.stdout.close()
-            self.p_mock.terminate()
-            self.p_mock.wait()
-            self.p_mock = None
+        if self.io_mock:
+            self.io_mock.stdout.close()
+            self.io_mock.terminate()
+            self.io_mock.wait()
+            self.io_mock = None
 
     def wait_for(self, condition, timeout, poll_interval=0):
         current_time = time.time()
