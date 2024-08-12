@@ -587,7 +587,7 @@ class NetworkManagerAdapter:
         }
         self.network_manager = NetworkManager()
 
-    def remove_undefined_connections(self, interfaces):
+    def remove_undefined_connections(self, interfaces, keep_masks: List):
         uids = []
         for iface in interfaces:
             settings = JSONSettings(iface)
@@ -596,14 +596,19 @@ class NetworkManagerAdapter:
                 uids.append(uuid)
         for con in self.network_manager.get_connections():
             c_settings = DBUSSettings(con.get_settings())
+
+            id = c_settings.get_opt("connection.id")
+            if any(mask in id for mask in keep_masks):
+                break
+
             for handler in self.handlers.values():
                 if (c_settings.get_opt("connection.uuid") not in uids) and handler.can_manage(c_settings):
                     con.delete()
                     break
 
-    def apply(self, interfaces, dry_run: bool) -> bool:
+    def apply(self, interfaces, dry_run: bool, keep_masks: List = []) -> bool:
         if not dry_run:
-            self.remove_undefined_connections(interfaces)
+            self.remove_undefined_connections(interfaces, keep_masks)
         for iface in interfaces:
             handler = self.handlers.get(iface["type"])
             if handler is not None:
