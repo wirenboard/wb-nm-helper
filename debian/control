@@ -12,6 +12,7 @@ Build-Depends: debhelper (>= 10),
                python3-tomli,
                python3-dbus,
                python3-dbusmock,
+               python3-gi,
                python3-jsonschema,
                python3-pyparsing,
                python3-pycurl,
@@ -27,8 +28,10 @@ Depends: ${python3:Depends},
          ${misc:Depends},
          python3-pyparsing,
          python3-dbus,
+         python3-gi,
          python3-pycurl,
-         python3-pycares
+         python3-pycares,
+         python3-wb-common (>= 2.1.1)
 Description: Wirenboard network configuration python3 library
  The package includes utility functions for wb-nm-helper.
 
@@ -39,7 +42,6 @@ Depends: ${misc:Depends},
          python3-wb-nm-helper (= ${binary:Version}),
          wb-mqtt-homeui (>= 2.56.0~~),
          wb-mqtt-confed (>= 1.13.0~~),
-         python3-wb-common (>= 2.1.1),
          network-manager,
          modemmanager,
          mobile-broadband-provider-info,

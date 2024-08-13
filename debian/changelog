@@ -1,3 +1,9 @@
+wb-nm-helper (1.33.8) stable; urgency=medium
+
+  * Fix dependencies, no functional changes
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Tue, 13 Aug 2024 13:50:00 +0400
+
 wb-nm-helper (1.33.7) stable; urgency=medium
 
   * Add unit tests for wb-mqtt-nm-helper
