@@ -597,8 +597,8 @@ class NetworkManagerAdapter:
         for con in self.network_manager.get_connections():
             c_settings = DBUSSettings(con.get_settings())
 
-            id = c_settings.get_opt("connection.id")
-            if any(mask in id for mask in keep_masks):
+            с_id = c_settings.get_opt("connection.id")
+            if keep_masks and any(mask in с_id for mask in keep_masks):
                 continue
 
             for handler in self.handlers.values():
@@ -606,7 +606,7 @@ class NetworkManagerAdapter:
                     con.delete()
                     break
 
-    def apply(self, interfaces, dry_run: bool, keep_masks: List = []) -> bool:
+    def apply(self, interfaces, dry_run: bool, keep_masks: List = None) -> bool:
         if not dry_run:
             self.remove_undefined_connections(interfaces, keep_masks)
         for iface in interfaces:
