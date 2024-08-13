@@ -1,3 +1,9 @@
+wb-nm-helper (1.33.7) stable; urgency=medium
+
+  * Add unit tests for wb-mqtt-nm-helper
+
+ --  Ekaterina Volkova <ekaterina.volkova@wirenboard.com>  Mon, 05 Aug 2024 14:29:11 +0300
+
 wb-nm-helper (1.33.6) stable; urgency=medium
 
   * Fix pylint, no functional changes
