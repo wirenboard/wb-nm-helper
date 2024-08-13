@@ -1,0 +1,130 @@
+{
+  "data": {
+    "devices": [
+      {
+        "iface": "eth0",
+        "type": "ethernet"
+      },
+      {
+        "iface": "eth1",
+        "type": "ethernet"
+      },
+      {
+        "iface": "wlan0",
+        "type": "wifi"
+      },
+      {
+        "iface": "wlan1",
+        "type": "wifi"
+      }
+    ],
+    "ssids": []
+  },
+  "ui": {
+    "con_switch": {
+      "connections": [],
+      "debug": false
+    },
+    "connections": [
+      {
+        "connection_interface-name": "eth0",
+        "ipv4": {
+          "dhcp-client-id": "",
+          "dhcp-hostname": "",
+          "method": "auto"
+        },
+        "type": "01_nm_ethernet",
+        "connection_autoconnect": true,
+        "connection_id": "wb-eth0",
+        "connection_uuid": "91f1c71d-2d97-4675-886f-ecbe52b8451e"
+      },
+      {
+        "connection_interface-name": "eth1",
+        "ipv4": {
+          "dhcp-client-id": "",
+          "dhcp-hostname": "",
+          "method": "auto"
+        },
+        "type": "01_nm_ethernet",
+        "connection_autoconnect": true,
+        "connection_id": "wb-eth1",
+        "connection_uuid": "c3e38405-9c17-4155-ad70-664311b49066"
+      },
+      {
+        "802-11-wireless-security": {
+          "security": "none"
+        },
+        "802-11-wireless_mode": "ap",
+        "802-11-wireless_ssid": "WirenBoard-XXXXXXXX",
+        "connection_interface-name": "wlan0",
+        "ipv4": {
+          "address": "192.168.42.1",
+          "method": "shared",
+          "netmask": "255.255.255.0"
+        },
+        "type": "04_nm_wifi_ap",
+        "connection_autoconnect": true,
+        "connection_id": "wb-ap",
+        "connection_uuid": "d12c8d3c-1abe-4832-9b71-4ed6e3c20885"
+      },
+      {
+        "name": "can0",
+        "allow-hotplug": true,
+        "mode": "can",
+        "method": "static",
+        "type": "can",
+        "options": {
+          "bitrate": 125000
+        },
+        "auto": false
+      },
+      {
+        "name": "eth0",
+        "auto": true,
+        "mode": "inet",
+        "method": "dhcp",
+        "options": {
+          "hostname": "WirenBoard",
+          "pre-up": ["wb-set-mac"]
+        },
+        "allow-hotplug": true,
+        "type": "dhcp"
+      },
+      {
+        "name": "eth1",
+        "auto": false,
+        "mode": "inet",
+        "method": "dhcp",
+        "options": {
+          "hostname": "WirenBoard",
+          "pre-up": ["wb-set-mac # comment1", "sleep 10   # comment2", "#test"]
+        },
+        "allow-hotplug": true,
+        "type": "dhcp"
+      },
+      {
+        "name": "eth2",
+        "auto": false,
+        "mode": "inet",
+        "method": "dhcp",
+        "options": {
+          "hwaddress": "94:C6:91:91:4D:5A"
+        },
+        "allow-hotplug": true,
+        "type": "dhcp"
+      },
+      {
+        "name": "wlan0",
+        "auto": false,
+        "mode": "inet",
+        "method": "static",
+        "options": {
+          "address": "192.168.42.1",
+          "netmask": "255.255.255.0"
+        },
+        "allow-hotplug": true,
+        "type": "static"
+      }
+    ]
+  }
+}

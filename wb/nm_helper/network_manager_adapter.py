@@ -599,7 +599,7 @@ class NetworkManagerAdapter:
 
             id = c_settings.get_opt("connection.id")
             if any(mask in id for mask in keep_masks):
-                break
+                continue
 
             for handler in self.handlers.values():
                 if (c_settings.get_opt("connection.uuid") not in uids) and handler.can_manage(c_settings):
