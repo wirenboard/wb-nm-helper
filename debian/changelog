@@ -1,8 +1,14 @@
-wb-nm-helper (1.33.8) stable; urgency=medium
+wb-nm-helper (1.33.9) stable; urgency=medium
 
   * Fix dependencies, no functional changes
 
- -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Tue, 13 Aug 2024 13:50:00 +0400
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Tue, 13 Aug 2024 19:47:00 +0400
+
+wb-nm-helper (1.33.8) stable; urgency=medium
+
+  * Fix username, password and PIN gsm settings visibility
+
+ -- Ekaterina Volkova <ekaterina.volkova@wirenboard.com>  Tue, 13 Aug 2024 18:26:54 +0300
 
 wb-nm-helper (1.33.7) stable; urgency=medium
 
