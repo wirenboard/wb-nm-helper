@@ -7,11 +7,11 @@ import dbus
 import dbusmock
 import jsonschema
 from dbusmock.templates.networkmanager import (
+    CSETTINGS_IFACE,
     MANAGER_IFACE,
     SETTINGS_IFACE,
     SETTINGS_OBJ,
     DeviceState,
-    CSETTINGS_IFACE
 )
 
 from wb.nm_helper import nm_helper
@@ -40,7 +40,6 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
             self.p_mock.terminate()
             self.p_mock.wait()
             self.p_mock = None
-
 
     def test_to_json(self):
         # pylint: disable=R0915
@@ -160,49 +159,50 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
         assert res["ui"]["connections"][9]["name"] == "can0"
         assert res["ui"]["connections"][9]["options"]["bitrate"] == 125000
         assert res["ui"]["connections"][9]["type"] == "can"
-    
+
     def _test_from_json_gsm_common(self, modem_enabled):
         nm_helper.get_systemd_manager = Mock()
         nm_helper.is_modem_enabled = Mock(return_value=modem_enabled)
-        
+
         with open("tests/data/ui_without_gsm.json", "r", encoding="utf-8") as f:
             cfg = json.load(f)
-            
+
         nm_helper.from_json(
-                cfg,
-                args=argparse.Namespace(
-                    interfaces_conf="tests/data/non-exist-file",
-                    dnsmasq_conf="tests/data/dnsmasq.conf",
-                    hostapd_conf="tests/data/hostapd.conf",
-                    dry_run=False,
-                ),
-            )
-        
+            cfg,
+            args=argparse.Namespace(
+                interfaces_conf="tests/data/non-exist-file",
+                dnsmasq_conf="tests/data/dnsmasq.conf",
+                hostapd_conf="tests/data/hostapd.conf",
+                dry_run=False,
+            ),
+        )
+
         new_connections = []
         connections_paths = self.settings.ListConnections()
         for connection_path in connections_paths:
-            connection = dbus.Interface(self.system_bus.get_object(MANAGER_IFACE, connection_path), CSETTINGS_IFACE)
+            connection = dbus.Interface(
+                self.system_bus.get_object(MANAGER_IFACE, connection_path), CSETTINGS_IFACE
+            )
             settings = connection.GetSettings()
             new_connections.append(settings["connection"]["id"])
-            
-        return new_connections   
-        
-    
+
+        return new_connections
+
     def test_from_json_modem_en(self):
         self.settings.AddConnection(connections.ETH0_DBUS_SETTINGS)
         self.settings.AddConnection(connections.ETH1_DBUS_SETTINGS)
         self.settings.AddConnection(connections.GSM_SIM1_DBUS_SETTINGS)
         self.settings.AddConnection(connections.GSM_SIM2_DBUS_SETTINGS)
-              
-        new_connections = self._test_from_json_gsm_common(True)       
-        assert new_connections == ["wb-eth0","wb-eth1","wb-ap"]
-        
+
+        new_connections = self._test_from_json_gsm_common(True)
+        assert new_connections == ["wb-eth0", "wb-eth1", "wb-ap"]
+
     def test_from_json_modem_dis(self):
         self.settings.AddConnection(connections.GSM_SIM1_DBUS_SETTINGS)
         self.settings.AddConnection(connections.GSM_SIM2_DBUS_SETTINGS)
-              
-        new_connections = self._test_from_json_gsm_common(False)       
-        assert new_connections == ["wb-gsm-sim1","wb-gsm-sim2","wb-eth0","wb-eth1","wb-ap"]
+
+        new_connections = self._test_from_json_gsm_common(False)
+        assert new_connections == ["wb-gsm-sim1", "wb-gsm-sim2", "wb-eth0", "wb-eth1", "wb-ap"]
 
 
 def test_from_json():
