@@ -1008,17 +1008,32 @@
                         "gsm_username": {
                             "type": "string",
                             "title": "Username used to authenticate with the network",
-                            "propertyOrder": 6
+                            "propertyOrder": 6,
+                            "options":{
+                                "wb": {
+                                    "show_editor": true
+                                }
+                            }
                         },
                         "gsm_password": {
                             "type": "string",
                             "title": "Password used to authenticate with the network",
-                            "propertyOrder": 7
+                            "propertyOrder": 7,
+                            "options":{
+                                "wb": {
+                                    "show_editor": true
+                                }
+                            }
                         },
                         "gsm_pin": {
                             "type": "string",
                             "title": "PIN if the SIM is locked",
-                            "propertyOrder": 8
+                            "propertyOrder": 8,
+                            "options":{
+                                "wb": {
+                                    "show_editor": true
+                                }
+                            }
                         },
                         "ipv4": {
                             "title": "IPv4",
