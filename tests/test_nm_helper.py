@@ -16,7 +16,7 @@ from dbusmock.templates.networkmanager import (
 
 from wb.nm_helper import nm_helper
 
-from . import connections_settings as connections
+from tests import connections_settings as connections
 
 
 class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
