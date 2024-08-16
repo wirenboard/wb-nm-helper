@@ -14,9 +14,8 @@ from dbusmock.templates.networkmanager import (
     DeviceState,
 )
 
-from wb.nm_helper import nm_helper
-
 from tests import connections_settings as connections
+from wb.nm_helper import nm_helper
 
 
 class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
