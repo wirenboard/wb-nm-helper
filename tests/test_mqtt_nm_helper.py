@@ -9,9 +9,14 @@ from unittest.mock import Mock
 import dbus
 import dbus.mainloop.glib
 import dbusmock
-from dbusmock.templates.networkmanager import (CSETTINGS_IFACE, MANAGER_IFACE,
-                                               MANAGER_OBJ, SETTINGS_IFACE,
-                                               SETTINGS_OBJ, DeviceState)
+from dbusmock.templates.networkmanager import (
+    CSETTINGS_IFACE,
+    MANAGER_IFACE,
+    MANAGER_OBJ,
+    SETTINGS_IFACE,
+    SETTINGS_OBJ,
+    DeviceState,
+)
 from wb_common.mqtt_client import MQTTClient
 
 import wb.nm_helper.virtual_devices
