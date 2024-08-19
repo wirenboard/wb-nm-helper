@@ -20,9 +20,8 @@ from dbusmock.templates.networkmanager import (
 from wb_common.mqtt_client import MQTTClient
 
 import wb.nm_helper.virtual_devices
-
-from . import connections_settings as connections
-from . import mqtt_publications as publications
+from tests import connections_settings as connections
+from tests import mqtt_publications as publications
 
 
 class MemoryManager(BaseManager):
