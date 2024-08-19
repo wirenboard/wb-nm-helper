@@ -1,8 +1,14 @@
-wb-nm-helper (1.33.9) stable; urgency=medium
+wb-nm-helper (1.33.10) stable; urgency=medium
 
   * Fix gsm default connection deletion on new settings saving when modem disabled
 
  -- Ekaterina Volkova <ekaterina.volkova@wirenboard.com>  Tue, 13 Aug 2024 17:52:32 +0300
+
+wb-nm-helper (1.33.9) stable; urgency=medium
+
+  * Fix dependencies, no functional changes
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Tue, 13 Aug 2024 19:47:00 +0400
 
 wb-nm-helper (1.33.8) stable; urgency=medium
 
