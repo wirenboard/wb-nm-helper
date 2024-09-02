@@ -2,7 +2,6 @@ import argparse
 import asyncio
 import copy
 import enum
-import functools
 import logging
 import os
 import signal
@@ -96,7 +95,7 @@ class Event:
         return self._kwargs
 
 
-class Mediator(ABC):
+class Mediator(ABC):  # pylint: disable=R0903
     @abstractmethod
     def new_event(self, event: Event):
         pass
@@ -487,7 +486,6 @@ class ConnectivityUpdater:
                 connectivity = check_connectivity(nm_active_connection, self._connection_checker)
             except BaseException as ex:  # pylint: disable=W0718
                 logging.error("Unable to read connectivity for %s: %s", active_connection_path, ex)
-                raise
             finally:
                 self._mediator.new_event(
                     Event(
