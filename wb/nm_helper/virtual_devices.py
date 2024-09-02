@@ -22,8 +22,7 @@ from wb_common.mqtt_client import DEFAULT_BROKER_URL, MQTTClient
 
 from wb.nm_helper import wbmqtt
 from wb.nm_helper.connection_checker import ConnectionChecker
-from wb.nm_helper.connection_manager import (DBUS_SERVICE_NAME,
-                                             check_connectivity)
+from wb.nm_helper.connection_manager import DBUS_SERVICE_NAME, check_connectivity
 from wb.nm_helper.network_manager import NMActiveConnection
 
 CONNECTIVITY_CHECK_PERIOD = 20
@@ -302,7 +301,7 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
 
         if len(active_connections_path) == 0:
             logging.info("Activate connection: %s", connection_path)
-            connection.activate()            
+            connection.activate()
         elif len(active_connections_path) == 1:
             logging.info("Deactivate connection: %s", active_connections_path[0])
             self._active_connections[active_connections_path[0]].deactivate()
@@ -376,7 +375,7 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
         active_connection = self._active_connections.get(active_connection_path)
         if active_connection is None:
             return
-        
+
         connection = self._common_connections.get(active_connection.connection_path)
         if connection is not None:
             connection.set_deactivated_by_cm()
@@ -855,7 +854,7 @@ class ActiveConnection:  # pylint: disable=R0902
     def update(self, dbus_properties):
         logging.debug("Update active connection %s: %s", self._path, dbus_properties)
 
-        old_state = copy.deepcopy(self.state)        
+        old_state = copy.deepcopy(self.state)
         self._update_connection_info_from_dbus_properties(dbus_properties)
         self._update_state_from_dbus_properties(dbus_properties)
         new_state = self.state
