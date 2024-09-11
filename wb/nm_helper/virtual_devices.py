@@ -1018,7 +1018,7 @@ class ActiveConnection:  # pylint: disable=R0902
         logging.info("Remove active connection %s %s", self.connection_path, self._path)
 
 
-class MosquittoMonitor:
+class MosquittoMonitor:  # pylint: disable=R0903
     def __init__(self, mediator: Mediator, mqtt_client: MQTTClient):
         self._mediator = mediator
         self._mqtt_client = mqtt_client
@@ -1086,7 +1086,7 @@ def main():
     wbmqtt.remove_topics_by_device_prefix(mqtt_client, MQTT_DEVICE_TOPIC_PREFIX)
 
     connections_mediator = ConnectionsMediator(mqtt_client)
-    mosquitto_monitor = MosquittoMonitor(connections_mediator, mqtt_client)
+    mosquitto_monitor = MosquittoMonitor(connections_mediator, mqtt_client)  # pylint: disable=unused-variable
 
     def stop_virtual_connections_client(_, __):
         connections_mediator.stop()
