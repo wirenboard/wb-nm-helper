@@ -184,6 +184,7 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
 
         self._set_connections_event_handlers()
         self._deactivation_monitor = DeactivationMonitor(self)
+        self._mosquitto_monitor = MosquittoMonitor(self, mqtt_client)
 
     def run(self):
         self._event_loop.run()
@@ -1086,7 +1087,6 @@ def main():
     wbmqtt.remove_topics_by_device_prefix(mqtt_client, MQTT_DEVICE_TOPIC_PREFIX)
 
     connections_mediator = ConnectionsMediator(mqtt_client)
-    mosquitto_monitor = MosquittoMonitor(connections_mediator, mqtt_client)  # pylint: disable=unused-variable
 
     def stop_virtual_connections_client(_, __):
         connections_mediator.stop()
