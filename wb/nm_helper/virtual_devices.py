@@ -371,12 +371,8 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
             self._connectivity_updater.update(active_connection, CONNECTIVITY_CHECK_PERIOD)
 
     def _reload_connections(self) -> None:
-        active_states_by_path = {x.connection_path: x.state for x in self._active_connections.values()}
-        for path, connection in self._common_connections.items():
-            if path in active_states_by_path.values():
-                connection.reload(active_states_by_path[path])
-            else:
-                connection.reload(MqttConnectionState())
+        for connection in self._common_connections.values():
+            connection.republicate()
 
     def _update_common_connection(self, connection_path: str, state: MqttConnectionState) -> None:
         connection = self._common_connections.get(connection_path)
@@ -606,16 +602,14 @@ class CommonConnection:  # pylint: disable=R0902
 
     # publish device and with default state and create subscriptions
     def run(self):
-        default_state = MqttConnectionState()
         self._read_dbus_settings()
-        self._create_virtual_device(default_state)
+        self._create_virtual_device()
         logging.info("New virtual device %s %s %s", self._name, self._uuid, self._path)
 
     # re-publish all device topics (including meta) and renew subscriptions
-    def reload(self, state: MqttConnectionState) -> None:
-        self._create_virtual_device(state)
-
-        logging.info("Reload virtual device %s %s %s", self._name, self._uuid, self._path)
+    def republicate(self) -> None:
+        self._mqtt_device.republicate_device()
+        logging.info("Republicate virtual device %s %s %s", self._name, self._uuid, self._path)
 
     # update controls values from state
     def update(self, state: MqttConnectionState) -> None:
@@ -651,7 +645,9 @@ class CommonConnection:  # pylint: disable=R0902
             self._deactivated_by_cm = True
 
     def stop(self):
-        self._remove_virtual_device()
+        if self._mqtt_device is not None:
+            self._mqtt_device.remove_device()
+        logging.info("Remove virtual device %s %s %s", self._name, self._uuid, self._path)
 
     def activate(self):
         try:
@@ -681,7 +677,7 @@ class CommonConnection:  # pylint: disable=R0902
     def _updown_message_callback(self, _, __, ___):
         self._mediator.new_event(Event(EventType.COMMON_SWITCH, connection_path=self._path))
 
-    def _create_virtual_device(self, default_state: MqttConnectionState):
+    def _create_virtual_device(self):
         self._mqtt_device = wbmqtt.Device(
             self._mqtt_client,
             MQTT_DEVICE_TOPIC_PREFIX + self._uuid,
@@ -689,35 +685,30 @@ class CommonConnection:  # pylint: disable=R0902
             MQTT_DRIVER_NAME,
         )
 
-        active_value = "1" if default_state.active else "0"
-        state_value = default_state.connection_state.name.lower()
-        connectivity_value = "1" if default_state.connectivity else "0"
+        active_value = "1" if MqttConnectionState.active else "0"
+        state_value = MqttConnectionState.connection_state.name.lower()
+        connectivity_value = "1" if MqttConnectionState.connectivity else "0"
 
         self._mqtt_device.create_control("Name", self.NAME_CONTROL_META, self._name)
         self._mqtt_device.create_control("UUID", self.UUID_CONTROL_META, self._uuid)
         self._mqtt_device.create_control("Type", self.TYPE_CONTROL_META, self._type)
         self._mqtt_device.create_control("Active", self.ACTIVE_CONTROL_META, active_value)
-        self._mqtt_device.create_control("Device", self.DEVICE_CONTROL_META, default_state.device)
+        self._mqtt_device.create_control("Device", self.DEVICE_CONTROL_META, MqttConnectionState.device)
         self._mqtt_device.create_control("State", self.STATE_CONTROL_META, state_value)
-        self._mqtt_device.create_control("Address", self.ADDRESS_CONTROL_META, default_state.address)
+        self._mqtt_device.create_control("Address", self.ADDRESS_CONTROL_META, MqttConnectionState.address)
         self._mqtt_device.create_control("Connectivity", self.CONNECTIVITY_CONTROL_META, connectivity_value)
         self._mqtt_device.create_control("UpDown", self.UPDOWN_CONTROL_META, None)  # button
         self._mqtt_device.add_control_message_callback("UpDown", self._updown_message_callback)
         if self._type == "gsm":
             self._mqtt_device.create_control(
-                "Operator", self.OPERATOR_CONTROL_META, default_state.operator_name
+                "Operator", self.OPERATOR_CONTROL_META, MqttConnectionState.operator_name
             )
             self._mqtt_device.create_control(
-                "SignalQuality", self.SIGNAL_QUALITY_CONTROL_META, default_state.signal_quality
+                "SignalQuality", self.SIGNAL_QUALITY_CONTROL_META, MqttConnectionState.signal_quality
             )
             self._mqtt_device.create_control(
-                "AccessTechnologies", self.ACCESS_TECH_CONTROL_META, default_state.access_tech
+                "AccessTechnologies", self.ACCESS_TECH_CONTROL_META, MqttConnectionState.access_tech
             )
-
-    def _remove_virtual_device(self):
-        if self._mqtt_device is not None:
-            self._mqtt_device.remove_device()
-        logging.info("Remove virtual device %s %s %s", self._name, self._uuid, self._path)
 
 
 class DeactivationMonitor:
