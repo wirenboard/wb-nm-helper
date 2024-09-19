@@ -372,7 +372,7 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
 
     def _reload_connections(self) -> None:
         for connection in self._common_connections.values():
-            connection.republicate()
+            connection.rebublish()
 
     def _update_common_connection(self, connection_path: str, state: MqttConnectionState) -> None:
         connection = self._common_connections.get(connection_path)
@@ -607,10 +607,10 @@ class CommonConnection:  # pylint: disable=R0902
         logging.info("New virtual device %s %s %s", self._name, self._uuid, self._path)
 
     # re-publish all device topics (including meta) and renew subscriptions
-    def republicate(self) -> None:
-        self._mqtt_device.republicate_device()
+    def republish(self) -> None:
+        self._mqtt_device.republish_device()
         self._mqtt_device.add_control_message_callback("UpDown", self._updown_message_callback)
-        logging.info("Republicate virtual device %s %s %s", self._name, self._uuid, self._path)
+        logging.info("Republish virtual device %s %s %s", self._name, self._uuid, self._path)
 
     # update controls values from state
     def update(self, state: MqttConnectionState) -> None:

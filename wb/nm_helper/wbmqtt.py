@@ -30,11 +30,11 @@ class Device:
         self._publish(self._base_topic + "/meta/name", device_title)
         self._publish(self._base_topic + "/meta/driver", driver_name)
 
-    def republicate_device(self):
+    def republish_device(self):
         self._publish(self._base_topic + "/meta/name", self._device_title)
         self._publish(self._base_topic + "/meta/driver", self._driver_name)
         for mqtt_control_name in self._controls.copy():
-            self.republicate_control(mqtt_control_name)
+            self.republish_control(mqtt_control_name)
 
     def remove_device(self) -> None:
         self._publish(self._base_topic + "/meta/driver", None)
@@ -47,7 +47,7 @@ class Device:
         self._publish_control_meta(mqtt_control_name, meta)
         self.set_control_value(mqtt_control_name, value)
 
-    def republicate_control(self, mqtt_control_name: str) -> None:
+    def republish_control(self, mqtt_control_name: str) -> None:
         if mqtt_control_name in self._controls:
             control = self._controls[mqtt_control_name]
             if control:
