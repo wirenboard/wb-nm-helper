@@ -69,7 +69,8 @@ class EventType(enum.Enum):
 
     ACTIVE_LIST_UPDATE = enum.auto()
 
-    RELOAD = enum.auto()
+    RELOAD_CONNECTIVITY = enum.auto()
+    RELOAD_CONNECTIONS = enum.auto()
 
 
 class Event:
@@ -183,6 +184,7 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
 
         self._set_connections_event_handlers()
         self._deactivation_monitor = DeactivationMonitor(self)
+        self._mosquitto_monitor = MosquittoMonitor(self, mqtt_client)
 
     def run(self):
         self._event_loop.run()
@@ -196,6 +198,7 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
     def stop(self):
         self._event_loop.stop()
         self._connectivity_updater.stop()
+        self._deactivation_monitor.stop()
         self._dbus_loop.quit()
         for connection in self._common_connections.values():
             connection.stop()
@@ -252,6 +255,8 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
         )
 
         self.new_event(Event(EventType.ACTIVE_LIST_UPDATE, path_list=active_connections_paths))
+
+    # Dbus signals handlers
 
     def _common_connection_added_handler(self, *args, **kwargs):
         # For some reasons handler receive first signals from non-existed client
@@ -365,6 +370,10 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
         for active_connection in self._active_connections:
             self._connectivity_updater.update(active_connection, CONNECTIVITY_CHECK_PERIOD)
 
+    def _reload_connections(self) -> None:
+        for connection in self._common_connections.values():
+            connection.rebublish()
+
     def _update_common_connection(self, connection_path: str, state: MqttConnectionState) -> None:
         connection = self._common_connections.get(connection_path)
         if connection is not None:
@@ -404,8 +413,11 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
                     event.kwargs.get("active_connection_path"), event.kwargs.get("new_properties")
                 )
 
-            elif event.type == EventType.RELOAD:
+            elif event.type == EventType.RELOAD_CONNECTIVITY:
                 self._reload_connectivity()
+
+            elif event.type == EventType.RELOAD_CONNECTIONS:
+                self._reload_connections()
 
             elif event.type == EventType.ACTIVE_DEACTIVATED_BY_CM:
                 self._active_connection_deactivated_by_cm(event.kwargs.get("active_connection_path"))
@@ -574,11 +586,11 @@ class CommonConnection:  # pylint: disable=R0902
         mediator: Mediator,
         mqtt_client: MQTTClient,
         dbus_bus: dbus.Bus,
-        dbus_path: str,
+        path: str,
     ):
         self._mediator = mediator
         self._bus = dbus_bus
-        self.dbus_path = dbus_path
+        self._path = path
         self._mqtt_client = mqtt_client
         self._type = None
         self._name = None
@@ -586,15 +598,21 @@ class CommonConnection:  # pylint: disable=R0902
         self._mqtt_device = None
         self._deactivated_by_cm = False
 
-        logging.info("New connection %s", self.dbus_path)
+        logging.info("New connection %s", self._path)
 
+    # publish device and with default state and create subscriptions
     def run(self):
         self._read_dbus_settings()
         self._create_virtual_device()
+        logging.info("New virtual device %s %s %s", self._name, self._uuid, self._path)
 
-    def set_updown_button_readonly(self, read_only: bool) -> None:
-        self._mqtt_device.set_control_read_only("UpDown", read_only)
+    # re-publish all device topics (including meta) and renew subscriptions
+    def republish(self) -> None:
+        self._mqtt_device.republish_device()
+        self._mqtt_device.add_control_message_callback("UpDown", self._updown_message_callback)
+        logging.info("Republish virtual device %s %s %s", self._name, self._uuid, self._path)
 
+    # update controls values from state
     def update(self, state: MqttConnectionState) -> None:
         self._mqtt_device.set_control_value("Active", "1" if state.active else "0")
         self._mqtt_device.set_control_title("UpDown", "Down" if state.active else "Up")
@@ -617,15 +635,20 @@ class CommonConnection:  # pylint: disable=R0902
             self._mqtt_device.set_control_value("SignalQuality", state.signal_quality)
             self._mqtt_device.set_control_value("AccessTechnologies", state.access_tech)
         logging.debug(
-            "Update virtual device settings for %s %s %s %s", self._name, self._uuid, self.dbus_path, state
+            "Update virtual device settings for %s %s %s %s", self._name, self._uuid, self._path, state
         )
+
+    def set_updown_button_readonly(self, read_only: bool) -> None:
+        self._mqtt_device.set_control_read_only("UpDown", read_only)
 
     def set_deactivated_by_cm(self) -> None:
         if self._type == "gsm":
             self._deactivated_by_cm = True
 
     def stop(self):
-        self._remove_virtual_device()
+        if self._mqtt_device is not None:
+            self._mqtt_device.remove_device()
+        logging.info("Remove virtual device %s %s %s", self._name, self._uuid, self._path)
 
     def activate(self):
         try:
@@ -634,7 +657,7 @@ class CommonConnection:  # pylint: disable=R0902
             empty_proxy = self._bus.get_object("org.freedesktop.NetworkManager", "/")
             # ActivateConnection and DeactivateConnection functions ends very fast
             # even if connection activating/deactivating process can take a long time
-            interface.ActivateConnection(self.dbus_path, empty_proxy, empty_proxy)
+            interface.ActivateConnection(self._path, empty_proxy, empty_proxy)
         except dbus.exceptions.DBusException:
             logging.error(
                 "Unable to activate %s %s connection, no suitable device found",
@@ -645,7 +668,7 @@ class CommonConnection:  # pylint: disable=R0902
             self._mqtt_device.set_control_value("State", "deactivated", force=True)
 
     def _read_dbus_settings(self):
-        proxy = self._bus.get_object("org.freedesktop.NetworkManager", self.dbus_path)
+        proxy = self._bus.get_object("org.freedesktop.NetworkManager", self._path)
         interface = dbus.Interface(proxy, "org.freedesktop.NetworkManager.Settings.Connection")
         dbus_settings = interface.GetSettings()
         self._name = str(dbus_settings["connection"]["id"])
@@ -653,7 +676,7 @@ class CommonConnection:  # pylint: disable=R0902
         self._type = str(dbus_settings["connection"]["type"])
 
     def _updown_message_callback(self, _, __, ___):
-        self._mediator.new_event(Event(EventType.COMMON_SWITCH, connection_path=self.dbus_path))
+        self._mediator.new_event(Event(EventType.COMMON_SWITCH, connection_path=self._path))
 
     def _create_virtual_device(self):
         self._mqtt_device = wbmqtt.Device(
@@ -687,13 +710,6 @@ class CommonConnection:  # pylint: disable=R0902
             self._mqtt_device.create_control(
                 "AccessTechnologies", self.ACCESS_TECH_CONTROL_META, MqttConnectionState.access_tech
             )
-
-        logging.info("New virtual device %s %s %s", self._name, self._uuid, self.dbus_path)
-
-    def _remove_virtual_device(self):
-        if self._mqtt_device is not None:
-            self._mqtt_device.remove_device()
-        logging.info("Remove virtual device %s %s %s", self._name, self._uuid, self.dbus_path)
 
 
 class DeactivationMonitor:
@@ -752,12 +768,12 @@ class ActiveConnection:  # pylint: disable=R0902
         self,
         mediator: Mediator,
         dbus_bus: dbus.Bus,
-        dbus_path: str,
+        path: str,
         connectivity_updater: ConnectivityUpdater,
     ):
         self._mediator = mediator
         self._bus = dbus_bus
-        self._path = dbus_path
+        self._path = path
         self._connectivity_updater = connectivity_updater
 
         self._active_connection_properties_changed_subscription = (
@@ -995,6 +1011,26 @@ class ActiveConnection:  # pylint: disable=R0902
         logging.info("Remove active connection %s %s", self.connection_path, self._path)
 
 
+class MosquittoMonitor:  # pylint: disable=R0903
+    def __init__(self, mediator: Mediator, mqtt_client: MQTTClient):
+        self._mediator = mediator
+        self._mqtt_client = mqtt_client
+        self._mqtt_client.on_connect = self._on_connect
+        self._mqtt_client.on_disconnect = self._on_disconnect
+
+        self._was_disconnected = False
+
+    def _on_connect(self, _, __, ___, ____):
+        logging.info("Mosquitto was connected")
+        if self._was_disconnected:
+            self._mediator.new_event(Event(EventType.RELOAD_CONNECTIONS))
+            self._was_disconnected = False
+
+    def _on_disconnect(self, _, __, ___):
+        self._was_disconnected = True
+        logging.warning("Mosquitto was disconnected")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Service for creating virtual connection devices")
     parser.add_argument(
@@ -1049,7 +1085,7 @@ def main():
         mqtt_client.stop()
 
     def reload_virtual_connections_client(_, __):
-        connections_mediator.new_event(Event(EventType.RELOAD))
+        connections_mediator.new_event(Event(EventType.RELOAD_CONNECTIVITY))
 
     signal.signal(signal.SIGINT, stop_virtual_connections_client)
     signal.signal(signal.SIGTERM, stop_virtual_connections_client)
