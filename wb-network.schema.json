@@ -304,8 +304,11 @@
                                 "netmask": {
                                     "type": "string",
                                     "title": "Network mask",
-                                    "format": "ipv4",
-                                    "propertyOrder": 12
+                                    "pattern": "^((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)\\.?\\b){4}$",
+                                    "propertyOrder": 12,
+                                    "options": {
+                                        "patternmessage":"ipv4_mask_pattern_message"
+                                    }
                                 },
                                 "broadcast": {
                                     "type": "string",
@@ -1152,13 +1155,14 @@
                 "netmask": {
                     "type": "string",
                     "title": "Network mask",
-                    "format": "ipv4",
+                    "pattern": "^((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)\\.?\\b){4}$",
                     "propertyOrder": 12,
                     "options": {
                         "show_opt_in": true,
                         "inputAttributes": {
                             "placeholder":  "255.255.255.0"
-                        }
+                        },
+                        "patternmessage": "ipv4_mask_pattern_message"
                     }
                 },
                 "gateway": {
@@ -1298,13 +1302,14 @@
                 "netmask": {
                     "type": "string",
                     "title": "Network mask",
-                    "format": "ipv4",
+                    "pattern": "^((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)\\.?\\b){4}$",
                     "propertyOrder": 12,
                     "options": {
                         "show_opt_in": true,
                         "inputAttributes": {
                             "placeholder":  "255.255.255.0"
-                        }
+                        },
+                        "patternmessage": "ipv4_mask_pattern_message"
                     }
                 },
                 "route-metric": {
@@ -1547,7 +1552,8 @@
             "802-11-wireless_channel_desc": "The device will only create a Wi-Fi AP on the specified wireless channel. This property also requires the \"Band\" property to be set",
             "802-11-wireless_band_desc": "802.11 frequency band of the network",
             "a": "5GHz",
-            "bg": "2.4GHz"
+            "bg": "2.4GHz",
+            "ipv4_mask_pattern_message": "Value must be a valid mask in the form of 4 numbers between 0 and 255, separated by dots"
         },
         "ru": {
             "Network connections": "Сетевые соединения",
@@ -1642,7 +1648,8 @@
             "802-11-wireless_band_desc": "Диапазон частот согласно стандарту 802.11. Установка этого параметра может помешать подключению к сетям, использующим другой диапазон частот",
             "Username used to authenticate with the network": "Имя пользователя для аутентификации в сети",
             "Password used to authenticate with the network": "Пароль для аутентификации в сети",
-            "PIN if the SIM is locked": "PIN-код, если SIM-карта заблокирована"
+            "PIN if the SIM is locked": "PIN-код, если SIM-карта заблокирована",
+            "ipv4_mask_pattern_message": "Задайте маску в формате IPv4, например 255.255.255.0"
         }
     }
 }
