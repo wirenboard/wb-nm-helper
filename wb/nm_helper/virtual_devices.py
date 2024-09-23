@@ -372,7 +372,7 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
 
     def _reload_connections(self) -> None:
         for connection in self._common_connections.values():
-            connection.rebublish()
+            connection.republish()
 
     def _update_common_connection(self, connection_path: str, state: MqttConnectionState) -> None:
         connection = self._common_connections.get(connection_path)
