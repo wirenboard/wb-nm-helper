@@ -10,6 +10,20 @@ from wb.nm_helper.dns_resolver import DomainNameResolveException, resolve_domain
 CONNECTIVITY_CHECK_TIMEOUT = 15
 
 
+def get_resolve_opt(url: str, host_ip: str) -> str:
+    if host_ip is None:
+        return None
+    parsed_url = urlparse(url)
+    if not parsed_url.hostname:
+        return None
+    if parsed_url.port is not None:
+        return [f"{parsed_url.hostname}:{parsed_url.port}:{host_ip}"]
+    if parsed_url.scheme == "https":
+        port = "443"
+    else:
+        port = "80"
+    return [f"{parsed_url.hostname}:{port}:{host_ip}"]
+
 def replace_host_name_with_ip(url: str, host_ip: str) -> str:
     if host_ip is None:
         return url
@@ -29,7 +43,13 @@ def get_host_name(url: str) -> str:
 def curl_get(iface: str, url: str, host_ip: str) -> str:
     buffer = io.BytesIO()
     curl = pycurl.Curl()
-    curl.setopt(curl.URL, replace_host_name_with_ip(url, host_ip))
+    resolve = get_resolve_opt(url, host_ip)
+    if resolve:
+        logging.debug("libcurl resolve opt %s", resolve)
+        curl.setopt(curl.RESOLVE, resolve)
+    else:
+        url = replace_host_name_with_ip(url, host_ip)
+    curl.setopt(curl.URL, url)
     curl.setopt(curl.WRITEDATA, buffer)
     curl.setopt(curl.INTERFACE, iface)
     curl.setopt(pycurl.CONNECTTIMEOUT, CONNECTIVITY_CHECK_TIMEOUT)
