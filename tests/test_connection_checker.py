@@ -27,19 +27,7 @@ class DummyBytesIO:  # pylint: disable=R0903
 
 
 @pytest.mark.parametrize(
-    "url,ip,curlHost",
-    [
-        (
-            "test_url", 
-            None,
-            ["Host: test_url"]
-        ),
-        (
-            "bad_url", 
-            "1.1.1.1",
-            ["Host: bad_url"]
-        )
-    ]
+    "url,ip,curlHost", [("test_url", None, ["Host: test_url"]), ("bad_url", "1.1.1.1", ["Host: bad_url"])]
 )
 def test_set_curl_opt_bad(url, ip, curlHost):
     DummyCurl.setopt = MagicMock()
@@ -48,38 +36,39 @@ def test_set_curl_opt_bad(url, ip, curlHost):
     assert call(DummyCurl.URL, url) == DummyCurl.setopt.mock_calls[0]
     assert call(DummyCurl.HTTPHEADER, curlHost) == DummyCurl.setopt.mock_calls[1]
 
+
 @pytest.mark.parametrize(
     "url,ip,curlResolve,curlUrl,curlHost",
     [
         (
-            "http://good_url.com:1234/params/some", 
+            "http://good_url.com:1234/params/some",
             "1.1.1.1",
             ["good_url.com:1234:1.1.1.1"],
             "http://good_url.com:1234/params/some",
-            ["Host: good_url.com"]
+            ["Host: good_url.com"],
         ),
         (
-            "https://good_url.com:1234/params/some", 
+            "https://good_url.com:1234/params/some",
             "1.1.1.1",
             ["good_url.com:1234:1.1.1.1"],
             "https://good_url.com:1234/params/some",
-            ["Host: good_url.com"]
+            ["Host: good_url.com"],
         ),
         (
-            "http://good_url.com/params/some", 
+            "http://good_url.com/params/some",
             "1.1.1.1",
             ["good_url.com:80:1.1.1.1"],
             "http://good_url.com/params/some",
-            ["Host: good_url.com"]
+            ["Host: good_url.com"],
         ),
         (
-            "https://good_url.com/params/some", 
+            "https://good_url.com/params/some",
             "1.1.1.1",
             ["good_url.com:443:1.1.1.1"],
             "https://good_url.com/params/some",
-            ["Host: good_url.com"]
-        )
-    ]
+            ["Host: good_url.com"],
+        ),
+    ],
 )
 def test_set_curl_opt_good(url, ip, curlResolve, curlUrl, curlHost):
     DummyCurl.setopt = MagicMock()
@@ -88,8 +77,6 @@ def test_set_curl_opt_good(url, ip, curlResolve, curlUrl, curlHost):
     assert call(DummyCurl.RESOLVE, curlResolve) == DummyCurl.setopt.mock_calls[0]
     assert call(DummyCurl.URL, curlUrl) == DummyCurl.setopt.mock_calls[1]
     assert call(DummyCurl.HTTPHEADER, curlHost) == DummyCurl.setopt.mock_calls[2]
-
-
 
 
 class ConnectionCheckerSingleFunctionTests(TestCase):
