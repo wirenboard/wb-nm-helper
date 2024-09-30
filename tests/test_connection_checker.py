@@ -3,6 +3,7 @@ from unittest import TestCase
 from unittest.mock import MagicMock, call, patch
 
 import pycurl
+import pytest
 
 from wb.nm_helper import connection_checker
 from wb.nm_helper.dns_resolver import DomainNameResolveException, resolve_domain_name
@@ -15,6 +16,7 @@ class DummyCurl:  # pylint: disable=R0903
     WRITEDATA = 10002
     INTERFACE = 10003
     HTTPHEADER = 10023
+    RESOLVE = 10203
 
 
 class DummyBytesIO:  # pylint: disable=R0903
@@ -22,6 +24,59 @@ class DummyBytesIO:  # pylint: disable=R0903
 
 
 # TESTS
+
+
+@pytest.mark.parametrize(
+    "url,ip,curl_host", [("test_url", None, ["Host: test_url"]), ("bad_url", "1.1.1.1", ["Host: bad_url"])]
+)
+def test_set_curl_opt_bad(url, ip, curl_host):
+    DummyCurl.setopt = MagicMock()
+    connection_checker.set_curl_opt(DummyCurl, url, ip)
+    assert 2 == DummyCurl.setopt.call_count
+    assert call(DummyCurl.URL, url) == DummyCurl.setopt.mock_calls[0]
+    assert call(DummyCurl.HTTPHEADER, curl_host) == DummyCurl.setopt.mock_calls[1]
+
+
+@pytest.mark.parametrize(
+    "url,ip,curl_resolve,curl_url,curl_host",
+    [
+        (
+            "http://good_url.com:1234/params/some",
+            "1.1.1.1",
+            ["good_url.com:1234:1.1.1.1"],
+            "http://good_url.com:1234/params/some",
+            ["Host: good_url.com"],
+        ),
+        (
+            "https://good_url.com:1234/params/some",
+            "1.1.1.1",
+            ["good_url.com:1234:1.1.1.1"],
+            "https://good_url.com:1234/params/some",
+            ["Host: good_url.com"],
+        ),
+        (
+            "http://good_url.com/params/some",
+            "1.1.1.1",
+            ["good_url.com:80:1.1.1.1"],
+            "http://good_url.com/params/some",
+            ["Host: good_url.com"],
+        ),
+        (
+            "https://good_url.com/params/some",
+            "1.1.1.1",
+            ["good_url.com:443:1.1.1.1"],
+            "https://good_url.com/params/some",
+            ["Host: good_url.com"],
+        ),
+    ],
+)
+def test_set_curl_opt_good(url, ip, curl_resolve, curl_url, curl_host):
+    DummyCurl.setopt = MagicMock()
+    connection_checker.set_curl_opt(DummyCurl, url, ip)
+    assert 3 == DummyCurl.setopt.call_count
+    assert call(DummyCurl.RESOLVE, curl_resolve) == DummyCurl.setopt.mock_calls[0]
+    assert call(DummyCurl.URL, curl_url) == DummyCurl.setopt.mock_calls[1]
+    assert call(DummyCurl.HTTPHEADER, curl_host) == DummyCurl.setopt.mock_calls[2]
 
 
 class ConnectionCheckerSingleFunctionTests(TestCase):
@@ -32,25 +87,29 @@ class ConnectionCheckerSingleFunctionTests(TestCase):
         DummyBytesIO.getvalue = MagicMock(return_value="ЖЖЖ".encode("UTF8"))
         with patch.object(pycurl, "Curl", DummyCurl), patch.object(io, "BytesIO", DummyBytesIO):
             output = connection_checker.curl_get("dummy_if", "http://good_url.com/params/some", "1.1.1.1")
-            self.assertEqual(6, DummyCurl.setopt.call_count)
+            self.assertEqual(7, DummyCurl.setopt.call_count)
             self.assertEqual(
-                call(pycurl.Curl.URL, "http://1.1.1.1/params/some"), DummyCurl.setopt.mock_calls[0]
+                call(pycurl.Curl.RESOLVE, ["good_url.com:80:1.1.1.1"]), DummyCurl.setopt.mock_calls[0]
             )
-            self.assertEqual(2, len(DummyCurl.setopt.mock_calls[1].args))
-            self.assertEqual(pycurl.Curl.WRITEDATA, DummyCurl.setopt.mock_calls[1].args[0])
-            self.assertTrue(isinstance(DummyCurl.setopt.mock_calls[1].args[1], DummyBytesIO))
-            self.assertEqual(call(pycurl.Curl.INTERFACE, "dummy_if"), DummyCurl.setopt.mock_calls[2])
+
             self.assertEqual(
-                call(pycurl.CONNECTTIMEOUT, connection_checker.CONNECTIVITY_CHECK_TIMEOUT),
-                DummyCurl.setopt.mock_calls[3],
-            )
-            self.assertEqual(
-                call(pycurl.TIMEOUT, connection_checker.CONNECTIVITY_CHECK_TIMEOUT),
-                DummyCurl.setopt.mock_calls[4],
+                call(pycurl.Curl.URL, "http://good_url.com/params/some"), DummyCurl.setopt.mock_calls[1]
             )
             self.assertEqual(
                 call(pycurl.Curl.HTTPHEADER, ["Host: good_url.com"]),
+                DummyCurl.setopt.mock_calls[2],
+            )
+            self.assertEqual(2, len(DummyCurl.setopt.mock_calls[3].args))
+            self.assertEqual(pycurl.Curl.WRITEDATA, DummyCurl.setopt.mock_calls[3].args[0])
+            self.assertTrue(isinstance(DummyCurl.setopt.mock_calls[3].args[1], DummyBytesIO))
+            self.assertEqual(call(pycurl.Curl.INTERFACE, "dummy_if"), DummyCurl.setopt.mock_calls[4])
+            self.assertEqual(
+                call(pycurl.CONNECTTIMEOUT, connection_checker.CONNECTIVITY_CHECK_TIMEOUT),
                 DummyCurl.setopt.mock_calls[5],
+            )
+            self.assertEqual(
+                call(pycurl.TIMEOUT, connection_checker.CONNECTIVITY_CHECK_TIMEOUT),
+                DummyCurl.setopt.mock_calls[6],
             )
             self.assertEqual([call()], DummyCurl.perform.mock_calls)
             self.assertEqual([call()], DummyCurl.close.mock_calls)
@@ -62,21 +121,6 @@ class ConnectionCheckerSingleFunctionTests(TestCase):
             connection_checker.get_host_name("http://good_url.com/no/ip"),
         )
         self.assertEqual("bad_url", connection_checker.get_host_name("bad_url"))
-
-    def test_replace_host_name_with_ip(self):
-        self.assertEqual(
-            "http://good_url.com/no/ip",
-            connection_checker.replace_host_name_with_ip("http://good_url.com/no/ip", None),
-        )
-        self.assertEqual("bad_url", connection_checker.replace_host_name_with_ip("bad_url", "1.1.1.1"))
-        self.assertEqual(
-            "http://1.1.1.1/params/some",
-            connection_checker.replace_host_name_with_ip("http://good_url.com/params/some", "1.1.1.1"),
-        )
-        self.assertEqual(
-            "http://1.1.1.1:8080/params/some",
-            connection_checker.replace_host_name_with_ip("http://good_url.com:8080/params/some", "1.1.1.1"),
-        )
 
 
 class ConnectionCheckerTests(TestCase):
