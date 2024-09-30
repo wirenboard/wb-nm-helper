@@ -1,7 +1,7 @@
 import io
 import logging
 from typing import List
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse
 
 import pycurl
 
@@ -10,31 +10,41 @@ from wb.nm_helper.dns_resolver import DomainNameResolveException, resolve_domain
 CONNECTIVITY_CHECK_TIMEOUT = 15
 
 
-def replace_host_name_with_ip(url: str, host_ip: str) -> str:
-    if host_ip is None:
-        return url
-    parsed_url = urlparse(url)
-    if not parsed_url.hostname:
-        return url
-    if parsed_url.port is not None:
-        return urlunparse(parsed_url._replace(netloc=f"{host_ip}:{parsed_url.port}"))
-    return urlunparse(parsed_url._replace(netloc=host_ip))
-
-
 def get_host_name(url: str) -> str:
     parsed_url = urlparse(url)
     return parsed_url.hostname if parsed_url.hostname is not None else url
 
 
+def set_curl_url_and_host(curl, url: str, host: str) -> None:
+    curl.setopt(curl.URL, url)
+    curl.setopt(curl.HTTPHEADER, [f"Host: {host}"])
+
+
+def set_curl_opt(curl, url: str, host_ip: str) -> None:
+    if host_ip is None:
+        set_curl_url_and_host(curl, url, url)
+        return
+    parsed_url = urlparse(url)
+    if not parsed_url.hostname:
+        set_curl_url_and_host(curl, url, url)
+        return
+    port = parsed_url.port
+    if port is None:
+        port = "443" if parsed_url.scheme == "https" else "80"
+    resolve = [f"{parsed_url.hostname}:{port}:{host_ip}"]
+    logging.debug("libcurl resolve opt %s", resolve)
+    curl.setopt(curl.RESOLVE, resolve)
+    set_curl_url_and_host(curl, url, parsed_url.hostname)
+
+
 def curl_get(iface: str, url: str, host_ip: str) -> str:
     buffer = io.BytesIO()
     curl = pycurl.Curl()
-    curl.setopt(curl.URL, replace_host_name_with_ip(url, host_ip))
+    set_curl_opt(curl, url, host_ip)
     curl.setopt(curl.WRITEDATA, buffer)
     curl.setopt(curl.INTERFACE, iface)
     curl.setopt(pycurl.CONNECTTIMEOUT, CONNECTIVITY_CHECK_TIMEOUT)
     curl.setopt(pycurl.TIMEOUT, CONNECTIVITY_CHECK_TIMEOUT)
-    curl.setopt(curl.HTTPHEADER, [f"Host: {get_host_name(url)}"])
     curl.perform()
     curl.close()
     return buffer.getvalue().decode("UTF-8")
