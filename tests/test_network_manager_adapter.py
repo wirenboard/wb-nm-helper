@@ -280,6 +280,12 @@ def test_wifiap_set_dbus_options(json, dbus_old, dbus_new):
                         },
                         signature=dbus.Signature("sv"),
                     ),
+                    dbus.String("ipv6"): dbus.Dictionary(
+                        {
+                            dbus.String("method"): "ignore",
+                        },
+                        signature=dbus.Signature("sv"),
+                    ),
                 },
                 signature=dbus.Signature("sa{sv}"),
             ),
@@ -346,6 +352,12 @@ def test_wifiap_set_dbus_options(json, dbus_old, dbus_new):
                     dbus.String("ipv4"): dbus.Dictionary(
                         {
                             dbus.String("method"): "auto",
+                        },
+                        signature=dbus.Signature("sv"),
+                    ),
+                    dbus.String("ipv6"): dbus.Dictionary(
+                        {
+                            dbus.String("method"): "ignore",
                         },
                         signature=dbus.Signature("sv"),
                     ),

@@ -496,6 +496,8 @@ class ModemConnection(Connection):
         # pin is removed
         if not iface.get_opt("gsm.pin") and had_pin:
             clear_secrets = True
+        # use only ipv4
+        con.set_value("ipv6.method", "ignore")
         return SetDbusOptionsResult(clear_secrets)
 
     def get_connection(self, con: NMConnection):
