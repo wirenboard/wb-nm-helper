@@ -1160,7 +1160,8 @@ class ConnectionManagerTests(TestCase):
     def test_activate_gsm_connection_02_active_cn_sim_applied_not_activated(self):
         con = DummyNMConnection("con_id", {})
         dev = DummyNMDevice()
-        dev.get_active_connection = MagicMock(return_value="old_active")
+        old_active_con = DummyNMConnection("old_active", {})
+        dev.get_active_connection = MagicMock(return_value=old_active_con)
         self.con_man.deactivate_current_gsm_connection = MagicMock()
         con.get_sim_slot = MagicMock(return_value="dummy_slot")
         self.con_man.apply_sim_slot = MagicMock(return_value="dummy_dev_1")
@@ -1171,7 +1172,7 @@ class ConnectionManagerTests(TestCase):
 
         self.assertEqual(None, result)
         self.assertEqual([call()], dev.get_active_connection.mock_calls)
-        self.assertEqual([call("old_active")], self.con_man.deactivate_current_gsm_connection.mock_calls)
+        self.assertEqual([call(old_active_con)], self.con_man.deactivate_current_gsm_connection.mock_calls)
         self.assertEqual([call()], con.get_sim_slot.mock_calls)
         self.assertEqual([call(dev, con, "dummy_slot")], self.con_man.apply_sim_slot.mock_calls)
         self.assertEqual(
@@ -1185,7 +1186,8 @@ class ConnectionManagerTests(TestCase):
     def test_activate_gsm_connection_03_active_cn_sim_applied_activated(self):
         con = DummyNMConnection("con_id", {})
         dev = DummyNMDevice()
-        dev.get_active_connection = MagicMock(return_value="old_active")
+        old_active_con = DummyNMConnection("old_active", {})
+        dev.get_active_connection = MagicMock(return_value=old_active_con)
         self.con_man.deactivate_current_gsm_connection = MagicMock()
         con.get_sim_slot = MagicMock(return_value="dummy_slot")
         self.con_man.apply_sim_slot = MagicMock(return_value="dummy_dev_1")
@@ -1196,7 +1198,7 @@ class ConnectionManagerTests(TestCase):
 
         self.assertEqual("dummy_con_2", result)
         self.assertEqual([call()], dev.get_active_connection.mock_calls)
-        self.assertEqual([call("old_active")], self.con_man.deactivate_current_gsm_connection.mock_calls)
+        self.assertEqual([call(old_active_con)], self.con_man.deactivate_current_gsm_connection.mock_calls)
         self.assertEqual([call()], con.get_sim_slot.mock_calls)
         self.assertEqual([call(dev, con, "dummy_slot")], self.con_man.apply_sim_slot.mock_calls)
         self.assertEqual(
@@ -1204,6 +1206,38 @@ class ConnectionManagerTests(TestCase):
         )
         self.assertEqual(
             [call("dummy_con_2", self.con_man.timeouts.connection_activation_timeout)],
+            self.con_man._wait_connection_activation.mock_calls,
+        )
+
+    def test_activate_gsm_connection_04_connection_activating(self):
+        con = DummyNMConnection("con_id", {})
+        dev = DummyNMDevice()
+        old_active_con = DummyNMConnection("con_id", {})
+        dev.get_active_connection = MagicMock(return_value=old_active_con)
+        self.con_man._wait_connection_activation = MagicMock(return_value=True)
+
+        result = self.con_man._activate_gsm_connection(dev, con)
+
+        self.assertEqual(old_active_con, result)
+        self.assertEqual([call()], dev.get_active_connection.mock_calls)
+        self.assertEqual(
+            [call(old_active_con, self.con_man.timeouts.connection_activation_timeout)],
+            self.con_man._wait_connection_activation.mock_calls,
+        )
+
+    def test_activate_gsm_connection_05_connection_activating_failed(self):
+        con = DummyNMConnection("con_id", {})
+        dev = DummyNMDevice()
+        old_active_con = DummyNMConnection("con_id", {})
+        dev.get_active_connection = MagicMock(return_value=old_active_con)
+        self.con_man._wait_connection_activation = MagicMock(return_value=False)
+
+        result = self.con_man._activate_gsm_connection(dev, con)
+
+        self.assertEqual(None, result)
+        self.assertEqual([call()], dev.get_active_connection.mock_calls)
+        self.assertEqual(
+            [call(old_active_con, self.con_man.timeouts.connection_activation_timeout)],
             self.con_man._wait_connection_activation.mock_calls,
         )
 
