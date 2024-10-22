@@ -502,6 +502,13 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
         # So deactivate active connection if it exists
         active_connection = dev.get_active_connection()
         if active_connection:
+            if active_connection.get_connection_id() == con.get_connection_id():
+                logging.debug("The connection %s is already activating", con.get_connection_id())
+                if self._wait_connection_activation(
+                    active_connection, self.timeouts.connection_activation_timeout
+                ):
+                    return active_connection
+                return None
             self.deactivate_current_gsm_connection(active_connection)
         else:
             logging.debug("No active gsm connection detected")
