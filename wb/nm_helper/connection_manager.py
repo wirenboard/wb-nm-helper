@@ -503,7 +503,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
         active_connection = dev.get_active_connection()
         if active_connection:
             if active_connection.get_connection_id() == con.get_connection_id():
-                logging.debug("The connection is already activating")
+                logging.debug("The connection %s is already activating", con.get_connection_id())
                 if self._wait_connection_activation(
                     active_connection, self.timeouts.connection_activation_timeout
                 ):
