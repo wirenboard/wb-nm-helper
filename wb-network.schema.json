@@ -89,6 +89,7 @@
                         },
                         "psk": {
                             "type": "string",
+                            "format": "password",
                             "title": "Password",
                             "minLength": 8,
                             "maxLength": 63,
@@ -1020,6 +1021,7 @@
                         },
                         "gsm_password": {
                             "type": "string",
+                            "format": "password",
                             "title": "Password used to authenticate with the network",
                             "propertyOrder": 7,
                             "options":{

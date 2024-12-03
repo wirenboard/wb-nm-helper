@@ -1,3 +1,9 @@
+wb-nm-helper (1.34.7) stable; urgency=medium
+
+  * Hide passwords
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Mon, 02 Dec 2024 20:32:00 +0400
+
 wb-nm-helper (1.34.6) stable; urgency=medium
 
   * Fix unexpected GSM-connection deactivation after reboot
@@ -20,26 +26,26 @@ wb-nm-helper (1.34.3) stable; urgency=medium
 
   * Fix typo in wb-mqtt-nm-helper
 
- --  Ekaterina Volkova <ekaterina.volkova@wirenboard.com>  Mon, 23 Sep 2024 12:44:56 +0300
+ -- Ekaterina Volkova <ekaterina.volkova@wirenboard.com>  Mon, 23 Sep 2024 12:44:56 +0300
 
 wb-nm-helper (1.34.2) stable; urgency=medium
 
   * Fix netmask error message in schema 
 
- --  Ekaterina Volkova <ekaterina.volkova@wirenboard.com>  Fri, 20 Sep 2024 16:47:00 +0300
+ -- Ekaterina Volkova <ekaterina.volkova@wirenboard.com>  Fri, 20 Sep 2024 16:47:00 +0300
 
 wb-nm-helper (1.34.1) stable; urgency=medium
 
   * Rebublish mqtt devices after mosquitto restart 
 
- --  Ekaterina Volkova <ekaterina.volkova@wirenboard.com>  Thu, 12 Sep 2024 10:13:46 +0300
+ -- Ekaterina Volkova <ekaterina.volkova@wirenboard.com>  Thu, 12 Sep 2024 10:13:46 +0300
 
 wb-nm-helper (1.34.0) stable; urgency=medium
 
   * Source code refactoring
   * Fix gsm data publication on wb-gsm restart
 
- --  Ekaterina Volkova <ekaterina.volkova@wirenboard.com>  Mon, 02 Sep 2024 15:17:40 +0300
+ -- Ekaterina Volkova <ekaterina.volkova@wirenboard.com>  Mon, 02 Sep 2024 15:17:40 +0300
 
 wb-nm-helper (1.33.10) stable; urgency=medium
 
@@ -63,7 +69,7 @@ wb-nm-helper (1.33.7) stable; urgency=medium
 
   * Add unit tests for wb-mqtt-nm-helper
 
- --  Ekaterina Volkova <ekaterina.volkova@wirenboard.com>  Mon, 05 Aug 2024 14:29:11 +0300
+ -- Ekaterina Volkova <ekaterina.volkova@wirenboard.com>  Mon, 05 Aug 2024 14:29:11 +0300
 
 wb-nm-helper (1.33.6) stable; urgency=medium
 
