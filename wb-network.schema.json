@@ -91,8 +91,9 @@
                             "type": "string",
                             "format": "password",
                             "title": "Password",
+                            "description": "Passphrase or PBKDF2 key",
                             "minLength": 8,
-                            "maxLength": 63,
+                            "maxLength": 64,
                             "propertyOrder": 2
                         },
                         "encryption": {
@@ -1622,6 +1623,7 @@
             "Wi-Fi access point": "Wi-Fi точка доступа",
             "mac-pattern-message": "Необходимо задать шесть байт в шестнадцатеричном виде, разделённых двоеточием (например f2:c8:14:48:d3:97)",
             "Password": "Пароль",
+            "Passphrase or PBKDF2 key": "Парольная фраза или PBKDF2-ключ",
             "Security": "Защита",
             "Network name (SSID)": "Название сети (SSID)",
             "None": "Нет",
