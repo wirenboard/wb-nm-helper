@@ -1,4 +1,4 @@
-wb-nm-helper (1.34.8) stable; urgency=medium
+wb-nm-helper (1.34.9) stable; urgency=medium
 
   * Fix removing dns settings
 
