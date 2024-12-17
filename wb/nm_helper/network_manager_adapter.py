@@ -256,6 +256,9 @@ def set_ipv4_dbus_options(con: DBUSSettings, iface: JSONSettings) -> None:
     else:
         con.set_value("ipv4.address-data", None)
 
+    if not iface.get_opt("ipv4.dns"):
+        con.set_value("ipv4.dns-data", None)
+
 
 def get_ipv4_dbus_options(res: JSONSettings, cfg: DBUSSettings) -> None:
     res.set_opts(cfg, ipv4_params)
