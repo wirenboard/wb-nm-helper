@@ -1,3 +1,9 @@
+wb-nm-helper (1.35.0) stable; urgency=medium
+
+  * Exclude shared ethernet connections from switching
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Wed, 22 Jan 2025 17:30:00 +0400
+
 wb-nm-helper (1.34.9) stable; urgency=medium
 
   * Fix removing dns settings
