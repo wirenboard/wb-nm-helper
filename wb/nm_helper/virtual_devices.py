@@ -483,6 +483,8 @@ class ConnectivityUpdater:
                 return True
             if settings.get("802-11-wireless", {}).get("mode") == "ap":
                 return True
+            if settings.get("ipv4", {}).get("method") == "shared":
+                return True
             return settings.get("user", {}).get("data", {}).get("wb.read-only", "false") == "true"
         except dbus.exceptions.DBusException as ex:
             logging.debug("Can't define if connection has permanent connectivity: %s", ex)

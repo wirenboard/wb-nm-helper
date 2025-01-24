@@ -176,6 +176,9 @@ class NetworkAwareConfigFile(ConfigFile):
                     continue
                 tiers[1].connections.append(connection_id)
             elif device_type == NM_DEVICE_TYPE_ETHERNET:
+                if item.get_settings().get("ipv4", {}).get("method") == "shared":
+                    logging.debug("Skipping shared connection %s", connection_id)
+                    continue
                 tiers[0].connections.append(connection_id)
             else:
                 logging.warning("Unknown connection type: %s", connection_type)
