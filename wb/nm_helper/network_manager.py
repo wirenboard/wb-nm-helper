@@ -32,6 +32,8 @@ NM_WIFI_MODE_ADHOC = "adhoc"
 NM_WIFI_MODE_AP = "ap"
 NM_WIFI_MODE_DEFAULT = NM_WIFI_MODE_INFRASTRUCTURE
 
+# cache for NMDevice objects
+nmDeviceCache = []
 
 def connection_type_to_device_type(cn_type):
     types = {
@@ -211,8 +213,16 @@ class NMActiveConnection(NMObject):
     def get_devices(self) -> List[NMDevice]:
         res = []
         for dev_path in self.get_property("Devices"):
-            dev = NMDevice(dev_path, self.bus)
-            res.append(dev)
+            check = False
+            for path, device in nmDeviceCache: 
+                if path == dev_path:
+                    res.append(device)
+                    check = True
+                    break
+            if check == False:
+                dev = NMDevice(dev_path, self.bus)
+                nmDeviceCache.append((dev_path, dev))
+                res.append(dev)
         return res
 
     def get_ifaces(self) -> List[str]:
