@@ -35,6 +35,7 @@ NM_WIFI_MODE_DEFAULT = NM_WIFI_MODE_INFRASTRUCTURE
 # cache for NMDevice objects
 nmDeviceCache = []
 
+
 def connection_type_to_device_type(cn_type):
     types = {
         "gsm": NM_DEVICE_TYPE_MODEM,
@@ -214,12 +215,12 @@ class NMActiveConnection(NMObject):
         res = []
         for dev_path in self.get_property("Devices"):
             check = False
-            for path, device in nmDeviceCache: 
+            for path, device in nmDeviceCache:
                 if path == dev_path:
                     res.append(device)
                     check = True
                     break
-            if check == False:
+            if not check:
                 dev = NMDevice(dev_path, self.bus)
                 nmDeviceCache.append((dev_path, dev))
                 res.append(dev)
