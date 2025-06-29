@@ -18,6 +18,7 @@ from wb.nm_helper.network_manager_adapter import (
                 "802-11-wireless-security": {"security": "none"},
                 "802-11-wireless_mode": "ap",
                 "802-11-wireless_ssid": "WirenBoard-APT6KWYK",
+                "802-11-wireless_hidden": False,
                 "connection_interface-name": "wlan0",
                 "ipv4": {"method": "shared"},
                 "type": "04_nm_wifi_ap",
@@ -44,6 +45,7 @@ from wb.nm_helper.network_manager_adapter import (
                             dbus.String("mode"): dbus.String("ap", variant_level=1),
                             dbus.String("security"): dbus.String("802-11-wireless-security", variant_level=1),
                             dbus.String("ssid"): dbus.ByteArray(b"WirenBoard-APT6KWYK"),
+                            dbus.String("hidden"): dbus.Boolean(False, variant_level=1),
                             dbus.String("powersave"): dbus.Int32(2, variant_level=1),
                         },
                         signature=dbus.Signature("sv"),
@@ -83,6 +85,7 @@ from wb.nm_helper.network_manager_adapter import (
                         {
                             dbus.String("mode"): "ap",
                             dbus.String("ssid"): dbus.ByteArray(b"WirenBoard-APT6KWYK"),
+                            dbus.String("hidden"): dbus.Boolean(False, variant_level=1),
                             dbus.String("powersave"): dbus.Int32(2, variant_level=1),
                         },
                         signature=dbus.Signature("sv"),
@@ -111,6 +114,7 @@ from wb.nm_helper.network_manager_adapter import (
                 "802-11-wireless-security": {"security": "none"},
                 "802-11-wireless_mode": "ap",
                 "802-11-wireless_ssid": "WirenBoard-APT6KWYK",
+                "802-11-wireless_hidden": False,
                 "connection_interface-name": "wlan0",
                 "ipv4": {"method": "shared", "address": "192.168.42.1"},
                 "type": "04_nm_wifi_ap",
@@ -136,6 +140,7 @@ from wb.nm_helper.network_manager_adapter import (
                         {
                             dbus.String("mode"): dbus.String("ap", variant_level=1),
                             dbus.String("ssid"): dbus.ByteArray(b"WirenBoard-APT6KWYK"),
+                            dbus.String("hidden"): dbus.Boolean(False, variant_level=1),
                             dbus.String("powersave"): dbus.Int32(2, variant_level=1),
                         },
                         signature=dbus.Signature("sv"),
@@ -171,6 +176,7 @@ from wb.nm_helper.network_manager_adapter import (
                         {
                             dbus.String("mode"): "ap",
                             dbus.String("ssid"): dbus.ByteArray(b"WirenBoard-APT6KWYK"),
+                            dbus.String("hidden"): dbus.Boolean(False, variant_level=1),
                             dbus.String("powersave"): dbus.Int32(2, variant_level=1),
                         },
                         signature=dbus.Signature("sv"),
