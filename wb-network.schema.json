@@ -882,26 +882,33 @@
                             "propertyOrder": 4,
                             "minLength": 1
                         },
+                        "802-11-wireless_hidden": {
+                            "title": "Hide SSID",
+                            "type": "boolean",
+                            "default": false,
+                            "_format": "checkbox",
+                            "propertyOrder": 5
+                        },
                         "802-11-wireless-security": {
                             "$ref": "#/definitions/802-11-wireless-security",
-                            "propertyOrder": 5
+                            "propertyOrder": 6
                         },
                         "nat": {
                             "title": "Share Internet connection",
                             "type": "boolean",
                             "default": true,
                             "_format": "checkbox",
-                            "propertyOrder": 6
+                            "propertyOrder": 7
                         },
                         "ipv4": {
                             "title": "IPv4",
                             "$ref": "#/definitions/nm_ipv4_shared",
-                            "propertyOrder": 7
+                            "propertyOrder": 8
                         },
                         "connection_interface-name": {
                             "type": "string",
                             "title": "Only for interface",
-                            "propertyOrder": 8,
+                            "propertyOrder": 9,
                             "options": {
                                 "inputAttributes": {
                                     "placeholder":  "use with any suitable interface"
@@ -927,7 +934,7 @@
                             "type": "string",
                             "title": "Band",
                             "description": "802-11-wireless_band_desc",
-                            "propertyOrder": 9,
+                            "propertyOrder": 10,
                             "options": {
                                 "wb": {
                                     "disabledEditorText":  "auto"
@@ -951,7 +958,7 @@
                             "description": "802-11-wireless_channel_desc",
                             "minimum": 1,
                             "default": 1,
-                            "propertyOrder": 10,
+                            "propertyOrder": 11,
                             "options": {
                                 "wb": {
                                     "disabledEditorText":  "auto"
@@ -961,10 +968,10 @@
                         },
                         "802-11-wireless_mtu": {
                             "$ref": "#/definitions/mtu",
-                            "propertyOrder": 11
+                            "propertyOrder": 12
                         }
                     },
-                    "required": ["type", "nat", "802-11-wireless_ssid", "802-11-wireless_mode", "802-11-wireless-security", "ipv4"]
+                    "required": ["type", "nat", "802-11-wireless_ssid", "802-11-wireless_hidden", "802-11-wireless_mode", "802-11-wireless-security", "ipv4"]
                 },
                 {
                     "$ref": "#/definitions/nm_connection"
@@ -1629,6 +1636,7 @@
             "None": "Нет",
             "Shared to other computers": "Общий с другими компьютерами",
             "Type": "Тип",
+            "Hide SSID": "Скрыть SSID",
             "Share Internet connection": "Раздавать интернет",
             "Deny GSM/Wi-Fi connections switching period (seconds)": "Не переключать SIM-слот или Wi-Fi-сеть в течение этого периода (секунды)",
             "After successfully establishing a modem/Wi-Fi connection, do not try changing SIM slot or change to another Wi-Fi network for this amount of seconds": "После успешного подключения через модем или Wi-Fi, не пытаться менять SIM-слот или Wi-Fi-соединение даже на более приоритетные в течение этого количества секунд",

@@ -1,3 +1,9 @@
+wb-nm-helper (1.36.0) stable; urgency=medium
+
+  * Add option to hide wifi network SSID in AP mode
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Sun, 29 Jun 2025 20:30:00 +0400
+
 wb-nm-helper (1.35.0) stable; urgency=medium
 
   * Exclude shared ethernet connections from switching

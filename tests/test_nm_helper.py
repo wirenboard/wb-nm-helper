@@ -82,6 +82,7 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
         assert res["ui"]["connections"][0]["802-11-wireless-security"]["security"] == "none"
         assert res["ui"]["connections"][0]["802-11-wireless_mode"] == "ap"
         assert res["ui"]["connections"][0]["802-11-wireless_ssid"] == "WirenBoard-Тест"
+        assert res["ui"]["connections"][0]["802-11-wireless_hidden"] is False
         assert res["ui"]["connections"][0]["connection_autoconnect"] is True
         assert res["ui"]["connections"][0]["connection_id"] == "wb-ap"
         assert res["ui"]["connections"][0]["connection_interface-name"] == "wlan0"

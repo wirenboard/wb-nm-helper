@@ -417,6 +417,7 @@ class WiFiAp(WiFiConnection):
         params = [
             Param("802-11-wireless.band"),
             Param("802-11-wireless.channel"),
+            Param("802-11-wireless.hidden", from_dbus=to_bool_default_false),
         ]
         WiFiConnection.__init__(self, params)
         self.ui_type = METHOD_WIFI_AP

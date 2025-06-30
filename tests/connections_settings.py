@@ -105,6 +105,7 @@ WB_AP_DBUS_SETTINGS = dbus.Dictionary(
             {
                 "mode": dbus.String("ap", variant_level=1),
                 "ssid": dbus.ByteArray(bytes("WirenBoard-Тест", encoding="utf8")),
+                "hidden": dbus.Boolean(False, variant_level=1),
             },
             signature=dbus.Signature("sv"),
         ),
