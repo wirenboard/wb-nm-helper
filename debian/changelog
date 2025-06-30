@@ -1,4 +1,4 @@
-wb-nm-helper (1.35.1) stable; urgency=medium
+wb-nm-helper (1.36.0) stable; urgency=medium
 
   * Add option to hide wifi network SSID in AP mode
 
