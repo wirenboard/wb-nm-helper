@@ -215,7 +215,7 @@ class NMDhcp4Config(NMObject):
         try:
             options = self.get_property("Options")
             return dict(options) if options else {}
-        except Exception:
+        except dbus.exceptions.DBusException:
             return {}
 
     def get_dns_servers(self) -> List[str]:
@@ -259,7 +259,7 @@ class NMDevice(NMObject):
             if dhcp4_path == "/":
                 return None
             return NMDhcp4Config(dhcp4_path, self.bus)
-        except Exception:
+        except dbus.exceptions.DBusException:
             return None
 
 

@@ -92,14 +92,14 @@ class ConnectionChecker:  # pylint: disable=R0903
         logging.debug("%s resolves to %s", hostname, addresses)
         return addresses
 
-    def check(
+    def check(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         iface: str,
         url: str,
         expected_payload: str,
         servers: List[str] = [],
         domains: List[str] = [],
-    ) -> bool:  # pylint: disable=too-many-arguments
+    ) -> bool:
         try:
             if self._last_address:
                 return self._check_url(iface, url, self._last_address, expected_payload)
