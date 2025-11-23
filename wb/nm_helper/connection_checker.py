@@ -99,7 +99,7 @@ class ConnectionChecker:  # pylint: disable=R0903
         expected_payload: str,
         servers: List[str] = [],
         domains: List[str] = [],
-    ) -> bool:
+    ) -> bool:  # pylint: disable=too-many-arguments
         try:
             if self._last_address:
                 return self._check_url(iface, url, self._last_address, expected_payload)
