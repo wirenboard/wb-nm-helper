@@ -50,7 +50,7 @@ class DummyNMConnection:
         return self.settings
 
 
-class DummyNMActiveConnection:  # pylint: disable=too-many-instance-attributes
+class DummyNMActiveConnection:  # pylint: disable=R0902
     pass
 
 

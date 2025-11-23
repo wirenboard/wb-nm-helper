@@ -92,19 +92,25 @@ class ConnectionChecker:  # pylint: disable=R0903
         logging.debug("%s resolves to %s", hostname, addresses)
         return addresses
 
-    def check(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    def check(  # pylint: disable=R0913 disable=R0917
         self,
         iface: str,
         url: str,
         expected_payload: str,
-        servers: List[str] = [],
-        domains: List[str] = [],
+        servers: List[str] = None,
+        domains: List[str] = None,
     ) -> bool:
         try:
             if self._last_address:
                 return self._check_url(iface, url, self._last_address, expected_payload)
         except pycurl.error as ex:
             logging.debug("Error during %s connectivity check: %s", iface, ex)
+
+        if servers is None:
+            servers = []
+
+        if domains is None:
+            domains = []
 
         addresses = []
         try:
