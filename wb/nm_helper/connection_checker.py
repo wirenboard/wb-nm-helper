@@ -73,13 +73,33 @@ class ConnectionChecker:  # pylint: disable=R0903
                 logging.debug("Error during %s connectivity check: %s", iface, ex)
         return False
 
-    def _get_addresses(self, iface: str, url: str) -> List[str]:
+    def _get_addresses(
+        self,
+        iface: str,
+        url: str,
+        servers: List[str],
+        domains: List[str],
+    ) -> List[str]:
         hostname = get_host_name(url)
-        addresses = self._dns_resolver_fn(hostname, iface)
+        logging.debug(
+            "Resolve %s via %s using DNS servers: %s, DNS search domains: %s",
+            hostname,
+            iface,
+            servers,
+            domains,
+        )
+        addresses = self._dns_resolver_fn(hostname, iface, servers, domains)
         logging.debug("%s resolves to %s", hostname, addresses)
         return addresses
 
-    def check(self, iface: str, url: str, expected_payload: str) -> bool:
+    def check(
+        self,
+        iface: str,
+        url: str,
+        expected_payload: str,
+        servers: List[str] = [],
+        domains: List[str] = [],
+    ) -> bool:
         try:
             if self._last_address:
                 return self._check_url(iface, url, self._last_address, expected_payload)
@@ -88,7 +108,7 @@ class ConnectionChecker:  # pylint: disable=R0903
 
         addresses = []
         try:
-            addresses = self._get_addresses(iface, url)
+            addresses = self._get_addresses(iface, url, servers, domains)
         except DomainNameResolveException as ex:
             logging.debug("Error during %s connectivity check: %s", iface, ex)
             return False

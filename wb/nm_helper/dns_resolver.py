@@ -37,7 +37,12 @@ class PycaresCallback:  # pylint: disable=R0903
         self.error = error
 
 
-def resolve_domain_name(name: str, iface: str) -> List[str]:
+def resolve_domain_name(
+    name: str,
+    iface: str,
+    servers: List[str],
+    domains: List[str],
+) -> List[str]:
     # From c-ares docs:
     # timeout - the number of seconds each name server is given to respond to a query on the first try.
     # tries - the number of tries the resolver will try contacting each name server before giving up.
@@ -46,7 +51,7 @@ def resolve_domain_name(name: str, iface: str) -> List[str]:
     #
     # Actually it multiplies timeout by 2 for every try.
     # According to the settings it is 2, 4 and 8 seconds
-    channel = pycares.Channel(tries=3, timeout=2)
+    channel = pycares.Channel(tries=3, timeout=2, servers=servers, domains=domains)
     channel.set_local_dev(iface.encode())
     callback = PycaresCallback()
     channel.gethostbyname(name, socket.AF_INET, callback)

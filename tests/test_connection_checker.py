@@ -134,8 +134,13 @@ class ConnectionCheckerTests(TestCase):
         checker = connection_checker.ConnectionChecker(dns_resolver_mock)
         with patch.object(connection_checker, "curl_get") as mock_curl_get:
             mock_curl_get.return_value = "payload"
-            self.assertEqual(True, checker.check("eth0", "http://good_url.com/params/some", "payload"))
-            self.assertEqual([call("good_url.com", "eth0")], dns_resolver_mock.mock_calls)
+            self.assertEqual(
+                True,
+                checker.check("eth0", "http://good_url.com/params/some", "payload", ["192.168.0.1"], ["lan"]),
+            )
+            self.assertEqual(
+                [call("good_url.com", "eth0", ["192.168.0.1"], ["lan"])], dns_resolver_mock.mock_calls
+            )
             self.assertEqual(
                 [call("eth0", "http://good_url.com/params/some", "1.1.1.1")], mock_curl_get.mock_calls
             )
@@ -153,7 +158,7 @@ class ConnectionCheckerTests(TestCase):
 
             mock_curl_get.side_effect = curl_get_side_effect_fn
             self.assertEqual(True, checker.check("eth0", "http://good_url.com/params/some", "payload"))
-            self.assertEqual([call("good_url.com", "eth0")], dns_resolver_mock.mock_calls)
+            self.assertEqual([call("good_url.com", "eth0", [], [])], dns_resolver_mock.mock_calls)
             self.assertEqual(
                 [
                     call("eth0", "http://good_url.com/params/some", "1.1.1.1"),
@@ -169,7 +174,7 @@ class ConnectionCheckerTests(TestCase):
         with patch.object(connection_checker, "curl_get") as mock_curl_get:
             mock_curl_get.return_value = "payload"
             self.assertEqual(False, checker.check("eth0", "http://good_url.com/params/some", "payload"))
-            self.assertEqual([call("good_url.com", "eth0")], dns_resolver_mock.mock_calls)
+            self.assertEqual([call("good_url.com", "eth0", [], [])], dns_resolver_mock.mock_calls)
             self.assertEqual([], mock_curl_get.mock_calls)
 
     def test_check_first_time_one_ip_curl_exception(self):
@@ -179,7 +184,7 @@ class ConnectionCheckerTests(TestCase):
         with patch.object(connection_checker, "curl_get") as mock_curl_get:
             mock_curl_get.side_effect = pycurl.error()
             self.assertEqual(False, checker.check("eth0", "http://good_url.com/params/some", "payload"))
-            self.assertEqual([call("good_url.com", "eth0")], dns_resolver_mock.mock_calls)
+            self.assertEqual([call("good_url.com", "eth0", [], [])], dns_resolver_mock.mock_calls)
             self.assertEqual(
                 [call("eth0", "http://good_url.com/params/some", "1.1.1.1")], mock_curl_get.mock_calls
             )
@@ -192,7 +197,7 @@ class ConnectionCheckerTests(TestCase):
             mock_curl_get.return_value = "payload"
             dns_resolver_mock.return_value = ["1.1.1.1"]
             self.assertEqual(True, checker.check("eth0", "http://good_url.com/params/some", "payload"))
-            self.assertEqual([call("good_url.com", "eth0")], dns_resolver_mock.mock_calls)
+            self.assertEqual([call("good_url.com", "eth0", [], [])], dns_resolver_mock.mock_calls)
             self.assertEqual(
                 [call("eth0", "http://good_url.com/params/some", "1.1.1.1")], mock_curl_get.mock_calls
             )
@@ -220,7 +225,7 @@ class ConnectionCheckerTests(TestCase):
             mock_curl_get.side_effect = curl_get_side_effect_fn
             dns_resolver_mock.return_value = ["2.2.2.2"]
             self.assertEqual(True, checker.check("eth0", "http://good_url.com/params/some", "payload"))
-            self.assertEqual([call("good_url.com", "eth0")], dns_resolver_mock.mock_calls)
+            self.assertEqual([call("good_url.com", "eth0", [], [])], dns_resolver_mock.mock_calls)
             self.assertEqual(
                 [
                     call("eth0", "http://good_url.com/params/some", "1.1.1.1"),
