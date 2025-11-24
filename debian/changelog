@@ -1,4 +1,4 @@
-wb-nm-helper (1.36.2) stable; urgency=medium
+wb-nm-helper (1.37.0) stable; urgency=medium
 
   * Fix wrong connectivity status
 
