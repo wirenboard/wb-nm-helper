@@ -285,7 +285,13 @@ def check_connectivity(
     ifaces = active_cn.get_ifaces()
     logging.debug("interfaces for %s: %s", active_cn.get_connection_id(), ", ".join([str(i) for i in ifaces]))
     if ifaces and ifaces[0]:
-        return checker.check(ifaces[0], config.connectivity_check_url, config.connectivity_check_payload)
+        return checker.check(
+            ifaces[0],
+            config.connectivity_check_url,
+            config.connectivity_check_payload,
+            active_cn.get_dns_servers(),
+            active_cn.get_dns_search_domains(),
+        )
     logging.debug("Connection %s seems to have no interfaces", active_cn.get_connection_id())
     return False
 

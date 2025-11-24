@@ -50,7 +50,7 @@ class DummyNMConnection:
         return self.settings
 
 
-class DummyNMActiveConnection:
+class DummyNMActiveConnection:  # pylint: disable=R0902
     pass
 
 
@@ -592,7 +592,13 @@ class SingleFunctionTests(TestCase):
         dummy_active_cn = DummyNMActiveConnection()
         DummyConfigFile.load_config = MagicMock()
         dummy_active_cn.get_connection_id = MagicMock()
+        dummy_active_cn.get_dns_servers = MagicMock(return_value=[])
+        dummy_active_cn.get_dns_search_domains = MagicMock(return_value=[])
         dummy_active_cn.get_ifaces = MagicMock(side_effect=[[], ["dummy_iface1"]])
+        dummy_connection = MagicMock()
+        dummy_connection.get_dns_servers = MagicMock(return_value=[])
+        dummy_connection.get_dns_search_domains = MagicMock(return_value=[])
+        dummy_active_cn.get_connection = MagicMock(return_value=dummy_connection)
         dummy_connection_checker = DummyConnectionChecker()
         dummy_connection_checker.check = MagicMock()
         dummy_connection_checker.check.return_value = True
@@ -621,7 +627,7 @@ class SingleFunctionTests(TestCase):
         )
         self.assertEqual([call(), call()], dummy_active_cn.get_ifaces.mock_calls)
         self.assertEqual(
-            [call("dummy_iface1", "DUMMY_URL", "DUMMY_PAYLOAD")],
+            [call("dummy_iface1", "DUMMY_URL", "DUMMY_PAYLOAD", [], [])],
             dummy_connection_checker.check.mock_calls,
         )
 
@@ -632,7 +638,13 @@ class SingleFunctionTests(TestCase):
         dummy_config.connectivity_check_payload = "NEW_DUMMY_PAYLOAD"
         dummy_config.connectivity_check_url = "NEW_DUMMY_URL"
         dummy_active_cn.get_connection_id = MagicMock()
+        dummy_active_cn.get_dns_servers = MagicMock(return_value=[])
+        dummy_active_cn.get_dns_search_domains = MagicMock(return_value=[])
         dummy_active_cn.get_ifaces = MagicMock(side_effect=[["dummy_iface4"]])
+        dummy_connection = MagicMock()
+        dummy_connection.get_dns_servers = MagicMock(return_value=[])
+        dummy_connection.get_dns_search_domains = MagicMock(return_value=[])
+        dummy_active_cn.get_connection = MagicMock(return_value=dummy_connection)
         dummy_connection_checker = DummyConnectionChecker()
         dummy_connection_checker.check = MagicMock()
         dummy_connection_checker.check.return_value = True
@@ -647,7 +659,7 @@ class SingleFunctionTests(TestCase):
         self.assertEqual([], DummyConfigFile.load_config.mock_calls)
 
         self.assertEqual(
-            [call("dummy_iface4", "NEW_DUMMY_URL", "NEW_DUMMY_PAYLOAD")],
+            [call("dummy_iface4", "NEW_DUMMY_URL", "NEW_DUMMY_PAYLOAD", [], [])],
             dummy_connection_checker.check.mock_calls,
         )
         self.assertEqual(True, result)

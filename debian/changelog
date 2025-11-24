@@ -1,3 +1,9 @@
+wb-nm-helper (1.37.0) stable; urgency=medium
+
+  * Fix wrong connectivity status
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Sat, 22 Nov 2025 17:40:00 +0400
+
 wb-nm-helper (1.36.1) stable; urgency=medium
 
   * Adopt PEP440

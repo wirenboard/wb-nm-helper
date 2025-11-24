@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ipaddress import IPv4Interface
+from socket import ntohl
 from typing import Dict, List, Optional
 
 import dbus
@@ -172,6 +174,23 @@ class NMConnection(NMObject):
             return settings["gsm"]["sim-slot"]
         return NM_SETTINGS_GSM_SIM_SLOT_DEFAULT
 
+    def get_dns_servers(self) -> List[str]:
+        settings = self.get_settings()
+        dns_servers = []
+        if "dns" in settings["ipv4"]:
+            dns_servers += [
+                str(IPv4Interface((ntohl(ip), "32")).network.network_address)
+                for ip in settings["ipv4"]["dns"]
+            ]
+        return dns_servers
+
+    def get_dns_search_domains(self) -> List[str]:
+        settings = self.get_settings()
+        search_domains = []
+        if "dns-search" in settings["ipv4"]:
+            search_domains += [str(domain) for domain in settings["ipv4"]["dns-search"]]
+        return search_domains
+
     def get_connection_type(self) -> str:
         return str(self.get_settings()["connection"]["type"])
 
@@ -188,6 +207,37 @@ class NMConnection(NMObject):
         self.get_iface().ClearSecrets()
 
 
+class NMDhcp4Config(NMObject):
+    def __init__(self, path: str, bus: dbus.SystemBus):
+        NMObject.__init__(self, path, bus, "org.freedesktop.NetworkManager.DHCP4Config")
+
+    def get_options(self) -> Dict[str, str]:
+        try:
+            options = self.get_property("Options")
+            return dict(options) if options else {}
+        except dbus.exceptions.DBusException:
+            return {}
+
+    def get_dns_servers(self) -> List[str]:
+        options = self.get_options()
+        dns_servers = []
+        if "domain_name_servers" in options:
+            dns_str = str(options["domain_name_servers"])
+            dns_servers = [s.strip() for s in dns_str.split() if s.strip()]
+        return dns_servers
+
+    def get_dns_search_domains(self) -> List[str]:
+        options = self.get_options()
+        search_domains = []
+        if "domain_search" in options:
+            domain_str = str(options["domain_search"])
+            search_domains = [s.strip() for s in domain_str.split() if s.strip()]
+        elif "domain_name" in options:
+            domain_str = str(options["domain_name"])
+            search_domains = [domain_str]
+        return search_domains
+
+
 class NMDevice(NMObject):
     def __init__(self, path: str, bus: dbus.SystemBus):
         NMObject.__init__(self, path, bus, "org.freedesktop.NetworkManager.Device")
@@ -202,6 +252,15 @@ class NMDevice(NMObject):
         if cn_path == "/":
             return None
         return NMActiveConnection(cn_path, self.bus)
+
+    def get_dhcp4_config(self) -> Optional[NMDhcp4Config]:
+        try:
+            dhcp4_path = self.get_property("Dhcp4Config")
+            if dhcp4_path == "/":
+                return None
+            return NMDhcp4Config(dhcp4_path, self.bus)
+        except dbus.exceptions.DBusException:
+            return None
 
 
 class NMActiveConnection(NMObject):
@@ -237,6 +296,38 @@ class NMActiveConnection(NMObject):
             dev = NMDevice(dev_paths[0], self.bus)
             return dev.get_property("Ip4Connectivity")
         return NM_CONNECTIVITY_UNKNOWN
+
+    def get_dns_servers(self) -> List[str]:
+        """Get all DNS servers (both static and DHCP-provided)"""
+        dns_servers = []
+
+        # Get static DNS servers from connection settings
+        dns_servers.extend(self.get_connection().get_dns_servers())
+
+        # Get DHCP-provided DNS servers from the first device
+        devices = self.get_devices()
+        if devices:
+            dhcp4_config = devices[0].get_dhcp4_config()
+            if dhcp4_config:
+                dns_servers.extend(dhcp4_config.get_dns_servers())
+
+        return dns_servers
+
+    def get_dns_search_domains(self) -> List[str]:
+        """Get all DNS search domains (both static and DHCP-provided)"""
+        search_domains = []
+
+        # Get static search domains from connection settings
+        search_domains.extend(self.get_connection().get_dns_search_domains())
+
+        # Get DHCP-provided search domains from the first device
+        devices = self.get_devices()
+        if devices:
+            dhcp4_config = devices[0].get_dhcp4_config()
+            if dhcp4_config:
+                search_domains.extend(dhcp4_config.get_dns_search_domains())
+
+        return search_domains
 
 
 class NMAccessPoint(NMObject):
