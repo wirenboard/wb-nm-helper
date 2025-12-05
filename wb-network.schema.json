@@ -1500,6 +1500,7 @@
                             "description": "Connectivity check response content should contain specified string",
                             "type": "string",
                             "propertyOrder": 5,
+                            "default": "NetworkManager is online",
                             "minLength": 1,
                             "options": {
                                 "show_opt_in": true,
