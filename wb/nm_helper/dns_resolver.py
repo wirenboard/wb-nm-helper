@@ -2,6 +2,7 @@ import socket
 from typing import List
 
 import dns.name
+import dns.query
 import dns.resolver
 
 
