@@ -1,4 +1,5 @@
 import socket
+import threading
 from typing import List
 
 import dns.name
@@ -8,6 +9,9 @@ import dns.resolver
 
 class DomainNameResolveException(Exception):
     pass
+
+
+_DNS_QUERY_LOCK = threading.Lock()
 
 
 def resolve_domain_name(
@@ -34,13 +38,14 @@ def resolve_domain_name(
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, iface.encode() + b"\0")
         return sock
 
-    orig_factory = dns.query.socket_factory
+    with _DNS_QUERY_LOCK:
+        orig_factory = dns.query.socket_factory
 
-    try:
-        dns.query.socket_factory = bound_socket_factory
-        answers = resolver.resolve(name, "A")
-        return [rdata.to_text() for rdata in answers]
-    except Exception as e:
-        raise DomainNameResolveException(f"Error during {name} resolving: {e}") from e
-    finally:
-        dns.query.socket_factory = orig_factory
+        try:
+            dns.query.socket_factory = bound_socket_factory
+            answers = resolver.resolve(name, "A")
+            return [rdata.to_text() for rdata in answers]
+        except Exception as e:
+            raise DomainNameResolveException(f"Error during {name} resolving: {e}") from e
+        finally:
+            dns.query.socket_factory = orig_factory
