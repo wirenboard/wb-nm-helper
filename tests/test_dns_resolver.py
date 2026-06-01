@@ -56,7 +56,9 @@ def test_resolve_domain_name_binds_socket_to_interface_and_restores_factory():
             self.nameservers = []
 
         def resolve(self, *_args, **_kwargs):
-            dns_resolver.dns.query.socket_factory(dns_resolver.socket.AF_INET, dns_resolver.socket.SOCK_DGRAM, 0)
+            dns_resolver.dns.query.socket_factory(
+                dns_resolver.socket.AF_INET, dns_resolver.socket.SOCK_DGRAM, 0
+            )
             return [MagicMock(to_text=MagicMock(return_value="1.1.1.1"))]
 
     resolver = ResolverStub()
@@ -89,7 +91,9 @@ def test_resolve_domain_name_restores_factory_when_resolve_raises():
             self.nameservers = []
 
         def resolve(self, *_args, **_kwargs):
-            dns_resolver.dns.query.socket_factory(dns_resolver.socket.AF_INET, dns_resolver.socket.SOCK_DGRAM, 0)
+            dns_resolver.dns.query.socket_factory(
+                dns_resolver.socket.AF_INET, dns_resolver.socket.SOCK_DGRAM, 0
+            )
             raise RuntimeError("boom")
 
     resolver = ResolverStub()
