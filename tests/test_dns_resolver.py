@@ -49,7 +49,7 @@ def test_resolve_domain_name_keeps_default_resolver_settings_for_empty_servers_a
 def test_resolve_domain_name_binds_socket_to_interface_and_restores_factory():
     fake_socket = MagicMock()
 
-    class ResolverStub:
+    class ResolverStub:  # pylint: disable=too-few-public-methods
         def __init__(self):
             self.timeout = None
             self.lifetime = None
@@ -84,7 +84,7 @@ def test_resolve_domain_name_binds_socket_to_interface_and_restores_factory():
 def test_resolve_domain_name_restores_factory_when_resolve_raises():
     fake_socket = MagicMock()
 
-    class ResolverStub:
+    class ResolverStub:  # pylint: disable=too-few-public-methods
         def __init__(self):
             self.timeout = None
             self.lifetime = None
