@@ -4,6 +4,8 @@ After=NetworkManager.service mosquitto.service
 
 [Service]
 Type=simple
+Restart=on-failure
+RestartSec=2
 User=root
 ExecStart=/usr/bin/wb-mqtt-nm-helper
 ExecReload=/usr/bin/wb-mqtt-nm-helper --reload $MAINPID
