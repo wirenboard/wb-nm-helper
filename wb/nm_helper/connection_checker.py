@@ -65,10 +65,9 @@ class ConnectionChecker:  # pylint: disable=R0903
     def _check_addresses(self, iface: str, url: str, addresses: List[str], expected_payload: str) -> bool:
         for address in addresses:
             try:
-                if address != self._last_address:
-                    check_result = self._check_url(iface, url, address, expected_payload)
-                    self._last_address = address
-                    return check_result
+                check_result = self._check_url(iface, url, address, expected_payload)
+                self._last_address = address
+                return check_result
             except pycurl.error as ex:
                 logging.debug("Error during %s connectivity check: %s", iface, ex)
         return False

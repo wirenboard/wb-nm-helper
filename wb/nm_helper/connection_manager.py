@@ -32,6 +32,7 @@ EXIT_NOT_CONFIGURED = 6
 LOGGING_FORMAT = "%(message)s"
 CONFIG_FILE = "/etc/wb-connection-manager.conf"
 CHECK_PERIOD = datetime.timedelta(seconds=5)
+CONNECTIVITY_CHECK_FAILURES_TO_SWITCH = 3
 CONNECTION_ACTIVATION_RETRY_TIMEOUT = datetime.timedelta(seconds=60)
 DEFAULT_STICKY_CONNECTION_PERIOD = datetime.timedelta(minutes=15)
 DEVICE_WAITING_TIMEOUT = datetime.timedelta(seconds=30)
@@ -315,6 +316,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
         self.timeouts: TimeoutManager = TimeoutManager(config)
         self.current_tier: Optional[ConnectionTier] = None
         self.current_connection: Optional[str] = None
+        self.current_connection_check_failures: int = 0
         self.connection_checker = ConnectionChecker(resolve_domain_name)
         logging.debug(
             "Initialized sticky_connection_period as %s seconds",
@@ -350,6 +352,23 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
         )
         return True
 
+    def should_keep_current_connection_on_check_failure(self) -> bool:
+        self.current_connection_check_failures += 1
+        if self.current_connection_check_failures < CONNECTIVITY_CHECK_FAILURES_TO_SWITCH:
+            logging.info(
+                "Current connection %s failed connectivity check (%s/%s), keeping it for now",
+                self.current_connection,
+                self.current_connection_check_failures,
+                CONNECTIVITY_CHECK_FAILURES_TO_SWITCH,
+            )
+            return True
+        logging.info(
+            "Current connection %s failed connectivity check %s times in a row, looking for another one",
+            self.current_connection,
+            self.current_connection_check_failures,
+        )
+        return False
+
     def try_to_activate_and_check(self, cn_id: str) -> bool:
         logging.debug("checking connection %s", cn_id)
         try:
@@ -382,6 +401,9 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
             # if tier is current, check current connection
             if self.current_tier and self.current_connection and self.current_tier.priority == tier.priority:
                 if self.current_connection_has_connectivity():
+                    self.current_connection_check_failures = 0
+                    return self.current_tier, self.current_connection
+                if self.should_keep_current_connection_on_check_failure():
                     return self.current_tier, self.current_connection
 
             # find already active connection in tier
@@ -676,6 +698,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
             self.timeouts.touch_sticky_timeout(device)
             self.current_connection = cn_id
             self.current_tier = tier
+            self.current_connection_check_failures = 0
             logging.info("Current connection changed to %s", cn_id)
         logging.debug("Current connection is the same (%s), not changing", cn_id)
 
