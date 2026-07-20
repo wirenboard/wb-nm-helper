@@ -1,3 +1,9 @@
+wb-nm-helper (1.38.2) stable; urgency=medium
+
+  * Recover connectivity after NM deactivates the current connection
+
+ -- Ilya Titov <ilya.titov@wirenboard.com>  Mon, 20 Jul 2026 11:14:00 +0300
+
 wb-nm-helper (1.38.1) stable; urgency=medium
 
   * Restart wb-mqtt-nm-helper on failure

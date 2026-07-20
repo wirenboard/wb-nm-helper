@@ -374,6 +374,13 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
             or cn_id != self.current_connection
         )
 
+    def current_connection_is_active(self) -> bool:
+        try:
+            return self.find_activated_connection(self.current_connection) is not None
+        except dbus.exceptions.DBusException as ex:
+            self._log_connection_check_error(self.current_connection, ex)
+            return False
+
     def check(self) -> (ConnectionTier, str):
         logging.debug("check(): starting iteration")
         self.timeouts.debug_log_timeouts()
@@ -383,6 +390,14 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
             if self.current_tier and self.current_connection and self.current_tier.priority == tier.priority:
                 if self.current_connection_has_connectivity():
                     return self.current_tier, self.current_connection
+                # Deactivated by NM behind our back: drop stale pointer so check() can reselect
+                if not self.current_connection_is_active():
+                    logging.info(
+                        "Current connection %s is no longer active, looking for a connection to activate",
+                        self.current_connection,
+                    )
+                    self.current_connection = None
+                    self.current_tier = None
 
             # find already active connection in tier
             for cn_id in tier.connections:
