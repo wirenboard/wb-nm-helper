@@ -374,13 +374,6 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
             or cn_id != self.current_connection
         )
 
-    def current_connection_is_active(self) -> bool:
-        try:
-            return self.find_activated_connection(self.current_connection) is not None
-        except dbus.exceptions.DBusException as ex:
-            self._log_connection_check_error(self.current_connection, ex)
-            return True
-
     def check(self) -> (ConnectionTier, str):
         logging.debug("check(): starting iteration")
         self.timeouts.debug_log_timeouts()
@@ -391,7 +384,7 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
                 if self.current_connection_has_connectivity():
                     return self.current_tier, self.current_connection
                 # Deactivated by NM behind our back: drop stale pointer so it can be re-activated
-                if not self.current_connection_is_active():
+                if not self.find_activated_connection(self.current_connection):
                     logging.info(
                         "Current connection %s was deactivated, re-activating", self.current_connection
                     )
