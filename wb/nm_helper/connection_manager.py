@@ -392,7 +392,9 @@ class ConnectionManager:  # pylint: disable=too-many-instance-attributes disable
                     return self.current_tier, self.current_connection
                 # Deactivated by NM behind our back: drop stale pointer so it can be re-activated
                 if not self.current_connection_is_active():
-                    logging.info("Current connection %s was deactivated, re-activating", self.current_connection)
+                    logging.info(
+                        "Current connection %s was deactivated, re-activating", self.current_connection
+                    )
                     self.current_connection = None
                     self.current_tier = None
 
