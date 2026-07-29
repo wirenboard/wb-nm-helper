@@ -32,6 +32,10 @@ METHOD_WIFI = "03_nm_wifi"
 METHOD_WIFI_AP = "04_nm_wifi_ap"
 
 
+def has_rtl8723bu(network_manager: NetworkManager) -> bool:
+    return any(dev.get_property("Driver") == "rtl8723bu" for dev in network_manager.get_devices())
+
+
 class ParamPathType(Enum):
     FLAT = 1
     TREE = 2
@@ -431,6 +435,11 @@ class WiFiAp(WiFiConnection):
         if "802-11-wireless-security" in con.params:
             # Disable WPS as it can lead to connection problems with MacOS and Linux
             con.set_value("802-11-wireless-security.wps-method", 1)
+            # rtl8723bu has no 802.11w support, its wiphy advertises no BIP cipher.
+            # Requesting PMF there makes hostapd install an IGTK at group key index 4,
+            # which cfg80211 rejects, and the access point never starts
+            if has_rtl8723bu(NetworkManager()):
+                con.set_value("802-11-wireless-security.pmf", 1)
         user_data = con.get_opt("user.data", dbus.Dictionary(signature="ss"))
         user_data["wb.disable-nat"] = "false" if iface.get_opt("nat", True) else "true"
         con.set_value("user.data", user_data)
@@ -667,13 +676,9 @@ class NetworkManagerAdapter:
 
     def get_wifi_bands(self) -> List[str]:
         bands = ["bg"]
-        has_rtl8723bu = False
         # rtl8723bu driver reports that it supports both 2.4GHz and 5GHz,
         # so we can't rely here on WirelessCapabilities property
         # of org.freedesktop.NetworkManager.Device.Wireless interface
-        for dev in self.network_manager.get_devices():
-            if dev.get_property("Driver") == "rtl8723bu":
-                has_rtl8723bu = True
-        if not has_rtl8723bu:
+        if not has_rtl8723bu(self.network_manager):
             bands.append("a")
         return bands
