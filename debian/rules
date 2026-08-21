@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-export PYBUILD_NAME=wb-nm-helper
+export PYBUILD_DESTDIR_python3=debian/wb-nm-helper
 
 %:
 	dh $@ --with config-package --with python3 --buildsystem pybuild
