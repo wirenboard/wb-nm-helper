@@ -612,8 +612,8 @@ class NetworkManagerAdapter:
         for con in self.network_manager.get_connections():
             c_settings = DBUSSettings(con.get_settings())
 
-            с_id = c_settings.get_opt("connection.id")
-            if keep_masks and any(mask in с_id for mask in keep_masks):
+            c_id = c_settings.get_opt("connection.id")
+            if keep_masks and any(mask in c_id for mask in keep_masks):
                 continue
 
             for handler in self.handlers.values():

@@ -7,10 +7,9 @@ Build-Depends: debhelper-compat (= 13),
                python3-all,
                python3-setuptools,
                config-package-dev,
-               python3-pytest,
-               python3-tomli,
+               python3-pytest <!nocheck>,
                python3-dbus,
-               python3-dbusmock,
+               python3-dbusmock <!nocheck>,
                python3-gi,
                python3-jsonschema,
                python3-pyparsing,
@@ -23,22 +22,23 @@ Homepage: https://github.com/wirenboard/wb-nm-helper
 Package: python3-wb-nm-helper
 Section: python
 Architecture: all
-Depends: ${python3:Depends},
-         ${misc:Depends},
+Depends: wb-nm-helper (>= 1.39.0)
+Description: transitional dummy package
+ This is a transitional dummy package. It can safely be removed.
+
+Package: wb-nm-helper
+Architecture: all
+Breaks: python3-wb-nm-helper (<< 1.39.0)
+Replaces: python3-wb-nm-helper (<< 1.39.0)
+Provides: python3-wb-nm-helper
+Depends: ${misc:Depends},
+         ${python3:Depends},
          python3-pyparsing,
          python3-dbus,
          python3-gi,
          python3-pycurl,
          python3-dnspython,
-         python3-wb-common (>= 2.1.1)
-Description: Wirenboard network configuration python3 library
- The package includes utility functions for wb-nm-helper.
-
-Package: wb-nm-helper
-Architecture: all
-Depends: ${misc:Depends},
-         python3 (>= 3.9),
-         python3-wb-nm-helper (= ${binary:Version}),
+         python3-wb-common (>= 2.1.1),
          wb-mqtt-homeui (>= 2.56.0~~),
          wb-mqtt-confed (>= 1.13.0~~),
          network-manager,
@@ -47,5 +47,5 @@ Depends: ${misc:Depends},
          wb-configs (>= 3.4.0),
          nftables,
          ifmetric
-Description:  Wirenboard network configuration backend for wb-mqtt-confed.
+Description: Wirenboard network configuration backend for wb-mqtt-confed.
  The package includes wb-mqtt-confed backend software for network interfaces management.
