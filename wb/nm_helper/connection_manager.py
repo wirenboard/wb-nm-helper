@@ -1,9 +1,11 @@
+import argparse
 import datetime
 import json
 import logging
 import signal
 import subprocess
 import sys
+import threading
 import time
 from typing import Dict, Iterator, List, Optional
 
@@ -28,6 +30,7 @@ from wb.nm_helper.network_manager import (
 )
 
 EXIT_NOT_CONFIGURED = 6
+EXIT_STOPPED = 7
 
 LOGGING_FORMAT = "%(message)s"
 CONFIG_FILE = "/etc/wb-connection-manager.conf"
@@ -271,8 +274,10 @@ class TimeoutManager:  # pylint: disable=too-many-instance-attributes
         return False
 
 
-def read_config_json():
-    with open(CONFIG_FILE, encoding="utf-8") as file:
+def read_config_json(config_file=None):
+    if config_file is None:
+        config_file = CONFIG_FILE
+    with open(config_file, encoding="utf-8") as file:
         return json.load(file)
 
 
@@ -801,41 +806,72 @@ def request_dbus_name(bus, name: str) -> None:
     )
 
 
-def main():
-    bus = dbus.SystemBus()
-    request_dbus_name(bus, DBUS_SERVICE_NAME)
-    network_manager = NetworkManager()
+def _build_argument_parser():
+    parser = argparse.ArgumentParser(
+        description="Wiren Board network connection manager"
+    )
+    parser.add_argument(
+        "-c",
+        "--config",
+        default=CONFIG_FILE,
+        help="Path to configuration file",
+    )
+    return parser
+
+
+def main(argv=None):
+    options = _build_argument_parser().parse_args([] if argv is None else argv)
     try:
-        cfg_json = read_config_json()
+        if options.config == CONFIG_FILE:
+            cfg_json = read_config_json()
+        else:
+            cfg_json = read_config_json(options.config)
     except (
         FileNotFoundError,
         PermissionError,
         OSError,
         json.decoder.JSONDecodeError,
     ) as ex:
-        logging.error("Loading %s failed: %s", CONFIG_FILE, ex)
+        logging.error("Loading %s failed: %s", options.config, ex)
         return EXIT_NOT_CONFIGURED
 
-    init_logging(cfg_json.get("debug", False))  # must be initialized before NetworkAwareConfigFile
-
     try:
-        config = NetworkAwareConfigFile(network_manager=network_manager)
-        config.load_config(cfg=cfg_json)
-    except ImproperlyConfigured as ex:
+        debug = cfg_json.get("debug", False)
+    except (AttributeError, TypeError) as ex:
         logging.error("Configuration error: %s", ex)
         return EXIT_NOT_CONFIGURED
 
-    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    init_logging(debug)  # must be initialized before NetworkAwareConfigFile
 
-    if config.has_connections():
-        manager = ConnectionManager(network_manager=network_manager, config=config, bus=bus)
-        while True:
-            manager.cycle_loop()
-            time.sleep(CHECK_PERIOD.total_seconds())
-    else:
+    network_manager = NetworkManager()
+    try:
+        config = NetworkAwareConfigFile(network_manager=network_manager)
+        config.load_config(cfg=cfg_json)
+    except (ImproperlyConfigured, AttributeError, TypeError) as ex:
+        logging.error("Configuration error: %s", ex)
+        return EXIT_NOT_CONFIGURED
+
+    if not config.has_connections():
         logging.info("Nothing to manage")
-        return 0
+        return EXIT_STOPPED
+
+    stop_requested = threading.Event()
+
+    def stop_handler(_signum, _frame):
+        stop_requested.set()
+
+    signal.signal(signal.SIGINT, stop_handler)
+    signal.signal(signal.SIGTERM, stop_handler)
+
+    bus = dbus.SystemBus()
+    request_dbus_name(bus, DBUS_SERVICE_NAME)
+    manager = ConnectionManager(network_manager=network_manager, config=config, bus=bus)
+    while not stop_requested.is_set():
+        manager.cycle_loop()
+        stop_requested.wait(CHECK_PERIOD.total_seconds())
+    logging.info("Stop signal received")
+    return EXIT_STOPPED
 
 
 if __name__ == "__main__":
-    sys.exit(main())  # pragma: no cover
+    sys.exit(main(sys.argv[1:]))  # pragma: no cover

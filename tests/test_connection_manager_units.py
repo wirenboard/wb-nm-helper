@@ -2057,6 +2057,29 @@ class MainTests(TestCase):
         self.assertEqual([call()], connection_manager.read_config_json.mock_calls)
         self.assertEqual([], connection_manager.init_logging.mock_calls)
 
+    def test_alternative_config_path(self):
+        connection_manager.read_config_json = MagicMock(side_effect=FileNotFoundError())
+
+        result = connection_manager.main(["-c", "/tmp/custom.conf"])
+
+        self.assertEqual(
+            [call("/tmp/custom.conf")], connection_manager.read_config_json.mock_calls
+        )
+        self.assertEqual(connection_manager.EXIT_NOT_CONFIGURED, result)
+
+    def test_unknown_argument_returns_2(self):
+        with self.assertRaises(SystemExit) as error:
+            connection_manager.main(["--unknown"])
+
+        self.assertEqual(2, error.exception.code)
+
+    def test_non_object_config_returns_6(self):
+        connection_manager.read_config_json = MagicMock(return_value=[])
+
+        result = connection_manager.main()
+
+        self.assertEqual(connection_manager.EXIT_NOT_CONFIGURED, result)
+
     def test_config_errors_01_improperly_configured(self):
         connection_manager.read_config_json = MagicMock(return_value=self.dummy_json)
         self.dummy_json.get = MagicMock(return_value="DUMMY_DEBUG")
@@ -2120,9 +2143,9 @@ class MainTests(TestCase):
         self.assertEqual(
             [call(cfg=self.dummy_json)], connection_manager.NetworkAwareConfigFile.load_config.mock_calls
         )
-        self.assertEqual([call(signal.SIGINT, signal.SIG_DFL)], mock_signal.mock_calls)
+        self.assertEqual([], mock_signal.mock_calls)
         self.assertEqual([call()], DummyConfigFile.has_connections.mock_calls)
-        self.assertEqual(0, result)
+        self.assertEqual(connection_manager.EXIT_STOPPED, result)
 
     def test_later_main_stage_success(self):
         connection_manager.read_config_json = MagicMock(return_value=self.dummy_json)
@@ -2131,19 +2154,24 @@ class MainTests(TestCase):
         DummyConfigFile.load_config = MagicMock()
         DummyConfigFile.has_connections = MagicMock(return_value=True)
         connection_manager.ConnectionManager.cycle_loop = MagicMock()
+        signal_handlers = {}
 
-        with patch.object(signal, "signal") as mock_signal, patch.object(
-            DummyConfigFile, "__init__"
-        ) as mock_config_init, patch.object(
+        def register_signal(signum, handler):
+            signal_handlers[signum] = handler
+
+        def stop_during_cycle():
+            signal_handlers[signal.SIGTERM](signal.SIGTERM, None)
+
+        connection_manager.ConnectionManager.cycle_loop.side_effect = stop_during_cycle
+
+        with patch.object(
+            signal, "signal", side_effect=register_signal
+        ) as mock_signal, patch.object(DummyConfigFile, "__init__") as mock_config_init, patch.object(
             connection_manager.ConnectionManager, "__init__"
-        ) as mock_cm_init, patch.object(
-            time, "sleep"
-        ) as mock_sleep:
+        ) as mock_cm_init:
             mock_cm_init.return_value = None
             mock_config_init.return_value = None
-            mock_sleep.side_effect = [1, 2, 3]
-            with self.assertRaises(StopIteration):
-                connection_manager.main()
+            result = connection_manager.main()
 
         self.assertEqual([call()], connection_manager.read_config_json.mock_calls)
         self.assertEqual([call("DUMMY_DEBUG")], connection_manager.init_logging.mock_calls)
@@ -2151,7 +2179,10 @@ class MainTests(TestCase):
         self.assertEqual(
             [call(cfg=self.dummy_json)], connection_manager.NetworkAwareConfigFile.load_config.mock_calls
         )
-        self.assertEqual([call(signal.SIGINT, signal.SIG_DFL)], mock_signal.mock_calls)
+        self.assertEqual(
+            [signal.SIGINT, signal.SIGTERM],
+            [item.args[0] for item in mock_signal.mock_calls],
+        )
         self.assertEqual([call()], DummyConfigFile.has_connections.mock_calls)
         self.assertEqual(1, mock_cm_init.call_count)
         self.assertEqual(3, len(mock_cm_init.mock_calls[0].kwargs))
@@ -2159,15 +2190,5 @@ class MainTests(TestCase):
             isinstance(mock_cm_init.mock_calls[0].kwargs.get("network_manager"), DummyNetworkManager)
         )
         self.assertTrue(isinstance(mock_cm_init.mock_calls[0].kwargs.get("config"), DummyConfigFile))
-        self.assertEqual(
-            [call(), call(), call(), call()], connection_manager.ConnectionManager.cycle_loop.mock_calls
-        )
-        self.assertEqual(
-            [
-                call(connection_manager.CHECK_PERIOD.total_seconds()),
-                call(connection_manager.CHECK_PERIOD.total_seconds()),
-                call(connection_manager.CHECK_PERIOD.total_seconds()),
-                call(connection_manager.CHECK_PERIOD.total_seconds()),
-            ],
-            mock_sleep.mock_calls,
-        )
+        self.assertEqual([call()], connection_manager.ConnectionManager.cycle_loop.mock_calls)
+        self.assertEqual(connection_manager.EXIT_STOPPED, result)
