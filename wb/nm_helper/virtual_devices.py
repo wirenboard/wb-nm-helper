@@ -212,7 +212,7 @@ class MqttConnectionState:  # pylint: disable=R0902
 
 
 class ConnectionsMediator(Mediator):  # pylint: disable=R0902
-    def __init__(self, mqtt_client, connectivity_config=None, config_path=CONFIG_FILE) -> None:
+    def __init__(self, mqtt_client, config_path=CONFIG_FILE) -> None:
         super().__init__()
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
         dbus.mainloop.glib.threads_init()
@@ -223,12 +223,7 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
         self._common_connections = {}
         self._active_connections = {}
         self._event_loop = EventLoop()
-        self._connectivity_updater = ConnectivityUpdater(
-            self,
-            self._bus,
-            connectivity_config or load_connectivity_config({}),
-            config_path,
-        )
+        self._connectivity_updater = ConnectivityUpdater(self, self._bus, config_path)
 
         self._set_connections_event_handlers()
         self._deactivation_monitor = DeactivationMonitor(self)
@@ -440,9 +435,6 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
             self._update_common_connection(active_connection.connection_path, active_connection.state)
 
     def _reload_connectivity(self):
-        if not self._connectivity_updater.reload_config():
-            self.request_stop(EXIT_NOT_CONFIGURED)
-            return
         for active_connection in self._active_connections:
             self._connectivity_updater.update(active_connection, CONNECTIVITY_CHECK_PERIOD)
 
@@ -521,22 +513,13 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
 
 
 class ConnectivityUpdater:
-    def __init__(self, mediator: Mediator, bus: dbus.Bus, config: ConfigFile, config_path: str):
+    def __init__(self, mediator: Mediator, bus: dbus.Bus, config_path: str):
         self._mediator = mediator
         self._bus = bus
         self._event_loop = EventLoop()
         self._futures = {}
         self._connection_checker = ConnectionChecker()
-        self._config = config
         self._config_path = config_path
-
-    def reload_config(self) -> bool:
-        try:
-            self._config = load_connectivity_config_file(self._config_path)
-            return True
-        except (OSError, json.JSONDecodeError, ImproperlyConfigured, TypeError, AttributeError) as ex:
-            logging.error("Unable to reload %s: %s", self._config_path, ex)
-            return False
 
     def run(self):
         self._event_loop.run()
@@ -589,10 +572,11 @@ class ConnectivityUpdater:
             connectivity = False
             try:
                 nm_active_connection = NMActiveConnection(active_connection_path, self._bus)
+                config = load_connectivity_config_file(self._config_path)
                 connectivity = check_connectivity(
                     nm_active_connection,
                     self._connection_checker,
-                    config=self._config,
+                    config=config,
                 )
             except BaseException as ex:  # pylint: disable=W0718
                 logging.error("Unable to read connectivity for %s: %s", active_connection_path, ex)
@@ -1222,14 +1206,14 @@ def _stop_mqtt_service(mqtt_client, connections_mediator, remove_devices):
         mqtt_client.stop()
 
 
-def _run_service(options, connectivity_config):
+def _run_service(options):
     mqtt_client = None
     connections_mediator = None
     exit_code = EXIT_FAILURE
     remove_devices = False
     try:
         mqtt_client = MQTTClient("connections-virtual-devices", options.broker)
-        connections_mediator = ConnectionsMediator(mqtt_client, connectivity_config, options.config)
+        connections_mediator = ConnectionsMediator(mqtt_client, options.config)
 
         def stop_virtual_connections_client(_, __):
             connections_mediator.request_stop(EXIT_STOPPED)
@@ -1247,7 +1231,7 @@ def _run_service(options, connectivity_config):
             connections_mediator.mark_mqtt_unavailable()
 
         exit_code = connections_mediator.run()
-        remove_devices = exit_code in (EXIT_NOT_CONFIGURED, EXIT_STOPPED)
+        remove_devices = exit_code == EXIT_STOPPED
     except KeyboardInterrupt:
         exit_code = EXIT_STOPPED
         remove_devices = True
@@ -1271,11 +1255,11 @@ def main(argv=None):
         return _reload_process(options.main_process_pid)
 
     try:
-        connectivity_config = load_connectivity_config_file(options.config)
+        load_connectivity_config_file(options.config)
     except (OSError, json.JSONDecodeError, ImproperlyConfigured, TypeError, AttributeError) as error:
         logging.error("Unable to load %s: %s", options.config, error)
         return EXIT_NOT_CONFIGURED
-    return _run_service(options, connectivity_config)
+    return _run_service(options)
 
 
 if __name__ == "__main__":

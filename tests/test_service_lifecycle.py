@@ -1,7 +1,9 @@
+import asyncio
+import json
 import logging
 import signal
 from concurrent.futures import Future
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -132,42 +134,40 @@ def test_async_event_failure_stops_main_loop():
     idle_add.assert_called_once_with(mediator._dbus_loop.quit)
 
 
-def test_invalid_config_reload_requests_exit_6():
+def test_reload_only_restarts_connectivity_checks():
     mediator = object.__new__(virtual_devices.ConnectionsMediator)
     mediator._connectivity_updater = MagicMock()
-    mediator._connectivity_updater.reload_config.return_value = False
-    mediator._active_connections = {"/active/1": MagicMock()}
-    mediator.request_stop = MagicMock()
+    mediator._active_connections = {
+        "/active/1": MagicMock(),
+        "/active/2": MagicMock(),
+    }
 
     mediator._reload_connectivity()
 
-    mediator.request_stop.assert_called_once_with(virtual_devices.EXIT_NOT_CONFIGURED)
-    mediator._connectivity_updater.update.assert_not_called()
+    assert mediator._connectivity_updater.update.call_args_list == [
+        call("/active/1", virtual_devices.CONNECTIVITY_CHECK_PERIOD),
+        call("/active/2", virtual_devices.CONNECTIVITY_CHECK_PERIOD),
+    ]
 
 
-def test_invalid_config_reload_cleans_up_mqtt_topics():
-    mqtt_client = MagicMock()
-    mqtt_client.is_connected.return_value = True
-    mediator = MagicMock()
-    mediator.run.return_value = virtual_devices.EXIT_NOT_CONFIGURED
-    publication = MagicMock()
-    publication.is_published.return_value = True
-    mediator.stop.return_value = [publication]
+def test_invalid_connectivity_config_is_reported_without_stopping(caplog):
+    updater = object.__new__(virtual_devices.ConnectivityUpdater)
+    updater._bus = MagicMock()
+    updater._connection_checker = MagicMock()
+    updater._config_path = "/tmp/invalid.conf"
+    updater._mediator = MagicMock()
 
-    with patch.object(
-        virtual_devices, "load_connectivity_config_file", return_value=MagicMock()
-    ), patch.object(virtual_devices, "MQTTClient", return_value=mqtt_client), patch.object(
-        virtual_devices, "ConnectionsMediator", return_value=mediator
-    ), patch.object(
-        virtual_devices.wbmqtt, "remove_topics_by_device_prefix"
-    ), patch.object(
-        virtual_devices.signal, "signal"
-    ):
-        assert virtual_devices.main([]) == virtual_devices.EXIT_NOT_CONFIGURED
+    with patch.object(virtual_devices, "NMActiveConnection"), patch.object(
+        virtual_devices,
+        "load_connectivity_config_file",
+        side_effect=json.JSONDecodeError("invalid", "{", 1),
+    ), caplog.at_level(logging.ERROR):
+        asyncio.run(updater._check_connectivity("/active/1", None))
 
-    mediator.stop.assert_called_once_with(remove_devices=True)
-    publication.wait_for_publish.assert_called_once()
-    mqtt_client.stop.assert_called_once_with()
+    event = updater._mediator.new_event.call_args.args[0]
+    assert event.type == virtual_devices.EventType.ACTIVE_CONNECTIVITY_UPDATED
+    assert event.kwargs["connectivity"] is False
+    assert "Unable to read connectivity for /active/1" in caplog.messages[0]
 
 
 def test_disconnected_cleanup_is_reported(caplog):
