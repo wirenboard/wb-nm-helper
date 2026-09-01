@@ -132,6 +132,19 @@ def test_async_event_failure_stops_main_loop():
     idle_add.assert_called_once_with(mediator._dbus_loop.quit)
 
 
+def test_invalid_config_reload_requests_exit_6():
+    mediator = object.__new__(virtual_devices.ConnectionsMediator)
+    mediator._connectivity_updater = MagicMock()
+    mediator._connectivity_updater.reload_config.return_value = False
+    mediator._active_connections = {"/active/1": MagicMock()}
+    mediator.request_stop = MagicMock()
+
+    mediator._reload_connectivity()
+
+    mediator.request_stop.assert_called_once_with(virtual_devices.EXIT_NOT_CONFIGURED)
+    mediator._connectivity_updater.update.assert_not_called()
+
+
 def test_disconnected_cleanup_is_reported(caplog):
     mqtt_client = MagicMock()
     mqtt_client.is_connected.return_value = False

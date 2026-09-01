@@ -441,6 +441,7 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
 
     def _reload_connectivity(self):
         if not self._connectivity_updater.reload_config():
+            self.request_stop(EXIT_NOT_CONFIGURED)
             return
         for active_connection in self._active_connections:
             self._connectivity_updater.update(active_connection, CONNECTIVITY_CHECK_PERIOD)
