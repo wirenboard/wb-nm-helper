@@ -1,3 +1,9 @@
+wb-nm-helper (1.39.1) stable; urgency=medium
+
+  * Align wb-mqtt-nm-helper lifecycle with controller service requirements
+
+ -- Wiren Board Team <info@wirenboard.com>  Tue, 01 Sep 2026 18:00:00 +0000
+
 wb-nm-helper (1.39.0) stable; urgency=medium
 
   * Convert python3-wb-nm-helper into transitional dummy package

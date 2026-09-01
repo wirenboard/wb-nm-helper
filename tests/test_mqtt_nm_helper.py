@@ -72,7 +72,7 @@ class MQTTNetworkManagerTest(dbusmock.DBusTestCase):
         self.mediator = wb.nm_helper.virtual_devices.ConnectionsMediator(mqtt_mock)
         self.mediator.run()
 
-    def publish(self, topic, value, retain):  # pylint: disable=unused-argument
+    def publish(self, topic, value, retain, qos=0):  # pylint: disable=unused-argument
         self.mqtt_publications.append((topic, value))
 
     def tearDown(self):

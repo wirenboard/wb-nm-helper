@@ -9,6 +9,8 @@ RestartSec=2
 User=root
 ExecStart=/usr/bin/wb-mqtt-nm-helper
 ExecReload=/usr/bin/wb-mqtt-nm-helper --reload $MAINPID
+RestartPreventExitStatus=2 6
+SuccessExitStatus=7
 
 [Install]
 WantedBy=multi-user.target

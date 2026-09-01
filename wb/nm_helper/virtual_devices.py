@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import copy
 import enum
+import json
 import logging
 import os
 import signal
@@ -11,6 +12,7 @@ import threading
 import traceback
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from urllib.parse import urlparse
 
 import dbus
 import dbus.lowlevel
@@ -21,13 +23,54 @@ from wb_common.mqtt_client import DEFAULT_BROKER_URL, MQTTClient
 
 from wb.nm_helper import wbmqtt
 from wb.nm_helper.connection_checker import ConnectionChecker
-from wb.nm_helper.connection_manager import DBUS_SERVICE_NAME, check_connectivity
+from wb.nm_helper.connection_manager import (
+    CONFIG_FILE,
+    DBUS_SERVICE_NAME,
+    ConfigFile,
+    ImproperlyConfigured,
+    check_connectivity,
+)
 from wb.nm_helper.network_manager import NMActiveConnection
 
 CONNECTIVITY_CHECK_PERIOD = 20
 MQTT_DRIVER_NAME = "wb-nm-helper"
 MQTT_DEVICE_TOPIC_PREFIX = "system__networks__"
 PERMANENT_CONNECTED_TYPES = ["loopback", "bridge", "tun"]
+EXIT_FAILURE = 1
+EXIT_INVALID_ARGUMENT = 2
+EXIT_NOT_CONFIGURED = 6
+EXIT_STOPPED = 7
+MQTT_AUTH_ERROR_CODES = (4, 5)
+MQTT_NETWORK_SCHEMES = ("mqtt-tcp", "tcp", "ws")
+
+
+def load_connectivity_config(config_data) -> ConfigFile:
+    config = ConfigFile()
+    config.load_config(config_data)
+    return config
+
+
+def load_connectivity_config_file(config_path) -> ConfigFile:
+    with open(config_path, encoding="utf-8") as config_file:
+        return load_connectivity_config(json.load(config_file))
+
+
+def broker_url(value):
+    parsed_url = urlparse(value)
+    if parsed_url.scheme == "unix":
+        if parsed_url.path:
+            return value
+        raise argparse.ArgumentTypeError("unix broker URL must contain a socket path")
+
+    if parsed_url.scheme not in MQTT_NETWORK_SCHEMES:
+        raise argparse.ArgumentTypeError(f"unsupported broker URL scheme: {parsed_url.scheme}")
+    try:
+        port = parsed_url.port
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(f"invalid broker port: {error}") from error
+    if not parsed_url.hostname or port is None or port == 0:
+        raise argparse.ArgumentTypeError("network broker URL must contain a host and a valid port")
+    return value
 
 
 class EventLoop:
@@ -169,7 +212,7 @@ class MqttConnectionState:  # pylint: disable=R0902
 
 
 class ConnectionsMediator(Mediator):  # pylint: disable=R0902
-    def __init__(self, mqtt_client) -> None:
+    def __init__(self, mqtt_client, connectivity_config=None, config_path=CONFIG_FILE) -> None:
         super().__init__()
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
         dbus.mainloop.glib.threads_init()
@@ -180,28 +223,57 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
         self._common_connections = {}
         self._active_connections = {}
         self._event_loop = EventLoop()
-        self._connectivity_updater = ConnectivityUpdater(self, self._bus)
+        self._connectivity_updater = ConnectivityUpdater(
+            self,
+            self._bus,
+            connectivity_config or load_connectivity_config({}),
+            config_path,
+        )
 
         self._set_connections_event_handlers()
         self._deactivation_monitor = DeactivationMonitor(self)
         self._mosquitto_monitor = MosquittoMonitor(self, mqtt_client)
+        self._exit_code = None
+        self._stopped = False
 
     def run(self):
+        if self._exit_code is not None:
+            return self._exit_code
+
         self._event_loop.run()
         self._connectivity_updater.run()
 
-        self._create_common_connections()
+        if not self._create_common_connections():
+            logging.info("No NetworkManager connections, nothing to do")
+            return EXIT_STOPPED
         self._create_active_connections()
 
+        if self._exit_code is not None:
+            return self._exit_code
         self._dbus_loop.run()
+        return self._exit_code if self._exit_code is not None else EXIT_FAILURE
 
-    def stop(self):
+    def request_stop(self, exit_code: int) -> None:
+        if self._exit_code is None:
+            self._exit_code = exit_code
+        GLib.idle_add(self._dbus_loop.quit)
+
+    def mark_mqtt_unavailable(self) -> None:
+        self._mosquitto_monitor.mark_disconnected()
+
+    def stop(self, remove_devices=False):
+        if self._stopped:
+            return []
+        self._stopped = True
         self._event_loop.stop()
         self._connectivity_updater.stop()
         self._deactivation_monitor.stop()
         self._dbus_loop.quit()
-        for connection in self._common_connections.values():
-            connection.stop()
+        publications = []
+        if remove_devices:
+            for connection in self._common_connections.values():
+                publications.extend(connection.stop())
+        return publications
 
     # Signals handlers
 
@@ -242,6 +314,7 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
 
         for connection_path in connections_paths:
             self.new_event(Event(EventType.COMMON_CREATE, path=connection_path))
+        return bool(connections_paths)
 
     def _create_active_connections(self):
         active_connections_proxy = self._bus.get_object(
@@ -367,6 +440,8 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
             self._update_common_connection(active_connection.connection_path, active_connection.state)
 
     def _reload_connectivity(self):
+        if not self._connectivity_updater.reload_config():
+            return
         for active_connection in self._active_connections:
             self._connectivity_updater.update(active_connection, CONNECTIVITY_CHECK_PERIOD)
 
@@ -435,16 +510,32 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
             raise
 
     def new_event(self, event: Event):
-        self._event_loop.run_coroutine_threadsafe(self._run_async_event(event))
+        future = self._event_loop.run_coroutine_threadsafe(self._run_async_event(event))
+
+        def event_done(done_future):
+            if not done_future.cancelled() and done_future.exception() is not None:
+                self.request_stop(EXIT_FAILURE)
+
+        future.add_done_callback(event_done)
 
 
 class ConnectivityUpdater:
-    def __init__(self, mediator: Mediator, bus: dbus.Bus):
+    def __init__(self, mediator: Mediator, bus: dbus.Bus, config: ConfigFile, config_path: str):
         self._mediator = mediator
         self._bus = bus
         self._event_loop = EventLoop()
         self._futures = {}
         self._connection_checker = ConnectionChecker()
+        self._config = config
+        self._config_path = config_path
+
+    def reload_config(self) -> bool:
+        try:
+            self._config = load_connectivity_config_file(self._config_path)
+            return True
+        except (OSError, json.JSONDecodeError, ImproperlyConfigured, TypeError, AttributeError) as ex:
+            logging.error("Unable to reload %s: %s", self._config_path, ex)
+            return False
 
     def run(self):
         self._event_loop.run()
@@ -497,7 +588,11 @@ class ConnectivityUpdater:
             connectivity = False
             try:
                 nm_active_connection = NMActiveConnection(active_connection_path, self._bus)
-                connectivity = check_connectivity(nm_active_connection, self._connection_checker)
+                connectivity = check_connectivity(
+                    nm_active_connection,
+                    self._connection_checker,
+                    config=self._config,
+                )
             except BaseException as ex:  # pylint: disable=W0718
                 logging.error("Unable to read connectivity for %s: %s", active_connection_path, ex)
 
@@ -649,8 +744,11 @@ class CommonConnection:  # pylint: disable=R0902
 
     def stop(self):
         if self._mqtt_device is not None:
-            self._mqtt_device.remove_device()
+            publications = self._mqtt_device.remove_device()
+        else:
+            publications = []
         logging.info("Remove virtual device %s %s %s", self._name, self._uuid, self._path)
+        return publications
 
     def activate(self):
         try:
@@ -1022,18 +1120,35 @@ class MosquittoMonitor:  # pylint: disable=R0903
 
         self._was_disconnected = False
 
-    def _on_connect(self, _, __, ___, ____):
+    def mark_disconnected(self) -> None:
+        self._was_disconnected = True
+
+    def _on_connect(self, _, __, ___, reason_code, *_args):
+        code = getattr(reason_code, "value", reason_code)
+        if code in MQTT_AUTH_ERROR_CODES:
+            self._was_disconnected = True
+            logging.error("MQTT authentication failed (rc=%s)", code)
+            self._mediator.request_stop(EXIT_INVALID_ARGUMENT)
+            return
+        if code != 0:
+            self._was_disconnected = True
+            logging.error("MQTT connection failed (rc=%s)", code)
+            self._mediator.request_stop(EXIT_FAILURE)
+            return
+
         logging.info("Mosquitto was connected")
         if self._was_disconnected:
             self._mediator.new_event(Event(EventType.RELOAD_CONNECTIONS))
             self._was_disconnected = False
 
-    def _on_disconnect(self, _, __, ___):
-        self._was_disconnected = True
-        logging.warning("Mosquitto was disconnected")
+    def _on_disconnect(self, _, __, reason_code, *_args):
+        code = getattr(reason_code, "value", reason_code)
+        self._was_disconnected = code != 0
+        if self._was_disconnected:
+            logging.warning("Mosquitto was disconnected")
 
 
-def main():
+def _build_argument_parser():
     parser = argparse.ArgumentParser(description="Service for creating virtual connection devices")
     parser.add_argument(
         "-d",
@@ -1050,7 +1165,15 @@ def main():
         help="Set broker URL",
         default=DEFAULT_BROKER_URL,
         dest="broker",
+        type=broker_url,
         required=False,
+    )
+    parser.add_argument(
+        "-c",
+        "--config",
+        help="Path to connection manager configuration",
+        default=CONFIG_FILE,
+        dest="config",
     )
     parser.add_argument(
         "-r",
@@ -1058,10 +1181,84 @@ def main():
         help="Reload main process of this service",
         dest="main_process_pid",
         default=0,
+        type=int,
         required=False,
     )
-    options = parser.parse_args()
+    return parser
 
+
+def _reload_process(process_id):
+    try:
+        pid_fd = os.pidfd_open(process_id, 0)
+        try:
+            signal.pidfd_send_signal(pid_fd, signal.SIGHUP)
+        finally:
+            os.close(pid_fd)
+    except (OSError, ValueError) as error:
+        logging.error("Unable to reload process %s: %s", process_id, error)
+        return EXIT_INVALID_ARGUMENT
+    logging.info("Send SIGHUP signal to %s process", process_id)
+    return 0
+
+
+def _stop_mqtt_service(mqtt_client, connections_mediator, remove_devices):
+    logging.info("Stopping")
+    publications = []
+    if connections_mediator is not None:
+        publications = connections_mediator.stop(remove_devices=remove_devices)
+    if remove_devices and mqtt_client is not None:
+        if mqtt_client.is_connected():
+            unconfirmed = wbmqtt.wait_for_publications(publications)
+            if unconfirmed:
+                logging.error(
+                    "Failed to clear %d of %d retained MQTT topics",
+                    unconfirmed,
+                    len(publications),
+                )
+        else:
+            logging.error("Unable to remove virtual devices: MQTT broker is unavailable")
+    if mqtt_client is not None:
+        mqtt_client.stop()
+
+
+def _run_service(options, connectivity_config):
+    mqtt_client = None
+    connections_mediator = None
+    exit_code = EXIT_FAILURE
+    remove_devices = False
+    try:
+        mqtt_client = MQTTClient("connections-virtual-devices", options.broker)
+        connections_mediator = ConnectionsMediator(mqtt_client, connectivity_config, options.config)
+
+        def stop_virtual_connections_client(_, __):
+            connections_mediator.request_stop(EXIT_STOPPED)
+
+        def reload_virtual_connections_client(_, __):
+            connections_mediator.new_event(Event(EventType.RELOAD_CONNECTIVITY))
+
+        signal.signal(signal.SIGINT, stop_virtual_connections_client)
+        signal.signal(signal.SIGTERM, stop_virtual_connections_client)
+        signal.signal(signal.SIGHUP, reload_virtual_connections_client)
+
+        mqtt_client.start()
+        wbmqtt.remove_topics_by_device_prefix(mqtt_client, MQTT_DEVICE_TOPIC_PREFIX, timeout=1.0)
+        if not mqtt_client.is_connected():
+            connections_mediator.mark_mqtt_unavailable()
+
+        exit_code = connections_mediator.run()
+        remove_devices = exit_code == EXIT_STOPPED
+    except KeyboardInterrupt:
+        exit_code = EXIT_STOPPED
+        remove_devices = True
+    except Exception as error:  # pylint: disable=broad-except
+        logging.error("wb-mqtt-nm-helper failed: %s", error)
+    finally:
+        _stop_mqtt_service(mqtt_client, connections_mediator, remove_devices)
+    return exit_code
+
+
+def main(argv=None):
+    options = _build_argument_parser().parse_args(argv)
     if options.debug:
         logging_level = logging.DEBUG
     else:
@@ -1070,37 +1267,14 @@ def main():
     logging.basicConfig(level=logging_level)
 
     if options.main_process_pid:
-        pid_fd = os.pidfd_open(int(options.main_process_pid), 0)
-        signal.pidfd_send_signal(pid_fd, signal.SIGHUP)
-        logging.info("Send SIGHUP signal to %s process", options.main_process_pid)
-        return
-
-    mqtt_client = MQTTClient("connections-virtual-devices", options.broker)
-    mqtt_client.start()
-
-    wbmqtt.remove_topics_by_device_prefix(mqtt_client, MQTT_DEVICE_TOPIC_PREFIX)
-
-    connections_mediator = ConnectionsMediator(mqtt_client)
-
-    def stop_virtual_connections_client(_, __):
-        connections_mediator.stop()
-        mqtt_client.stop()
-
-    def reload_virtual_connections_client(_, __):
-        connections_mediator.new_event(Event(EventType.RELOAD_CONNECTIVITY))
-
-    signal.signal(signal.SIGINT, stop_virtual_connections_client)
-    signal.signal(signal.SIGTERM, stop_virtual_connections_client)
-    signal.signal(signal.SIGHUP, reload_virtual_connections_client)
+        return _reload_process(options.main_process_pid)
 
     try:
-        connections_mediator.run()
-    except (KeyboardInterrupt, dbus.exceptions.DBusException):
-        pass
-    finally:
-        logging.info("Stopping")
-        connections_mediator.stop()
-        mqtt_client.stop()
+        connectivity_config = load_connectivity_config_file(options.config)
+    except (OSError, json.JSONDecodeError, ImproperlyConfigured, TypeError, AttributeError) as error:
+        logging.error("Unable to load %s: %s", options.config, error)
+        return EXIT_NOT_CONFIGURED
+    return _run_service(options, connectivity_config)
 
 
 if __name__ == "__main__":

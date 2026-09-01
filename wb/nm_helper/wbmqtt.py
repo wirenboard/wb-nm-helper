@@ -2,6 +2,9 @@ import json
 import logging
 import random
 import threading
+import time
+
+MQTT_CLEANUP_TIMEOUT_S = 2.0
 
 
 class ControlMeta:  # pylint: disable=R0903
@@ -36,11 +39,14 @@ class Device:
         for mqtt_control_name in self._controls.copy():
             self.republish_control(mqtt_control_name)
 
-    def remove_device(self) -> None:
-        self._publish(self._base_topic + "/meta/driver", None)
-        self._publish(self._base_topic + "/meta/name", None)
+    def remove_device(self) -> list:
+        publications = [
+            self._publish(self._base_topic + "/meta/driver", None, qos=1),
+            self._publish(self._base_topic + "/meta/name", None, qos=1),
+        ]
         for mqtt_control_name in self._controls.copy():
-            self.remove_control(mqtt_control_name)
+            publications.extend(self.remove_control(mqtt_control_name))
+        return publications
 
     def create_control(self, mqtt_control_name: str, meta: ControlMeta, value: str) -> None:
         self._controls[mqtt_control_name] = ControlState(meta, None)
@@ -54,11 +60,14 @@ class Device:
                 self._publish_control_meta(mqtt_control_name, control.meta)
                 self.set_control_value(mqtt_control_name, control.value, force=True)
 
-    def remove_control(self, mqtt_control_name: str) -> None:
+    def remove_control(self, mqtt_control_name: str) -> list:
         if mqtt_control_name in self._controls:
             self._controls.pop(mqtt_control_name)
-            self._publish(self._get_control_base_topic(mqtt_control_name), None)
-            self._publish(self._get_control_base_topic(mqtt_control_name) + "/meta", None)
+            return [
+                self._publish(self._get_control_base_topic(mqtt_control_name), None, qos=1),
+                self._publish(self._get_control_base_topic(mqtt_control_name) + "/meta", None, qos=1),
+            ]
+        return []
 
     def set_control_value(self, mqtt_control_name: str, value: str, force=False) -> None:
         if mqtt_control_name in self._controls:
@@ -112,15 +121,17 @@ class Device:
             meta_json = json.dumps(meta_dict)
             self._publish(self._get_control_base_topic(mqtt_control_name) + "/meta", meta_json)
 
-    def _publish(self, topic: str, value: str) -> None:
+    def _publish(self, topic: str, value: str, qos=0):
         if value is None:
             logging.debug('Clear "%s"', topic)
         else:
             logging.debug('Publish "%s" "%s"', topic, value)
-        self._mqtt_client.publish(topic, value, retain=True)
+        if qos:
+            return self._mqtt_client.publish(topic, value, retain=True, qos=qos)
+        return self._mqtt_client.publish(topic, value, retain=True)
 
 
-def retain_hack(mqtt_client) -> None:
+def retain_hack(mqtt_client, timeout=10.0) -> None:
     random.seed()
     retain_hack_topic = f"/wbretainhack/{random.random()}"
 
@@ -132,12 +143,12 @@ def retain_hack(mqtt_client) -> None:
     mqtt_client.subscribe(retain_hack_topic)
     mqtt_client.message_callback_add(retain_hack_topic, on_retain_hack)
     mqtt_client.publish(retain_hack_topic, "2", qos=2)
-    sem.acquire(timeout=10)  # pylint: disable=R1732
+    sem.acquire(timeout=timeout)  # pylint: disable=R1732
     mqtt_client.unsubscribe(retain_hack_topic)
     mqtt_client.message_callback_remove(retain_hack_topic)
 
 
-def remove_topics_by_device_prefix(mqtt_client, device_prefix: str) -> None:
+def remove_topics_by_device_prefix(mqtt_client, device_prefix: str, timeout=10.0) -> None:
     topics = []
 
     pattern = "/devices/" + device_prefix
@@ -150,7 +161,7 @@ def remove_topics_by_device_prefix(mqtt_client, device_prefix: str) -> None:
     mqtt_client.message_callback_add(devices_pattern, on_message)
     mqtt_client.subscribe(devices_pattern)
 
-    retain_hack(mqtt_client)
+    retain_hack(mqtt_client, timeout=timeout)
 
     mqtt_client.unsubscribe(devices_pattern)
     mqtt_client.message_callback_remove(devices_pattern)
@@ -158,3 +169,18 @@ def remove_topics_by_device_prefix(mqtt_client, device_prefix: str) -> None:
     for topic in topics:
         logging.debug("Clear old topic %s", topic)
         mqtt_client.publish(topic, None, retain=True)
+
+
+def wait_for_publications(publications, timeout=MQTT_CLEANUP_TIMEOUT_S) -> int:
+    deadline = time.monotonic() + timeout
+    unconfirmed = 0
+    for publication in publications:
+        try:
+            remaining = deadline - time.monotonic()
+            if remaining > 0:
+                publication.wait_for_publish(timeout=remaining)
+            if remaining <= 0 or not publication.is_published():
+                unconfirmed += 1
+        except (RuntimeError, ValueError):
+            unconfirmed += 1
+    return unconfirmed
