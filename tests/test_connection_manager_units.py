@@ -2062,9 +2062,7 @@ class MainTests(TestCase):
 
         result = connection_manager.main(["-c", "/tmp/custom.conf"])
 
-        self.assertEqual(
-            [call("/tmp/custom.conf")], connection_manager.read_config_json.mock_calls
-        )
+        self.assertEqual([call("/tmp/custom.conf")], connection_manager.read_config_json.mock_calls)
         self.assertEqual(connection_manager.EXIT_NOT_CONFIGURED, result)
 
     def test_unknown_argument_returns_2(self):
@@ -2164,11 +2162,9 @@ class MainTests(TestCase):
 
         connection_manager.ConnectionManager.cycle_loop.side_effect = stop_during_cycle
 
-        with patch.object(
-            signal, "signal", side_effect=register_signal
-        ) as mock_signal, patch.object(DummyConfigFile, "__init__") as mock_config_init, patch.object(
-            connection_manager.ConnectionManager, "__init__"
-        ) as mock_cm_init:
+        with patch.object(signal, "signal", side_effect=register_signal) as mock_signal, patch.object(
+            DummyConfigFile, "__init__"
+        ) as mock_config_init, patch.object(connection_manager.ConnectionManager, "__init__") as mock_cm_init:
             mock_cm_init.return_value = None
             mock_config_init.return_value = None
             result = connection_manager.main()

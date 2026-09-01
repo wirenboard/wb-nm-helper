@@ -807,9 +807,7 @@ def request_dbus_name(bus, name: str) -> None:
 
 
 def _build_argument_parser():
-    parser = argparse.ArgumentParser(
-        description="Wiren Board network connection manager"
-    )
+    parser = argparse.ArgumentParser(description="Wiren Board network connection manager")
     parser.add_argument(
         "-c",
         "--config",
