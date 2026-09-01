@@ -1247,7 +1247,7 @@ def _run_service(options, connectivity_config):
             connections_mediator.mark_mqtt_unavailable()
 
         exit_code = connections_mediator.run()
-        remove_devices = exit_code == EXIT_STOPPED
+        remove_devices = exit_code in (EXIT_NOT_CONFIGURED, EXIT_STOPPED)
     except KeyboardInterrupt:
         exit_code = EXIT_STOPPED
         remove_devices = True

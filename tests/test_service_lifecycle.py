@@ -145,6 +145,31 @@ def test_invalid_config_reload_requests_exit_6():
     mediator._connectivity_updater.update.assert_not_called()
 
 
+def test_invalid_config_reload_cleans_up_mqtt_topics():
+    mqtt_client = MagicMock()
+    mqtt_client.is_connected.return_value = True
+    mediator = MagicMock()
+    mediator.run.return_value = virtual_devices.EXIT_NOT_CONFIGURED
+    publication = MagicMock()
+    publication.is_published.return_value = True
+    mediator.stop.return_value = [publication]
+
+    with patch.object(
+        virtual_devices, "load_connectivity_config_file", return_value=MagicMock()
+    ), patch.object(virtual_devices, "MQTTClient", return_value=mqtt_client), patch.object(
+        virtual_devices, "ConnectionsMediator", return_value=mediator
+    ), patch.object(
+        virtual_devices.wbmqtt, "remove_topics_by_device_prefix"
+    ), patch.object(
+        virtual_devices.signal, "signal"
+    ):
+        assert virtual_devices.main([]) == virtual_devices.EXIT_NOT_CONFIGURED
+
+    mediator.stop.assert_called_once_with(remove_devices=True)
+    publication.wait_for_publish.assert_called_once()
+    mqtt_client.stop.assert_called_once_with()
+
+
 def test_disconnected_cleanup_is_reported(caplog):
     mqtt_client = MagicMock()
     mqtt_client.is_connected.return_value = False
