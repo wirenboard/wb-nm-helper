@@ -1118,7 +1118,6 @@ class MosquittoMonitor:  # pylint: disable=R0903
         if code != 0:
             self._was_disconnected = True
             logging.error("MQTT connection failed (rc=%s)", code)
-            self._mediator.request_stop(EXIT_FAILURE)
             return
 
         logging.info("Mosquitto was connected")

@@ -95,13 +95,16 @@ def test_mosquitto_authentication_refusal_requests_exit_2():
     mediator.request_stop.assert_called_once_with(virtual_devices.EXIT_INVALID_ARGUMENT)
 
 
-def test_other_connack_refusal_requests_exit_1():
+def test_other_connack_refusal_retries_and_republishes():
     mediator = MagicMock()
     monitor = virtual_devices.MosquittoMonitor(mediator, MagicMock())
 
     monitor._on_connect(None, None, None, 3)
+    monitor._on_connect(None, None, None, 0)
 
-    mediator.request_stop.assert_called_once_with(virtual_devices.EXIT_FAILURE)
+    mediator.request_stop.assert_not_called()
+    event = mediator.new_event.call_args.args[0]
+    assert event.type == virtual_devices.EventType.RELOAD_CONNECTIONS
 
 
 def test_mosquitto_reconnect_requests_full_republish():
