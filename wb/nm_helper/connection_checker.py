@@ -53,7 +53,9 @@ def curl_get(iface: str, url: str, host_ip: str) -> str:
 class ConnectionChecker:  # pylint: disable=R0903
     def __init__(self, dns_resolver_fn=None):
         self._dns_resolver_fn = resolve_domain_name if dns_resolver_fn is None else dns_resolver_fn
-        self._last_address = None
+        # last address known to work, per interface: an address reachable via one interface
+        # says nothing about the others
+        self._last_addresses = {}
 
     def _check_url(self, iface: str, url: str, host_ip: str, expected_payload: str) -> bool:
         payload = curl_get(iface, url, host_ip)
@@ -62,15 +64,18 @@ class ConnectionChecker:  # pylint: disable=R0903
         logging.debug("Connectivity via %s is %s", iface, answer_is_ok)
         return answer_is_ok
 
+    def _try_address(self, iface: str, url: str, address: str, expected_payload: str) -> bool:
+        try:
+            return self._check_url(iface, url, address, expected_payload)
+        except pycurl.error as ex:
+            logging.debug("Error during %s connectivity check: %s", iface, ex)
+            return False
+
     def _check_addresses(self, iface: str, url: str, addresses: List[str], expected_payload: str) -> bool:
         for address in addresses:
-            try:
-                if address != self._last_address:
-                    check_result = self._check_url(iface, url, address, expected_payload)
-                    self._last_address = address
-                    return check_result
-            except pycurl.error as ex:
-                logging.debug("Error during %s connectivity check: %s", iface, ex)
+            if self._try_address(iface, url, address, expected_payload):
+                self._last_addresses[iface] = address
+                return True
         return False
 
     def _get_addresses(
@@ -100,11 +105,12 @@ class ConnectionChecker:  # pylint: disable=R0903
         servers: List[str] = None,
         domains: List[str] = None,
     ) -> bool:
-        try:
-            if self._last_address:
-                return self._check_url(iface, url, self._last_address, expected_payload)
-        except pycurl.error as ex:
-            logging.debug("Error during %s connectivity check: %s", iface, ex)
+        # a cached address is only a shortcut: on any failure forget it and resolve again,
+        # otherwise a single bad answer sticks until the process is restarted
+        last_address = self._last_addresses.pop(iface, None)
+        if last_address and self._try_address(iface, url, last_address, expected_payload):
+            self._last_addresses[iface] = last_address
+            return True
 
         if servers is None:
             servers = []
