@@ -350,7 +350,21 @@ class NetworkAwareConfigFileTests(TestCase):
         con_unk = DummyNMConnection(
             "wb_unk", {"connection": {"autoconnect": True}, "ipv4": {"never-default": False}}
         )
-        test_connections = [con_eth, con_not_ac, con_nd, con_unm, con_wifi, con_wifi_ap, con_gsm, con_unk]
+        # bridge port: NetworkManager stores no ipv4 setting for it at all
+        con_port = DummyNMConnection(
+            "wb_debug_rndis", {"connection": {"autoconnect": True, "master": "dbgbr", "slave-type": "bridge"}}
+        )
+        test_connections = [
+            con_eth,
+            con_not_ac,
+            con_nd,
+            con_unm,
+            con_wifi,
+            con_wifi_ap,
+            con_gsm,
+            con_unk,
+            con_port,
+        ]
 
         self.config.connection_is_bound_to_unmanaged_device = MagicMock(
             side_effect=(False, False, False, True, False, False, False, False)
