@@ -280,10 +280,21 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
 
     # Async event functions
 
+    def _is_port_connection(self, connection_path) -> bool:
+        # Ports of a controller (e.g. the dbg0/dbge0 ports of the Debug Network bridge) are
+        # activated with their controller; an Up/Down button would only break the bridge.
+        proxy = self._bus.get_object("org.freedesktop.NetworkManager", connection_path)
+        interface = dbus.Interface(proxy, "org.freedesktop.NetworkManager.Settings.Connection")
+        connection = interface.GetSettings().get("connection", {})
+        return bool(connection.get("master") or connection.get("controller"))
+
     def _common_connection_create(self, connection_path):
         if connection_path is None:
             return
         try:
+            if self._is_port_connection(connection_path):
+                logging.info("Connection %s is a port of a controller, skipping", connection_path)
+                return
             new_common_connection = CommonConnection(self, self._mqtt_client, self._bus, connection_path)
             new_common_connection.run()
             self._common_connections[connection_path] = new_common_connection

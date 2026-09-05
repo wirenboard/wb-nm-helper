@@ -652,7 +652,8 @@ class NetworkManagerAdapter:
             mapping = type_mapping.get(dev.get_property("DeviceType"))
             if mapping:
                 iface = dev.get_property("Interface")
-                if iface != "dbg0":
+                # USB Debug Network gadget interfaces (RNDIS and CDC ECM) are managed by wb-utils
+                if iface not in ("dbg0", "dbge0"):
                     devices.append({"type": mapping, "iface": iface})
         return devices
 

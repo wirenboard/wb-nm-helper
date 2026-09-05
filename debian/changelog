@@ -1,3 +1,13 @@
+wb-nm-helper (1.39.1) stable; urgency=medium
+
+  * wb-connection-manager: skip port (slave) connections when building the
+    default tiers; they carry no ipv4 setting and crashed the service once
+    wb-configs 3.54.0 added the Debug Network bridge ports
+  * wb-mqtt-nm-helper: no virtual device for port connections
+  * web UI: hide the CDC ECM Debug Network interface (dbge0) like dbg0
+
+ -- Evgeny Boger <boger@wirenboard.com>  Sat, 05 Sep 2026 22:51:39 +0300
+
 wb-nm-helper (1.39.0) stable; urgency=medium
 
   * Convert python3-wb-nm-helper into transitional dummy package

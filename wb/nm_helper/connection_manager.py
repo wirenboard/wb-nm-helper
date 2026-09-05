@@ -160,8 +160,13 @@ class NetworkAwareConfigFile(ConfigFile):
         for name, level in (("high", 3), ("medium", 2), ("low", 1)):
             tiers.append(ConnectionTier(name, level, []))
         for item in self.network_manager.get_connections():
-            autoconnect = item.get_settings().get("connection").get("autoconnect", True)
-            never_default = item.get_settings().get("ipv4").get("never-default")
+            settings = item.get_settings()
+            # Port (slave) connections, e.g. the dbg0/dbge0 ports of the Debug Network
+            # bridge, carry no IP configuration and never provide a default route.
+            if settings.get("connection").get("master") or settings.get("connection").get("controller"):
+                continue
+            autoconnect = settings.get("connection").get("autoconnect", True)
+            never_default = settings.get("ipv4", {}).get("never-default")
             connection_type = item.get_connection_type()
             device_type = connection_type_to_device_type(connection_type)
             connection_id = item.get_connection_id()
