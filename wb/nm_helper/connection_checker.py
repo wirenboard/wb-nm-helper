@@ -1,6 +1,6 @@
 import io
 import logging
-from typing import List
+from typing import Dict, List
 from urllib.parse import urlparse
 
 import pycurl
@@ -55,7 +55,7 @@ class ConnectionChecker:  # pylint: disable=R0903
         self._dns_resolver_fn = resolve_domain_name if dns_resolver_fn is None else dns_resolver_fn
         # last address known to work, per interface: an address reachable via one interface
         # says nothing about the others
-        self._last_addresses = {}
+        self._last_addresses: Dict[str, str] = {}
 
     def _check_url(self, iface: str, url: str, host_ip: str, expected_payload: str) -> bool:
         payload = curl_get(iface, url, host_ip)
