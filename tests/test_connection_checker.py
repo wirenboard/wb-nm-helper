@@ -233,3 +233,103 @@ class ConnectionCheckerTests(TestCase):
                 ],
                 mock_curl_get.mock_calls,
             )
+
+    def test_check_cached_ip_transient_error_same_ip(self):
+        dns_resolver_mock = MagicMock()
+        checker = connection_checker.ConnectionChecker(dns_resolver_mock)
+        with patch.object(connection_checker, "curl_get") as mock_curl_get:
+            # First check succeeds and caches 1.1.1.1
+            mock_curl_get.return_value = "payload"
+            dns_resolver_mock.return_value = ["1.1.1.1"]
+            self.assertEqual(True, checker.check("eth0", "http://good_url.com/params/some", "payload"))
+
+            # Cached address fails once, DNS resolves to the same IP, and the retry succeeds
+            dns_resolver_mock.reset_mock()
+            mock_curl_get.reset_mock()
+
+            calls = {"n": 0}
+
+            def curl_get_side_effect_fn(_iface: str, _url: str, _host_ip: str) -> str:
+                calls["n"] += 1
+                if calls["n"] == 1:  # cached-address attempt at the top of check()
+                    raise pycurl.error()
+                return "payload"
+
+            mock_curl_get.side_effect = curl_get_side_effect_fn
+            dns_resolver_mock.return_value = ["1.1.1.1"]
+            self.assertEqual(True, checker.check("eth0", "http://good_url.com/params/some", "payload"))
+            self.assertEqual([call("good_url.com", "eth0", [], [])], dns_resolver_mock.mock_calls)
+            self.assertEqual(
+                [
+                    call("eth0", "http://good_url.com/params/some", "1.1.1.1"),
+                    call("eth0", "http://good_url.com/params/some", "1.1.1.1"),
+                ],
+                mock_curl_get.mock_calls,
+            )
+
+    def test_check_bad_payload_drops_cached_address(self):
+        dns_resolver_mock = MagicMock()
+        checker = connection_checker.ConnectionChecker(dns_resolver_mock)
+        with patch.object(connection_checker, "curl_get") as mock_curl_get:
+            # First check succeeds and caches 1.1.1.1
+            mock_curl_get.return_value = "payload"
+            dns_resolver_mock.return_value = ["1.1.1.1"]
+            self.assertEqual(True, checker.check("eth0", "http://good_url.com/params/some", "payload"))
+
+            # Cached address answers with someone else's content (captive portal, redirect):
+            # forget it and resolve again instead of reporting no connectivity forever
+            dns_resolver_mock.reset_mock()
+            mock_curl_get.reset_mock()
+
+            def curl_get_side_effect_fn(_iface: str, _url: str, host_ip: str) -> str:
+                return "payload" if host_ip == "2.2.2.2" else "portal stub"
+
+            mock_curl_get.side_effect = curl_get_side_effect_fn
+            dns_resolver_mock.return_value = ["2.2.2.2"]
+            self.assertEqual(True, checker.check("eth0", "http://good_url.com/params/some", "payload"))
+            self.assertEqual([call("good_url.com", "eth0", [], [])], dns_resolver_mock.mock_calls)
+            self.assertEqual(
+                [
+                    call("eth0", "http://good_url.com/params/some", "1.1.1.1"),
+                    call("eth0", "http://good_url.com/params/some", "2.2.2.2"),
+                ],
+                mock_curl_get.mock_calls,
+            )
+
+    def test_check_next_address_is_tried_on_bad_payload(self):
+        dns_resolver_mock = MagicMock()
+        dns_resolver_mock.return_value = ["1.1.1.1", "2.2.2.2"]
+        checker = connection_checker.ConnectionChecker(dns_resolver_mock)
+        with patch.object(connection_checker, "curl_get") as mock_curl_get:
+
+            def curl_get_side_effect_fn(_iface: str, _url: str, host_ip: str) -> str:
+                return "payload" if host_ip == "2.2.2.2" else "portal stub"
+
+            mock_curl_get.side_effect = curl_get_side_effect_fn
+            self.assertEqual(True, checker.check("eth0", "http://good_url.com/params/some", "payload"))
+            self.assertEqual(
+                [
+                    call("eth0", "http://good_url.com/params/some", "1.1.1.1"),
+                    call("eth0", "http://good_url.com/params/some", "2.2.2.2"),
+                ],
+                mock_curl_get.mock_calls,
+            )
+
+    def test_check_cached_address_is_not_shared_between_interfaces(self):
+        dns_resolver_mock = MagicMock()
+        checker = connection_checker.ConnectionChecker(dns_resolver_mock)
+        with patch.object(connection_checker, "curl_get") as mock_curl_get:
+            mock_curl_get.return_value = "payload"
+            dns_resolver_mock.return_value = ["1.1.1.1"]
+            self.assertEqual(True, checker.check("eth0", "http://good_url.com/params/some", "payload"))
+
+            # ppp0 has its own DNS servers and its own routes,
+            # so it must resolve on its own instead of reusing the address cached for eth0
+            dns_resolver_mock.reset_mock()
+            mock_curl_get.reset_mock()
+            dns_resolver_mock.return_value = ["2.2.2.2"]
+            self.assertEqual(True, checker.check("ppp0", "http://good_url.com/params/some", "payload"))
+            self.assertEqual([call("good_url.com", "ppp0", [], [])], dns_resolver_mock.mock_calls)
+            self.assertEqual(
+                [call("ppp0", "http://good_url.com/params/some", "2.2.2.2")], mock_curl_get.mock_calls
+            )
