@@ -16,6 +16,8 @@ from wb.nm_helper import virtual_devices
 class VirtualDevicesMainTest(unittest.TestCase):
     def setUp(self):
         self.mqtt_client = MagicMock()
+        # like wb-common's: the fake never connects, the wait ends only with the stop event
+        self.mqtt_client.wait_for_connection.side_effect = lambda stop: not stop.wait(5)
         patches = [
             patch.object(virtual_devices, "MQTTClient", return_value=self.mqtt_client),
             patch.object(virtual_devices.sys, "argv", ["wb-mqtt-nm-helper"]),

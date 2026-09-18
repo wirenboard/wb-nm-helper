@@ -1037,13 +1037,6 @@ class MosquittoMonitor:  # pylint: disable=R0903
         logging.warning("Mosquitto was disconnected")
 
 
-def wait_for_broker(connected: threading.Event, stop_requested: threading.Event) -> bool:
-    """Block until the first CONNACK; False when a stop was requested first"""
-    while not connected.is_set() and not stop_requested.is_set():
-        connected.wait(0.5)
-    return connected.is_set() and not stop_requested.is_set()
-
-
 def parse_args():
     parser = argparse.ArgumentParser(description="Service for creating virtual connection devices")
     parser.add_argument(
@@ -1085,7 +1078,6 @@ def main():
         return EXIT_SUCCESS
 
     mqtt_client = MQTTClient("connections-virtual-devices", options.broker)
-    connected = threading.Event()
     stop_requested = threading.Event()
     exit_code = EXIT_SUCCESS
     connections_mediator = None
@@ -1103,8 +1095,6 @@ def main():
                 # a rejected login is a configuration problem, paho would retry it forever: exit with 2
                 exit_code = EXIT_INVALIDARGUMENT
                 request_stop()
-            return
-        connected.set()
 
     def stop_virtual_connections_client(_, __):
         logging.info("Stop requested")
@@ -1122,7 +1112,7 @@ def main():
     # only after the first CONNACK
     mqtt_client.on_connect = on_connect
     mqtt_client.start(retry_first_connection=True)
-    if not wait_for_broker(connected, stop_requested):
+    if not mqtt_client.wait_for_connection(stop_requested):
         mqtt_client.stop()
         return exit_code
 
