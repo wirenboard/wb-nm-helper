@@ -26,6 +26,10 @@ from wb.nm_helper.network_manager import NMActiveConnection
 
 CONNECTIVITY_CHECK_PERIOD = 20
 MQTT_DRIVER_NAME = "wb-nm-helper"
+EXIT_SUCCESS = 0
+EXIT_INVALIDARGUMENT = 2
+# CONNACK codes for a rejected login: bad user name or password, not authorized
+MQTT_AUTH_ERRORS = (4, 5)
 MQTT_DEVICE_TOPIC_PREFIX = "system__networks__"
 PERMANENT_CONNECTED_TYPES = ["loopback", "bridge", "tun"]
 
@@ -1033,7 +1037,7 @@ class MosquittoMonitor:  # pylint: disable=R0903
         logging.warning("Mosquitto was disconnected")
 
 
-def main():
+def parse_args():
     parser = argparse.ArgumentParser(description="Service for creating virtual connection devices")
     parser.add_argument(
         "-d",
@@ -1060,47 +1064,73 @@ def main():
         default=0,
         required=False,
     )
-    options = parser.parse_args()
+    return parser.parse_args()
 
-    if options.debug:
-        logging_level = logging.DEBUG
-    else:
-        logging_level = logging.INFO
 
-    logging.basicConfig(level=logging_level)
+def main():
+    options = parse_args()
+    logging.basicConfig(level=logging.DEBUG if options.debug else logging.INFO)
 
     if options.main_process_pid:
         pid_fd = os.pidfd_open(int(options.main_process_pid), 0)
         signal.pidfd_send_signal(pid_fd, signal.SIGHUP)
         logging.info("Send SIGHUP signal to %s process", options.main_process_pid)
-        return
+        return EXIT_SUCCESS
 
     mqtt_client = MQTTClient("connections-virtual-devices", options.broker)
-    mqtt_client.start()
+    stop_requested = threading.Event()
+    exit_code = EXIT_SUCCESS
+    connections_mediator = None
 
-    wbmqtt.remove_topics_by_device_prefix(mqtt_client, MQTT_DEVICE_TOPIC_PREFIX)
+    def request_stop():
+        stop_requested.set()
+        if connections_mediator is not None:
+            GLib.idle_add(connections_mediator.stop)  # on the GLib thread, whoever asks
 
-    connections_mediator = ConnectionsMediator(mqtt_client)
+    def on_connect(_client, _userdata, _flags, rc):
+        nonlocal exit_code
+        if rc != 0:
+            logging.error("MQTT connection failed with rc %s", rc)
+            if rc in MQTT_AUTH_ERRORS:
+                # a rejected login is a configuration problem, paho would retry it forever: exit with 2
+                exit_code = EXIT_INVALIDARGUMENT
+                request_stop()
 
     def stop_virtual_connections_client(_, __):
-        connections_mediator.stop()
-        mqtt_client.stop()
+        logging.info("Stop requested")
+        request_stop()
 
     def reload_virtual_connections_client(_, __):
-        connections_mediator.new_event(Event(EventType.RELOAD_CONNECTIVITY))
+        if connections_mediator is not None:
+            connections_mediator.new_event(Event(EventType.RELOAD_CONNECTIVITY))
 
     signal.signal(signal.SIGINT, stop_virtual_connections_client)
     signal.signal(signal.SIGTERM, stop_virtual_connections_client)
     signal.signal(signal.SIGHUP, reload_virtual_connections_client)
 
+    # an unavailable broker is retried by paho's network thread; the devices are published
+    # only after the first CONNACK
+    mqtt_client.on_connect = on_connect
+    mqtt_client.start(retry_first_connection=True)
+    if not mqtt_client.wait_for_connection(stop_requested):
+        mqtt_client.stop()
+        return exit_code
+
+    wbmqtt.remove_topics_by_device_prefix(mqtt_client, MQTT_DEVICE_TOPIC_PREFIX)
+
+    connections_mediator = ConnectionsMediator(mqtt_client)
     try:
         connections_mediator.run()
     except (KeyboardInterrupt, dbus.exceptions.DBusException):
         pass
     finally:
         logging.info("Stopping")
-        connections_mediator.stop()
+        if not stop_requested.is_set():
+            connections_mediator.stop()  # a requested stop already ran it on the GLib thread
+        if not mqtt_client.is_connected():
+            logging.error("MQTT broker is not connected, retained topics cannot be removed")
         mqtt_client.stop()
+    return exit_code
 
 
 if __name__ == "__main__":

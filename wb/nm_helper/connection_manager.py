@@ -1,9 +1,11 @@
+import argparse
 import datetime
 import json
 import logging
 import signal
 import subprocess
 import sys
+import threading
 import time
 from typing import Dict, Iterator, List, Optional
 
@@ -27,7 +29,9 @@ from wb.nm_helper.network_manager import (
     connection_type_to_device_type,
 )
 
+EXIT_SUCCESS = 0
 EXIT_NOT_CONFIGURED = 6
+EXIT_NOTRUNNING = 7
 
 LOGGING_FORMAT = "%(message)s"
 CONFIG_FILE = "/etc/wb-connection-manager.conf"
@@ -271,8 +275,8 @@ class TimeoutManager:  # pylint: disable=too-many-instance-attributes
         return False
 
 
-def read_config_json():
-    with open(CONFIG_FILE, encoding="utf-8") as file:
+def read_config_json(config_file: Optional[str] = None):
+    with open(config_file or CONFIG_FILE, encoding="utf-8") as file:
         return json.load(file)
 
 
@@ -801,19 +805,19 @@ def request_dbus_name(bus, name: str) -> None:
     )
 
 
-def main():
+def main(config_file: str = CONFIG_FILE) -> int:
     bus = dbus.SystemBus()
     request_dbus_name(bus, DBUS_SERVICE_NAME)
     network_manager = NetworkManager()
     try:
-        cfg_json = read_config_json()
+        cfg_json = read_config_json(config_file)
     except (
         FileNotFoundError,
         PermissionError,
         OSError,
         json.decoder.JSONDecodeError,
     ) as ex:
-        logging.error("Loading %s failed: %s", CONFIG_FILE, ex)
+        logging.error("Loading %s failed: %s", config_file, ex)
         return EXIT_NOT_CONFIGURED
 
     init_logging(cfg_json.get("debug", False))  # must be initialized before NetworkAwareConfigFile
@@ -825,17 +829,31 @@ def main():
         logging.error("Configuration error: %s", ex)
         return EXIT_NOT_CONFIGURED
 
-    signal.signal(signal.SIGINT, signal.SIG_DFL)
-
-    if config.has_connections():
-        manager = ConnectionManager(network_manager=network_manager, config=config, bus=bus)
-        while True:
-            manager.cycle_loop()
-            time.sleep(CHECK_PERIOD.total_seconds())
-    else:
+    if not config.has_connections():
         logging.info("Nothing to manage")
-        return 0
+        return EXIT_NOTRUNNING
+
+    stop_requested = threading.Event()
+
+    def request_stop(*_):
+        logging.info("Stop requested")
+        stop_requested.set()
+
+    signal.signal(signal.SIGINT, request_stop)
+    signal.signal(signal.SIGTERM, request_stop)
+
+    manager = ConnectionManager(network_manager=network_manager, config=config, bus=bus)
+    while True:
+        manager.cycle_loop()
+        if stop_requested.wait(CHECK_PERIOD.total_seconds()):
+            return EXIT_SUCCESS
+
+
+def cli() -> int:
+    parser = argparse.ArgumentParser(description="Network connections management service for Wiren Board")
+    parser.add_argument("-c", "--config", default=CONFIG_FILE, help="config file")
+    return main(parser.parse_args().config)
 
 
 if __name__ == "__main__":
-    sys.exit(main())  # pragma: no cover
+    sys.exit(cli())  # pragma: no cover
