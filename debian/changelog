@@ -1,3 +1,18 @@
+wb-nm-helper (1.40.0) stable; urgency=medium
+
+  * wb-mqtt-nm-helper: wait for an unavailable MQTT broker instead of exiting, publish the
+    virtual devices only after the first CONNACK, exit with 2 when the broker rejects the login;
+    on SIGINT/SIGTERM remove the retained topics before the MQTT client stops (an error is
+    logged when the broker is not connected) and exit 0
+  * wb-connection-manager: add -c/--config, reject unknown arguments (exit code 2), exit with 7
+    when there are no managed connections and with 0 on SIGINT/SIGTERM
+  * Require python3-wb-common >= 2.4.0 (MQTT client retry/wait API)
+  * systemd: wb-connection-manager RestartPreventExitStatus narrowed from "2 3 4 5 6 7" to "2 6"
+    (exit codes 3, 4 and 5 now restart the service; 7 is a clean exit via the new SuccessExitStatus=7
+    and does not restart); wb-mqtt-nm-helper: RestartPreventExitStatus=2 added
+
+ -- Ekaterina Volkova <ekaterina.volkova@wirenboard.com>  Thu, 17 Sep 2026 16:47:57 +0000
+
 wb-nm-helper (1.39.1) stable; urgency=medium
 
   * Fix connectivity status stuck at "no internet" until service restart
