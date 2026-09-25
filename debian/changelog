@@ -1,3 +1,10 @@
+wb-nm-helper (1.39.2) stable; urgency=medium
+
+  * Fix connectivity checks getting stuck after NetworkManager restarts
+  * Restart wb-connection-manager after it loses its D-Bus connection
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Fri, 25 Sep 2026 10:34:59 +0400
+
 wb-nm-helper (1.39.1) stable; urgency=medium
 
   * Fix connectivity status stuck at "no internet" until service restart

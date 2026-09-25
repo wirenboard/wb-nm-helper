@@ -28,6 +28,7 @@ from wb.nm_helper.network_manager import (
 )
 
 EXIT_NOT_CONFIGURED = 6
+EXIT_DBUS_DISCONNECTED = 1
 
 LOGGING_FORMAT = "%(message)s"
 CONFIG_FILE = "/etc/wb-connection-manager.conf"
@@ -831,6 +832,12 @@ def main():
         manager = ConnectionManager(network_manager=network_manager, config=config, bus=bus)
         while True:
             manager.cycle_loop()
+            if not bus.get_is_connected():
+                # dbus-daemon itself was restarted: this connection (and our RequestName
+                # registration) is gone for good, dbus-python can't reconnect it in place.
+                # Exit so systemd (Restart=on-failure) gives us a fresh bus connection.
+                logging.error("Lost connection to D-Bus, exiting to let systemd restart the service")
+                return EXIT_DBUS_DISCONNECTED
             time.sleep(CHECK_PERIOD.total_seconds())
     else:
         logging.info("Nothing to manage")

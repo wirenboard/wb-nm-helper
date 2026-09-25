@@ -5,6 +5,12 @@ from socket import ntohl
 from typing import Dict, List, Optional
 
 import dbus
+import dbus.mainloop.glib
+
+# Proxies below are created with follow_name_owner_changes=True (see DbusObject.get_object),
+# which requires a main loop to be attached to the bus connection to receive NameOwnerChanged;
+# set it as the default here, before any dbus.SystemBus() is created anywhere in the process.
+dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
 
 # NMActiveConnectionState
 NM_ACTIVE_CONNECTION_STATE_UNKNOWN = 0
@@ -56,7 +62,10 @@ class DbusObject:
 
     def get_object(self):
         if self.obj is None:
-            self.obj = self.bus.get_object(self.dbus_name, self.path)
+            # follow_name_owner_changes: without it a proxy stays bound to the unique bus name
+            # resolved at creation time, so a NetworkManager restart (e.g. on package upgrade)
+            # leaves it calling a dead name forever instead of the new NetworkManager instance
+            self.obj = self.bus.get_object(self.dbus_name, self.path, follow_name_owner_changes=True)
         return self.obj
 
     def get_iface(self):
