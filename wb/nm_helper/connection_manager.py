@@ -8,6 +8,7 @@ import time
 from typing import Dict, Iterator, List, Optional
 
 import dbus
+import dbus.mainloop.glib
 
 from wb.nm_helper.connection_checker import ConnectionChecker
 from wb.nm_helper.dns_resolver import resolve_domain_name
@@ -803,6 +804,12 @@ def request_dbus_name(bus, name: str) -> None:
 
 
 def main():
+    # NetworkManager() below creates its own dbus.SystemBus(), which, once created, is
+    # cached and shared process-wide regardless of the main loop passed to later callers.
+    # Its proxies use follow_name_owner_changes=True (see DbusObject.get_object), which
+    # requires a main loop on the connection to receive NameOwnerChanged, so this must run
+    # before the first dbus.SystemBus() call in this process.
+    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
     bus = dbus.SystemBus()
     request_dbus_name(bus, DBUS_SERVICE_NAME)
     network_manager = NetworkManager()

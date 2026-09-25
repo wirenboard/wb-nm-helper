@@ -16,7 +16,7 @@ class DbusObjectTests(TestCase):
         obj.get_object()
 
         self.assertEqual(
-            [call("some.dbus.name", "/some/path", follow_name_owner_changes=True)],
+            [call("some.dbus.name", "/some/path", introspect=False, follow_name_owner_changes=True)],
             bus.get_object.mock_calls,
         )
 
