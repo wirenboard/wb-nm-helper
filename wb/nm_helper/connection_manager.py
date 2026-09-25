@@ -275,8 +275,8 @@ class TimeoutManager:  # pylint: disable=too-many-instance-attributes
         return False
 
 
-def read_config_json(config_file: Optional[str] = None):
-    with open(config_file or CONFIG_FILE, encoding="utf-8") as file:
+def read_config_json():
+    with open(CONFIG_FILE, encoding="utf-8") as file:
         return json.load(file)
 
 
@@ -805,19 +805,19 @@ def request_dbus_name(bus, name: str) -> None:
     )
 
 
-def main(config_file: str = CONFIG_FILE) -> int:
+def main() -> int:
     bus = dbus.SystemBus()
     request_dbus_name(bus, DBUS_SERVICE_NAME)
     network_manager = NetworkManager()
     try:
-        cfg_json = read_config_json(config_file)
+        cfg_json = read_config_json()
     except (
         FileNotFoundError,
         PermissionError,
         OSError,
         json.decoder.JSONDecodeError,
     ) as ex:
-        logging.error("Loading %s failed: %s", config_file, ex)
+        logging.error("Loading %s failed: %s", CONFIG_FILE, ex)
         return EXIT_NOT_CONFIGURED
 
     init_logging(cfg_json.get("debug", False))  # must be initialized before NetworkAwareConfigFile
@@ -851,8 +851,8 @@ def main(config_file: str = CONFIG_FILE) -> int:
 
 def cli() -> int:
     parser = argparse.ArgumentParser(description="Network connections management service for Wiren Board")
-    parser.add_argument("-c", "--config", default=CONFIG_FILE, help="config file")
-    return main(parser.parse_args().config)
+    parser.parse_args()  # the service takes no arguments: anything else exits with 2
+    return main()
 
 
 if __name__ == "__main__":

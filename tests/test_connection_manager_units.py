@@ -2011,9 +2011,7 @@ class MainTests(TestCase):
 
         result = connection_manager.main()
 
-        self.assertEqual(
-            [call(connection_manager.CONFIG_FILE)], connection_manager.read_config_json.mock_calls
-        )
+        self.assertEqual([call()], connection_manager.read_config_json.mock_calls)
         self.assertEqual([], connection_manager.init_logging.mock_calls)
         self.assertEqual(6, result)
 
@@ -2023,9 +2021,7 @@ class MainTests(TestCase):
 
         result = connection_manager.main()
 
-        self.assertEqual(
-            [call(connection_manager.CONFIG_FILE)], connection_manager.read_config_json.mock_calls
-        )
+        self.assertEqual([call()], connection_manager.read_config_json.mock_calls)
         self.assertEqual([], connection_manager.init_logging.mock_calls)
         self.assertEqual(6, result)
 
@@ -2035,9 +2031,7 @@ class MainTests(TestCase):
 
         result = connection_manager.main()
 
-        self.assertEqual(
-            [call(connection_manager.CONFIG_FILE)], connection_manager.read_config_json.mock_calls
-        )
+        self.assertEqual([call()], connection_manager.read_config_json.mock_calls)
         self.assertEqual([], connection_manager.init_logging.mock_calls)
         self.assertEqual(6, result)
 
@@ -2049,9 +2043,7 @@ class MainTests(TestCase):
 
         result = connection_manager.main()
 
-        self.assertEqual(
-            [call(connection_manager.CONFIG_FILE)], connection_manager.read_config_json.mock_calls
-        )
+        self.assertEqual([call()], connection_manager.read_config_json.mock_calls)
         self.assertEqual([], connection_manager.init_logging.mock_calls)
         self.assertEqual(6, result)
 
@@ -2062,9 +2054,7 @@ class MainTests(TestCase):
         with self.assertRaises(IndentationError):
             connection_manager.main()
 
-        self.assertEqual(
-            [call(connection_manager.CONFIG_FILE)], connection_manager.read_config_json.mock_calls
-        )
+        self.assertEqual([call()], connection_manager.read_config_json.mock_calls)
         self.assertEqual([], connection_manager.init_logging.mock_calls)
 
     def test_config_errors_01_improperly_configured(self):
@@ -2077,9 +2067,7 @@ class MainTests(TestCase):
             mock_config_init.return_value = None
             result = connection_manager.main()
 
-        self.assertEqual(
-            [call(connection_manager.CONFIG_FILE)], connection_manager.read_config_json.mock_calls
-        )
+        self.assertEqual([call()], connection_manager.read_config_json.mock_calls)
         self.assertEqual([call("debug", False)], self.dummy_json.get.mock_calls)
         self.assertEqual(1, len(mock_config_init.mock_calls))
         self.assertEqual(0, len(mock_config_init.mock_calls[0].args))
@@ -2102,9 +2090,7 @@ class MainTests(TestCase):
             with self.assertRaises(IndentationError):
                 connection_manager.main()
 
-        self.assertEqual(
-            [call(connection_manager.CONFIG_FILE)], connection_manager.read_config_json.mock_calls
-        )
+        self.assertEqual([call()], connection_manager.read_config_json.mock_calls)
         self.assertEqual([call("debug", False)], self.dummy_json.get.mock_calls)
         self.assertEqual(1, len(mock_config_init.mock_calls))
         self.assertEqual(0, len(mock_config_init.mock_calls[0].args))
@@ -2128,9 +2114,7 @@ class MainTests(TestCase):
             mock_config_init.return_value = None
             result = connection_manager.main()
 
-        self.assertEqual(
-            [call(connection_manager.CONFIG_FILE)], connection_manager.read_config_json.mock_calls
-        )
+        self.assertEqual([call()], connection_manager.read_config_json.mock_calls)
         self.assertEqual([call("DUMMY_DEBUG")], connection_manager.init_logging.mock_calls)
         self.assertEqual([call("debug", False)], self.dummy_json.get.mock_calls)
         self.assertEqual(
@@ -2160,9 +2144,7 @@ class MainTests(TestCase):
             mock_sleep.side_effect = [False, False, False, True]  # the fourth wait is the stop request
             self.assertEqual(0, connection_manager.main())
 
-        self.assertEqual(
-            [call(connection_manager.CONFIG_FILE)], connection_manager.read_config_json.mock_calls
-        )
+        self.assertEqual([call()], connection_manager.read_config_json.mock_calls)
         self.assertEqual([call("DUMMY_DEBUG")], connection_manager.init_logging.mock_calls)
         self.assertEqual([call("debug", False)], self.dummy_json.get.mock_calls)
         self.assertEqual(
