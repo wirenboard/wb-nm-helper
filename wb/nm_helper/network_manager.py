@@ -59,12 +59,7 @@ class DbusObject:
             # follow_name_owner_changes: without it a proxy stays bound to the unique bus name
             # resolved at creation time, so a NetworkManager restart (e.g. on package upgrade)
             # leaves it calling a dead name forever instead of the new NetworkManager instance.
-            # introspect=False: we always wrap the object in a dbus.Interface with a known
-            # interface name, so the proxy's background Introspect call (which otherwise logs
-            # a noisy "NoReply" error whenever it races a name-owner change) buys us nothing.
-            self.obj = self.bus.get_object(
-                self.dbus_name, self.path, introspect=False, follow_name_owner_changes=True
-            )
+            self.obj = self.bus.get_object(self.dbus_name, self.path, follow_name_owner_changes=True)
         return self.obj
 
     def get_iface(self):
