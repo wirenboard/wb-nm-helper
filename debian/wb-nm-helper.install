@@ -1,4 +1,3 @@
-bin/wb-nm-helper /usr/bin
 wb-network.schema.json /usr/share/wb-mqtt-confed/schemas
 bin/wb-connection-manager /usr/lib/wb-connection-manager
 wb-connection-manager.conf /etc
@@ -8,5 +7,4 @@ bin/update-motd.d/50-wb-old-connections /etc/update-motd.d
 share/99-disable-if-not-configured.conf /usr/lib/systemd/system/hostapd.service.d
 share/99-disable-if-not-configured.conf /usr/lib/systemd/system/dnsmasq.service.d
 bin/wb-disable-nat /usr/lib/NetworkManager/dispatcher.d
-bin/wb-mqtt-nm-helper /usr/bin
 share/wb-connection-manager.conf /usr/share/dbus-1/system.d

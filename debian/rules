@@ -1,6 +1,7 @@
 #!/usr/bin/make -f
 
 export PYBUILD_DESTDIR_python3=debian/wb-nm-helper
+export DEB_VERSION=$(shell dpkg-parsechangelog -S Version)
 
 %:
 	dh $@ --with config-package --with python3 --buildsystem pybuild
