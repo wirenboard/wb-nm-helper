@@ -1,7 +1,6 @@
 import argparse
 import json
 import subprocess
-import sys
 from unittest.mock import MagicMock, Mock, patch
 
 import dbus

@@ -133,9 +133,13 @@ def apply_network_interfaces(connections, args, manager):
     return released_interfaces, connections
 
 
-def apply_network_manager(connections, released_interfaces, args, manager, keep_masks, bus):
+def apply_network_manager(connections, released_interfaces, args, manager, bus):
     network_manager = NetworkManagerAdapter.probe(bus)
     if network_manager is not None:
+        keep_masks = []  # keep connections by name mask. Mask must be a substring
+        if not is_modem_enabled(modem_dt_alias="wbc_modem"):
+            keep_masks.append("wb-gsm-sim")
+
         # wb-connection-manager will be later restarted by wb-mqtt-confed
         manager.StopUnit("wb-connection-manager.service", "fail")
         res = network_manager.apply(connections, args.dry_run, keep_masks)
@@ -149,12 +153,8 @@ def from_json(cfg, args, bus: dbus.SystemBus) -> Dict:
     connections = cfg["ui"]["connections"]
     manager = get_systemd_manager(args.dry_run, bus)
 
-    keep_masks = []  # keep connections by name mask. Mask must be a substring
-    if not is_modem_enabled(modem_dt_alias="wbc_modem"):
-        keep_masks.append("wb-gsm-sim")
-
     released_interfaces, connections = apply_network_interfaces(connections, args, manager)
-    apply_network_manager(connections, released_interfaces, args, manager, keep_masks, bus)
+    apply_network_manager(connections, released_interfaces, args, manager, bus)
 
     return cfg["ui"].get("con_switch", {})
 
