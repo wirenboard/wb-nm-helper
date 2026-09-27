@@ -28,6 +28,21 @@ class MemoryManager(BaseManager):
     pass
 
 
+def start_mediator(mqtt_publications):
+    """Run the mediator without passing the unpicklable test case to the child."""
+    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+    dbus.mainloop.glib.threads_init()
+    bus = dbus.SystemBus()
+    mqtt_mock = Mock(MQTTClient)
+
+    def publish(topic, value, retain):  # pylint: disable=unused-argument
+        mqtt_publications.append((topic, value))
+
+    mqtt_mock.publish.side_effect = publish
+    mediator = wb.nm_helper.virtual_devices.ConnectionsMediator(mqtt_mock, bus)
+    mediator.run()
+
+
 class MQTTNetworkManagerTest(dbusmock.DBusTestCase):
     def setUp(self):
         self.start_system_bus()
@@ -62,21 +77,8 @@ class MQTTNetworkManagerTest(dbusmock.DBusTestCase):
 
         self.mqtt_publications = self.manager.list()
 
-        self.proc = Process(target=self.start_mediator)
+        self.proc = Process(target=start_mediator, args=(self.mqtt_publications,))
         self.proc.start()
-
-    def start_mediator(self):
-        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-        dbus.mainloop.glib.threads_init()
-        bus = dbus.SystemBus()
-        mqtt_mock = Mock(MQTTClient)
-        mqtt_mock.publish.side_effect = self.publish
-
-        self.mediator = wb.nm_helper.virtual_devices.ConnectionsMediator(mqtt_mock, bus)
-        self.mediator.run()
-
-    def publish(self, topic, value, retain):  # pylint: disable=unused-argument
-        self.mqtt_publications.append((topic, value))
 
     def tearDown(self):
         self.proc.kill()
