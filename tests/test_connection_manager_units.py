@@ -25,7 +25,8 @@ from wb.nm_helper.network_manager import (
 
 
 class DummyNetworkManager:
-    pass
+    def __init__(self, bus=None):
+        self.bus = bus
 
 
 class DummyNMDevice:

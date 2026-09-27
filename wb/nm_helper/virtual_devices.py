@@ -169,11 +169,9 @@ class MqttConnectionState:  # pylint: disable=R0902
 
 
 class ConnectionsMediator(Mediator):  # pylint: disable=R0902
-    def __init__(self, mqtt_client) -> None:
+    def __init__(self, mqtt_client, bus: dbus.SystemBus) -> None:
         super().__init__()
-        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-        dbus.mainloop.glib.threads_init()
-        self._bus = dbus.SystemBus()
+        self._bus = bus
         self._dbus_loop = GLib.MainLoop()
         self._mqtt_client = mqtt_client
 
@@ -1075,12 +1073,17 @@ def main():
         logging.info("Send SIGHUP signal to %s process", options.main_process_pid)
         return
 
+    # Initialize D-Bus integration before opening buses or starting the MQTT thread.
+    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+    dbus.mainloop.glib.threads_init()
+    bus = dbus.SystemBus()
+
     mqtt_client = MQTTClient("connections-virtual-devices", options.broker)
     mqtt_client.start()
 
     wbmqtt.remove_topics_by_device_prefix(mqtt_client, MQTT_DEVICE_TOPIC_PREFIX)
 
-    connections_mediator = ConnectionsMediator(mqtt_client)
+    connections_mediator = ConnectionsMediator(mqtt_client, bus)
 
     def stop_virtual_connections_client(_, __):
         connections_mediator.stop()

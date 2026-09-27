@@ -5,7 +5,6 @@ from socket import ntohl
 from typing import Dict, List, Optional
 
 import dbus
-import dbus.mainloop.glib
 
 # NMActiveConnectionState
 NM_ACTIVE_CONNECTION_STATE_UNKNOWN = 0
@@ -86,18 +85,12 @@ class NMObject(DbusObject):
 
 
 class NetworkManager(NMObject):
-    def __init__(self):
-        # Proxies below are created with follow_name_owner_changes=True (see
-        # DbusObject.get_object), which requires a main loop on the connection. Every caller of
-        # this class (wb-connection-manager, wb-nm-helper, wb-disable-nat, ...) reaches
-        # dbus.SystemBus() for the first time right here, so set the default main loop before
-        # that call rather than at module import time: import side effects would otherwise run
-        # even for callers (like tests) that only need a class from this module, not a live bus.
-        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+    def __init__(self, bus: dbus.SystemBus):
+        """Use a bus with main-loop integration initialized by the executable."""
         NMObject.__init__(
             self,
             "/org/freedesktop/NetworkManager",
-            dbus.SystemBus(),
+            bus,
             "org.freedesktop.NetworkManager",
         )
 

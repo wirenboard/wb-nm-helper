@@ -4,13 +4,18 @@
 import os
 import sys
 
+import dbus
+import dbus.mainloop.glib
+
 from wb.nm_helper.network_manager import NetworkManager
 
 action = sys.argv[2]
 iface = sys.argv[1]
 if action == "up":
+    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+    bus = dbus.SystemBus()
     cn_id = os.getenv("CONNECTION_ID")
-    network_manager = NetworkManager()
+    network_manager = NetworkManager(bus)
     con = network_manager.find_connection(cn_id)
     if con:
         if con.get_settings().get("user", {}).get("data", {}).get("wb.disable-nat", "false") == "true":

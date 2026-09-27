@@ -804,15 +804,12 @@ def request_dbus_name(bus, name: str) -> None:
 
 
 def main():
-    # NetworkManager() below creates its own dbus.SystemBus(), which, once created, is
-    # cached and shared process-wide regardless of the main loop passed to later callers.
-    # Its proxies use follow_name_owner_changes=True (see DbusObject.get_object), which
-    # requires a main loop on the connection to receive NameOwnerChanged, so this must run
-    # before the first dbus.SystemBus() call in this process.
+    # dbus-python requires main-loop integration for follow_name_owner_changes proxies.
+    # Initialize before opening the shared bus; changing the default later cannot attach it.
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
     bus = dbus.SystemBus()
     request_dbus_name(bus, DBUS_SERVICE_NAME)
-    network_manager = NetworkManager()
+    network_manager = NetworkManager(bus)
     try:
         cfg_json = read_config_json()
     except (
