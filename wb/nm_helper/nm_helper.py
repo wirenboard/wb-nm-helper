@@ -9,6 +9,7 @@ import sys
 from typing import Dict, List
 
 import dbus
+import dbus.mainloop.glib
 
 from .network_interfaces_adapter import NetworkInterfacesAdapter
 from .network_manager_adapter import NetworkManagerAdapter
@@ -46,11 +47,11 @@ def not_fully_contains(dst: List[str], src: List[str]) -> bool:
     return False
 
 
-def to_json(args) -> Dict:
+def to_json(args, bus: dbus.SystemBus) -> Dict:
     connections = []
     devices = []
 
-    network_manager = NetworkManagerAdapter.probe()
+    network_manager = NetworkManagerAdapter.probe(bus)
     if network_manager is not None:
         connections = network_manager.get_connections()
         devices = network_manager.get_devices()
@@ -88,11 +89,12 @@ def to_json(args) -> Dict:
     }
 
 
-def get_systemd_manager(dry_run: bool):
+def get_systemd_manager(dry_run: bool, bus: dbus.SystemBus):
     """Returns a Systemd manager object
 
     :param dry_run: if True, a dummy object will be returned
     :type dry_run: bool
+    :param bus: initialized system bus shared with NetworkManager
     :returns: a Systemd manager object
     :rtype: dbus.Interface
     """
@@ -103,8 +105,7 @@ def get_systemd_manager(dry_run: bool):
             (object,),
             {"StopUnit": lambda self, name, mode: None, "RestartUnit": lambda self, name, mode: None},
         )()
-    system_bus = dbus.SystemBus()
-    systemd1 = system_bus.get_object("org.freedesktop.systemd1", "/org/freedesktop/systemd1")
+    systemd1 = bus.get_object("org.freedesktop.systemd1", "/org/freedesktop/systemd1")
     return dbus.Interface(systemd1, "org.freedesktop.systemd1.Manager")
 
 
@@ -132,9 +133,13 @@ def apply_network_interfaces(connections, args, manager):
     return released_interfaces, connections
 
 
-def apply_network_manager(connections, released_interfaces, args, manager, keep_masks):
-    network_manager = NetworkManagerAdapter.probe()
+def apply_network_manager(connections, released_interfaces, args, manager, bus):
+    network_manager = NetworkManagerAdapter.probe(bus)
     if network_manager is not None:
+        keep_masks = []  # keep connections by name mask. Mask must be a substring
+        if not is_modem_enabled(modem_dt_alias="wbc_modem"):
+            keep_masks.append("wb-gsm-sim")
+
         # wb-connection-manager will be later restarted by wb-mqtt-confed
         manager.StopUnit("wb-connection-manager.service", "fail")
         res = network_manager.apply(connections, args.dry_run, keep_masks)
@@ -144,16 +149,12 @@ def apply_network_manager(connections, released_interfaces, args, manager, keep_
             manager.RestartUnit("NetworkManager.service", "fail")
 
 
-def from_json(cfg, args) -> Dict:
+def from_json(cfg, args, bus: dbus.SystemBus) -> Dict:
     connections = cfg["ui"]["connections"]
-    manager = get_systemd_manager(args.dry_run)
-
-    keep_masks = []  # keep connections by name mask. Mask must be a substring
-    if not is_modem_enabled(modem_dt_alias="wbc_modem"):
-        keep_masks.append("wb-gsm-sim")
+    manager = get_systemd_manager(args.dry_run, bus)
 
     released_interfaces, connections = apply_network_interfaces(connections, args, manager)
-    apply_network_manager(connections, released_interfaces, args, manager, keep_masks)
+    apply_network_manager(connections, released_interfaces, args, manager, bus)
 
     return cfg["ui"].get("con_switch", {})
 
@@ -177,16 +178,22 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true", help="Don't apply changes")
     args = parser.parse_args()
 
-    res = None
+    cfg = None
     if args.save:
         try:
             cfg = json.load(sys.stdin)
         except ValueError:
             print("Invalid JSON", file=sys.stdout)
             sys.exit(1)
-        res = from_json(cfg, args)
+
+    # Set up integration before systemd or NetworkManager can open the shared bus.
+    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+    bus = dbus.SystemBus()
+
+    if args.save:
+        res = from_json(cfg, args, bus)
     else:
-        res = to_json(args)
+        res = to_json(args, bus)
     json.dump(res, sys.stdout, sort_keys=True, indent=args.indent)
 
 

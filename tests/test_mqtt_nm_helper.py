@@ -33,7 +33,7 @@ class MQTTNetworkManagerTest(dbusmock.DBusTestCase):
         self.start_system_bus()
         self.system_bus = self.get_dbus(system_bus=True)
 
-        (self.io_mock, self.obj_networkmanager) = self.spawn_server_template(
+        self.io_mock, self.obj_networkmanager = self.spawn_server_template(
             "networkmanager",
             {"NetworkingEnabled": True},
             stdout=subprocess.PIPE,
@@ -66,10 +66,13 @@ class MQTTNetworkManagerTest(dbusmock.DBusTestCase):
         self.proc.start()
 
     def start_mediator(self):
+        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+        dbus.mainloop.glib.threads_init()
+        bus = dbus.SystemBus()
         mqtt_mock = Mock(MQTTClient)
         mqtt_mock.publish.side_effect = self.publish
 
-        self.mediator = wb.nm_helper.virtual_devices.ConnectionsMediator(mqtt_mock)
+        self.mediator = wb.nm_helper.virtual_devices.ConnectionsMediator(mqtt_mock, bus)
         self.mediator.run()
 
     def publish(self, topic, value, retain):  # pylint: disable=unused-argument

@@ -25,7 +25,8 @@ from wb.nm_helper.network_manager import (
 
 
 class DummyNetworkManager:
-    pass
+    def __init__(self, bus=None):
+        self.bus = bus
 
 
 class DummyNMDevice:
@@ -1999,9 +2000,13 @@ class MainTests(TestCase):
         connection_manager.dbus.SystemBus.add_message_filter = MagicMock()
         connection_manager.request_dbus_name = MagicMock()
 
+        self._dbus_g_main_loop_patcher = patch("dbus.mainloop.glib.DBusGMainLoop")
+        self._dbus_g_main_loop_patcher.start()
+
         self.dummy_json = DummyBytesIO()
 
     def tearDown(self) -> None:
+        self._dbus_g_main_loop_patcher.stop()
         importlib.reload(connection_manager)
         importlib.reload(dbus)
 
