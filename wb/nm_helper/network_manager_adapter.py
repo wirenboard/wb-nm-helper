@@ -417,7 +417,7 @@ class WiFiConnection(Connection):
 
 
 class WiFiAp(WiFiConnection):
-    def __init__(self) -> None:
+    def __init__(self, network_manager: NetworkManager) -> None:
         params = [
             Param("802-11-wireless.band"),
             Param("802-11-wireless.channel"),
@@ -425,6 +425,7 @@ class WiFiAp(WiFiConnection):
         ]
         WiFiConnection.__init__(self, params)
         self.ui_type = METHOD_WIFI_AP
+        self.network_manager = network_manager
 
     def can_manage(self, cfg: DBUSSettings) -> bool:
         return Connection.can_manage(self, cfg) and (cfg.get_opt("802-11-wireless.mode") == "ap")
@@ -438,7 +439,7 @@ class WiFiAp(WiFiConnection):
             # rtl8723bu has no 802.11w support, its wiphy advertises no BIP cipher.
             # Requesting PMF there makes hostapd install an IGTK at group key index 4,
             # which cfg80211 rejects, and the access point never starts
-            if has_rtl8723bu(NetworkManager()):
+            if has_rtl8723bu(self.network_manager):
                 con.set_value("802-11-wireless-security.pmf", 1)
         user_data = con.get_opt("user.data", dbus.Dictionary(signature="ss"))
         user_data["wb.disable-nat"] = "false" if iface.get_opt("nat", True) else "true"
@@ -587,20 +588,20 @@ def apply(iface, c_handler, network_manager: NetworkManager, dry_run: bool) -> N
 
 class NetworkManagerAdapter:
     @staticmethod
-    def probe():
+    def probe(bus: dbus.SystemBus):
         try:
-            return NetworkManagerAdapter()
+            return NetworkManagerAdapter(bus)
         except dbus.exceptions.DBusException:
             return None
 
-    def __init__(self):
+    def __init__(self, bus: dbus.SystemBus):
+        self.network_manager = NetworkManager(bus)
         self.handlers = {
             METHOD_ETHERNET: EthernetConnection(),
             METHOD_MODEM: ModemConnection(),
             METHOD_WIFI: WiFiConnection(),
-            METHOD_WIFI_AP: WiFiAp(),
+            METHOD_WIFI_AP: WiFiAp(self.network_manager),
         }
-        self.network_manager = NetworkManager()
 
     def remove_undefined_connections(self, interfaces, keep_masks: List):
         uids = []

@@ -10,6 +10,7 @@ import time
 from typing import Dict, Iterator, List, Optional
 
 import dbus
+import dbus.mainloop.glib
 
 from wb.nm_helper.connection_checker import ConnectionChecker
 from wb.nm_helper.dns_resolver import resolve_domain_name
@@ -31,6 +32,7 @@ from wb.nm_helper.network_manager import (
 
 EXIT_SUCCESS = 0
 EXIT_NOT_CONFIGURED = 6
+EXIT_DBUS_DISCONNECTED = 1
 EXIT_NOTRUNNING = 7
 
 LOGGING_FORMAT = "%(message)s"
@@ -806,9 +808,12 @@ def request_dbus_name(bus, name: str) -> None:
 
 
 def main() -> int:
+    # dbus-python requires main-loop integration for follow_name_owner_changes proxies.
+    # Initialize before opening the shared bus; changing the default later cannot attach it.
+    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
     bus = dbus.SystemBus()
     request_dbus_name(bus, DBUS_SERVICE_NAME)
-    network_manager = NetworkManager()
+    network_manager = NetworkManager(bus)
     try:
         cfg_json = read_config_json()
     except (
@@ -845,6 +850,12 @@ def main() -> int:
     manager = ConnectionManager(network_manager=network_manager, config=config, bus=bus)
     while True:
         manager.cycle_loop()
+        if not bus.get_is_connected():
+            # dbus-daemon itself was restarted: this connection (and our RequestName
+            # registration) is gone for good, dbus-python can't reconnect it in place.
+            # Exit so systemd (Restart=on-failure) gives us a fresh bus connection.
+            logging.error("Lost connection to D-Bus, exiting to let systemd restart the service")
+            return EXIT_DBUS_DISCONNECTED
         if stop_requested.wait(CHECK_PERIOD.total_seconds()):
             return EXIT_SUCCESS
 

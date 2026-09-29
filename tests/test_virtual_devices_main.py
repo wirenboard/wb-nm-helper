@@ -22,6 +22,10 @@ class VirtualDevicesMainTest(unittest.TestCase):
             patch.object(virtual_devices, "MQTTClient", return_value=self.mqtt_client),
             patch.object(virtual_devices.sys, "argv", ["wb-mqtt-nm-helper"]),
             patch.object(virtual_devices.signal, "signal", side_effect=self.handlers.__setitem__),
+            # main() opens the system bus before the MQTT client: keep it away from any real D-Bus
+            patch.object(virtual_devices.dbus, "SystemBus"),
+            patch.object(virtual_devices.dbus.mainloop.glib, "DBusGMainLoop"),
+            patch.object(virtual_devices.dbus.mainloop.glib, "threads_init"),
         ]
         for one in patches:
             one.start()
