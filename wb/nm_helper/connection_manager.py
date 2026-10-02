@@ -1,9 +1,11 @@
+import argparse
 import datetime
 import json
 import logging
 import signal
 import subprocess
 import sys
+import threading
 import time
 from typing import Dict, Iterator, List, Optional
 
@@ -28,8 +30,10 @@ from wb.nm_helper.network_manager import (
     connection_type_to_device_type,
 )
 
+EXIT_SUCCESS = 0
 EXIT_NOT_CONFIGURED = 6
 EXIT_DBUS_DISCONNECTED = 1
+EXIT_NOTRUNNING = 7
 
 LOGGING_FORMAT = "%(message)s"
 CONFIG_FILE = "/etc/wb-connection-manager.conf"
@@ -803,7 +807,7 @@ def request_dbus_name(bus, name: str) -> None:
     )
 
 
-def main():
+def main() -> int:
     # dbus-python requires main-loop integration for follow_name_owner_changes proxies.
     # Initialize before opening the shared bus; changing the default later cannot attach it.
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
@@ -830,23 +834,37 @@ def main():
         logging.error("Configuration error: %s", ex)
         return EXIT_NOT_CONFIGURED
 
-    signal.signal(signal.SIGINT, signal.SIG_DFL)
-
-    if config.has_connections():
-        manager = ConnectionManager(network_manager=network_manager, config=config, bus=bus)
-        while True:
-            manager.cycle_loop()
-            if not bus.get_is_connected():
-                # dbus-daemon itself was restarted: this connection (and our RequestName
-                # registration) is gone for good, dbus-python can't reconnect it in place.
-                # Exit so systemd (Restart=on-failure) gives us a fresh bus connection.
-                logging.error("Lost connection to D-Bus, exiting to let systemd restart the service")
-                return EXIT_DBUS_DISCONNECTED
-            time.sleep(CHECK_PERIOD.total_seconds())
-    else:
+    if not config.has_connections():
         logging.info("Nothing to manage")
-        return 0
+        return EXIT_NOTRUNNING
+
+    stop_requested = threading.Event()
+
+    def request_stop(*_):
+        logging.info("Stop requested")
+        stop_requested.set()
+
+    signal.signal(signal.SIGINT, request_stop)
+    signal.signal(signal.SIGTERM, request_stop)
+
+    manager = ConnectionManager(network_manager=network_manager, config=config, bus=bus)
+    while True:
+        manager.cycle_loop()
+        if not bus.get_is_connected():
+            # dbus-daemon itself was restarted: this connection (and our RequestName
+            # registration) is gone for good, dbus-python can't reconnect it in place.
+            # Exit so systemd (Restart=on-failure) gives us a fresh bus connection.
+            logging.error("Lost connection to D-Bus, exiting to let systemd restart the service")
+            return EXIT_DBUS_DISCONNECTED
+        if stop_requested.wait(CHECK_PERIOD.total_seconds()):
+            return EXIT_SUCCESS
+
+
+def cli() -> int:
+    parser = argparse.ArgumentParser(description="Network connections management service for Wiren Board")
+    parser.parse_args()  # the service takes no arguments: anything else exits with 2
+    return main()
 
 
 if __name__ == "__main__":
-    sys.exit(main())  # pragma: no cover
+    sys.exit(cli())  # pragma: no cover

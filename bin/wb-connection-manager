@@ -3,6 +3,6 @@
 
 import sys
 
-from wb.nm_helper.connection_manager import main
+from wb.nm_helper.connection_manager import cli
 
-sys.exit(main())
+sys.exit(cli())
