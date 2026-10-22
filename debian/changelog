@@ -1,3 +1,10 @@
+wb-nm-helper (1.40.1) stable; urgency=medium
+
+  * wb-connection-manager: wait for NetworkManager instead of crashing when it is not running
+    (at start and when it goes away later), so systemd no longer restarts the service in a loop
+
+ -- Ekaterina Volkova <ekaterina.volkova@wirenboard.com>  Thu, 22 Oct 2026 12:33:45 +0000
+
 wb-nm-helper (1.40.0) stable; urgency=medium
 
   * wb-mqtt-nm-helper: wait for an unavailable MQTT broker instead of exiting, publish the

@@ -47,6 +47,7 @@ LOG_RATE_LIMIT_DEFAULT = datetime.timedelta(seconds=600)
 DEFAULT_CONNECTIVITY_CHECK_URL = "http://network-test.debian.org/nm"
 DEFAULT_CONNECTIVITY_CHECK_PAYLOAD = "NetworkManager is online"
 DBUS_SERVICE_NAME = "com.wirenboard.wb-connection-manager"
+NM_DBUS_NAME = "org.freedesktop.NetworkManager"
 
 DBUS_NAME_FLAG_ALLOW_REPLACEMENT = 1
 DBUS_NAME_FLAG_REPLACE_EXISTING = 2
@@ -807,6 +808,36 @@ def request_dbus_name(bus, name: str) -> None:
     )
 
 
+def network_manager_is_running(bus: dbus.SystemBus) -> bool:
+    """A bus error is treated as "not running": the caller then checks the bus connection itself"""
+    try:
+        return bool(bus.name_has_owner(NM_DBUS_NAME))
+    except dbus.exceptions.DBusException:
+        return False
+
+
+def wait_for_network_manager(bus: dbus.SystemBus, stop_requested: threading.Event) -> Optional[int]:
+    """Block until NetworkManager owns its bus name; return an exit code if the wait must end instead"""
+    waiting = False
+    while True:
+        if not bus.get_is_connected():
+            # dbus-daemon itself was restarted: this connection (and our RequestName
+            # registration) is gone for good, dbus-python can't reconnect it in place.
+            # Exit so systemd (Restart=on-failure) gives us a fresh bus connection.
+            logging.error("Lost connection to D-Bus, exiting to let systemd restart the service")
+            return EXIT_DBUS_DISCONNECTED
+        if network_manager_is_running(bus):
+            break
+        if not waiting:
+            logging.warning("NetworkManager is not running, waiting for it")
+            waiting = True
+        if stop_requested.wait(CHECK_PERIOD.total_seconds()):
+            return EXIT_SUCCESS
+    if waiting:
+        logging.info("NetworkManager is running")
+    return None
+
+
 def main() -> int:
     # dbus-python requires main-loop integration for follow_name_owner_changes proxies.
     # Initialize before opening the shared bus; changing the default later cannot attach it.
@@ -827,6 +858,20 @@ def main() -> int:
 
     init_logging(cfg_json.get("debug", False))  # must be initialized before NetworkAwareConfigFile
 
+    stop_requested = threading.Event()
+
+    def request_stop(*_):
+        logging.info("Stop requested")
+        stop_requested.set()
+
+    signal.signal(signal.SIGINT, request_stop)
+    signal.signal(signal.SIGTERM, request_stop)
+
+    # the config loader asks NetworkManager for the connections, so it must be running by now
+    exit_code = wait_for_network_manager(bus, stop_requested)
+    if exit_code is not None:
+        return exit_code
+
     try:
         config = NetworkAwareConfigFile(network_manager=network_manager)
         config.load_config(cfg=cfg_json)
@@ -838,24 +883,17 @@ def main() -> int:
         logging.info("Nothing to manage")
         return EXIT_NOTRUNNING
 
-    stop_requested = threading.Event()
-
-    def request_stop(*_):
-        logging.info("Stop requested")
-        stop_requested.set()
-
-    signal.signal(signal.SIGINT, request_stop)
-    signal.signal(signal.SIGTERM, request_stop)
-
     manager = ConnectionManager(network_manager=network_manager, config=config, bus=bus)
     while True:
-        manager.cycle_loop()
-        if not bus.get_is_connected():
-            # dbus-daemon itself was restarted: this connection (and our RequestName
-            # registration) is gone for good, dbus-python can't reconnect it in place.
-            # Exit so systemd (Restart=on-failure) gives us a fresh bus connection.
-            logging.error("Lost connection to D-Bus, exiting to let systemd restart the service")
-            return EXIT_DBUS_DISCONNECTED
+        try:
+            manager.cycle_loop()
+        except dbus.exceptions.DBusException as ex:
+            if network_manager_is_running(bus):
+                raise
+            logging.error("NetworkManager request failed: %s", ex)
+        exit_code = wait_for_network_manager(bus, stop_requested)
+        if exit_code is not None:
+            return exit_code
         if stop_requested.wait(CHECK_PERIOD.total_seconds()):
             return EXIT_SUCCESS
 
