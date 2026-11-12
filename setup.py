@@ -13,7 +13,7 @@ setuptools.setup(
     name="wb-nm-helper",
     version=get_version(),
     description="wb-mqtt-confed backend for network configuration",
-    license="MIT",
+    license="MIT-WB",
     author="Petr Krasnoshchekov",
     author_email="petr.krasnoshchekov@wirenboard.ru",
     maintainer="Wiren Board Team",
