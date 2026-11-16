@@ -25,7 +25,8 @@ from wb.nm_helper.network_manager import (
 
 
 class DummyNetworkManager:
-    pass
+    def __init__(self, bus=None):
+        self.bus = bus
 
 
 class DummyNMDevice:
@@ -2013,9 +2014,13 @@ class MainTests(TestCase):
         connection_manager.dbus.SystemBus.add_message_filter = MagicMock()
         connection_manager.request_dbus_name = MagicMock()
 
+        self._dbus_g_main_loop_patcher = patch("dbus.mainloop.glib.DBusGMainLoop")
+        self._dbus_g_main_loop_patcher.start()
+
         self.dummy_json = DummyBytesIO()
 
     def tearDown(self) -> None:
+        self._dbus_g_main_loop_patcher.stop()
         importlib.reload(connection_manager)
         importlib.reload(dbus)
 
@@ -2134,9 +2139,9 @@ class MainTests(TestCase):
         self.assertEqual(
             [call(cfg=self.dummy_json)], connection_manager.NetworkAwareConfigFile.load_config.mock_calls
         )
-        self.assertEqual([call(signal.SIGINT, signal.SIG_DFL)], mock_signal.mock_calls)
+        self.assertEqual([], mock_signal.mock_calls)  # no loop to stop, no handlers
         self.assertEqual([call()], DummyConfigFile.has_connections.mock_calls)
-        self.assertEqual(0, result)
+        self.assertEqual(7, result)  # nothing to do is not a failure
 
     def test_later_main_stage_success(self):
         connection_manager.read_config_json = MagicMock(return_value=self.dummy_json)
@@ -2151,13 +2156,12 @@ class MainTests(TestCase):
         ) as mock_config_init, patch.object(
             connection_manager.ConnectionManager, "__init__"
         ) as mock_cm_init, patch.object(
-            time, "sleep"
+            connection_manager.threading.Event, "wait"
         ) as mock_sleep:
             mock_cm_init.return_value = None
             mock_config_init.return_value = None
-            mock_sleep.side_effect = [1, 2, 3]
-            with self.assertRaises(StopIteration):
-                connection_manager.main()
+            mock_sleep.side_effect = [False, False, False, True]  # the fourth wait is the stop request
+            self.assertEqual(0, connection_manager.main())
 
         self.assertEqual([call()], connection_manager.read_config_json.mock_calls)
         self.assertEqual([call("DUMMY_DEBUG")], connection_manager.init_logging.mock_calls)
@@ -2165,7 +2169,7 @@ class MainTests(TestCase):
         self.assertEqual(
             [call(cfg=self.dummy_json)], connection_manager.NetworkAwareConfigFile.load_config.mock_calls
         )
-        self.assertEqual([call(signal.SIGINT, signal.SIG_DFL)], mock_signal.mock_calls)
+        self.assertEqual([signal.SIGINT, signal.SIGTERM], [one.args[0] for one in mock_signal.mock_calls])
         self.assertEqual([call()], DummyConfigFile.has_connections.mock_calls)
         self.assertEqual(1, mock_cm_init.call_count)
         self.assertEqual(3, len(mock_cm_init.mock_calls[0].kwargs))
@@ -2185,3 +2189,30 @@ class MainTests(TestCase):
             ],
             mock_sleep.mock_calls,
         )
+
+    def test_later_main_stage_dbus_disconnected(self):
+        # A dbus-daemon restart drops our connection (and RequestName registration) for good;
+        # dbus-python can't reconnect it in place, so main() must exit and let systemd
+        # (Restart=on-failure) start us fresh instead of looping forever on a dead bus.
+        connection_manager.read_config_json = MagicMock(return_value=self.dummy_json)
+        self.dummy_json.get = MagicMock(return_value="DUMMY_DEBUG")
+        connection_manager.init_logging = MagicMock()
+        DummyConfigFile.load_config = MagicMock()
+        DummyConfigFile.has_connections = MagicMock(return_value=True)
+        connection_manager.ConnectionManager.cycle_loop = MagicMock()
+        connection_manager.dbus.SystemBus.return_value.get_is_connected = MagicMock(return_value=False)
+
+        with patch.object(signal, "signal"), patch.object(
+            DummyConfigFile, "__init__"
+        ) as mock_config_init, patch.object(
+            connection_manager.ConnectionManager, "__init__"
+        ) as mock_cm_init, patch.object(
+            time, "sleep"
+        ) as mock_sleep:
+            mock_cm_init.return_value = None
+            mock_config_init.return_value = None
+            result = connection_manager.main()
+
+        self.assertEqual([call()], connection_manager.ConnectionManager.cycle_loop.mock_calls)
+        self.assertEqual([], mock_sleep.mock_calls)
+        self.assertEqual(connection_manager.EXIT_DBUS_DISCONNECTED, result)

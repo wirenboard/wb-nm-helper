@@ -214,7 +214,7 @@ from wb.nm_helper.network_manager_adapter import (
     ],
 )
 def test_wifiap_set_dbus_options(json, dbus_old, dbus_new):
-    access_point = WiFiAp()
+    access_point = WiFiAp(MagicMock())
     json_settings = JSONSettings(json)
     dbus_old_settings = DBUSSettings(dbus_old)
     dbus_new_settings = DBUSSettings(dbus_new)
@@ -260,7 +260,7 @@ def test_get_wifi_bands(drivers, expected_bands):
         "wb.nm_helper.network_manager_adapter.NetworkManager",
         return_value=make_network_manager(drivers),
     ):
-        assert NetworkManagerAdapter().get_wifi_bands() == expected_bands
+        assert NetworkManagerAdapter(MagicMock()).get_wifi_bands() == expected_bands
 
 
 @pytest.mark.parametrize(
@@ -293,11 +293,7 @@ def test_wifiap_set_dbus_options_pmf(drivers, expected_pmf):
         }
     )
     dbus_settings = DBUSSettings()
-    with patch(
-        "wb.nm_helper.network_manager_adapter.NetworkManager",
-        return_value=make_network_manager(drivers),
-    ):
-        WiFiAp().set_dbus_options(dbus_settings, json_settings)
+    WiFiAp(make_network_manager(drivers)).set_dbus_options(dbus_settings, json_settings)
     # the security section must survive, otherwise nothing below is actually checked
     assert dbus_settings.get_opt("802-11-wireless-security.key-mgmt") == "wpa-psk"
     assert dbus_settings.get_opt("802-11-wireless-security.psk") == "0123456789"

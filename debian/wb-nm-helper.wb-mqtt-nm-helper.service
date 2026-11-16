@@ -9,6 +9,8 @@ RestartSec=2
 User=root
 ExecStart=/usr/bin/wb-mqtt-nm-helper
 ExecReload=/usr/bin/wb-mqtt-nm-helper --reload $MAINPID
+# 2: bad command-line arguments or a rejected MQTT login
+RestartPreventExitStatus=2
 
 [Install]
 WantedBy=multi-user.target

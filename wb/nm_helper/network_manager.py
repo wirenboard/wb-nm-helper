@@ -56,7 +56,10 @@ class DbusObject:
 
     def get_object(self):
         if self.obj is None:
-            self.obj = self.bus.get_object(self.dbus_name, self.path)
+            # follow_name_owner_changes: without it a proxy stays bound to the unique bus name
+            # resolved at creation time, so a NetworkManager restart (e.g. on package upgrade)
+            # leaves it calling a dead name forever instead of the new NetworkManager instance.
+            self.obj = self.bus.get_object(self.dbus_name, self.path, follow_name_owner_changes=True)
         return self.obj
 
     def get_iface(self):
@@ -82,11 +85,12 @@ class NMObject(DbusObject):
 
 
 class NetworkManager(NMObject):
-    def __init__(self):
+    def __init__(self, bus: dbus.SystemBus):
+        """Use a bus with main-loop integration initialized by the executable."""
         NMObject.__init__(
             self,
             "/org/freedesktop/NetworkManager",
-            dbus.SystemBus(),
+            bus,
             "org.freedesktop.NetworkManager",
         )
 

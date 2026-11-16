@@ -4,6 +4,7 @@ import subprocess
 from unittest.mock import MagicMock, Mock, patch
 
 import dbus
+import dbus.mainloop.glib
 import dbusmock
 import jsonschema
 from dbusmock.templates.networkmanager import (
@@ -21,11 +22,12 @@ from wb.nm_helper import nm_helper
 class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
     @classmethod
     def setUpClass(cls):
+        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
         cls.start_system_bus()
         cls.system_bus = cls.get_dbus(system_bus=True)
 
     def setUp(self):
-        (self.p_mock, self.obj_networkmanager) = self.spawn_server_template(
+        self.p_mock, self.obj_networkmanager = self.spawn_server_template(
             "networkmanager", {"NetworkingEnabled": True}, stdout=subprocess.PIPE
         )
         self.networkmanager_mock = dbus.Interface(self.obj_networkmanager, dbusmock.MOCK_IFACE)
@@ -57,11 +59,12 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
         self.settings.AddConnection(connections.WB_AP_DBUS_SETTINGS)
 
         res = nm_helper.to_json(
+            bus=self.system_bus,
             args=argparse.Namespace(
                 config="tests/data/wb-connection-manager.conf",
                 interfaces_conf="tests/data/interfaces",
                 no_scan=True,
-            )
+            ),
         )
 
         with open("../../../wb-network.schema.json", "r", encoding="utf-8") as f:
@@ -169,6 +172,7 @@ class TestNetworkManagerHelperImport(dbusmock.DBusTestCase):
 
         nm_helper.from_json(
             cfg,
+            bus=self.system_bus,
             args=argparse.Namespace(
                 interfaces_conf="tests/data/non-exist-file",
                 dnsmasq_conf="tests/data/dnsmasq.conf",
@@ -209,10 +213,10 @@ def test_from_json():
     with open("tests/data/ui.json", "r", encoding="utf-8") as f:
         cfg = json.load(f)
 
-    # we need to unset dry_run only for "apply" method
-    with patch("wb.nm_helper.network_manager_adapter.NetworkManagerAdapter", MagicMock):
+    with patch("wb.nm_helper.nm_helper.NetworkManagerAdapter"):
         res = nm_helper.from_json(
             cfg,
+            bus=MagicMock(),
             args=argparse.Namespace(
                 interfaces_conf="tests/data/interfaces",
                 dnsmasq_conf="tests/data/dnsmasq.conf",
