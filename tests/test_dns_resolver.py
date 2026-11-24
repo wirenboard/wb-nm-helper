@@ -113,3 +113,11 @@ def test_resolve_domain_name_restores_factory_when_resolve_raises():
         dns_resolver.socket.SO_BINDTODEVICE,
         b"eth0\0",
     )
+
+
+def test_importing_dns_resolver_disables_dnspython_doh():
+    features = pytest.importorskip("dns._features")
+    if not hasattr(features, "force"):
+        pytest.skip("dnspython without the _features switch")
+
+    assert features.have("doh") is False
