@@ -27,6 +27,7 @@ class Device:
         self._device_title = device_title
         self._driver_name = driver_name
         self._controls = {}
+        self._subscribed_controls = set()
         self._publish(self._base_topic + "/meta/name", device_title)
         self._publish(self._base_topic + "/meta/driver", driver_name)
 
@@ -55,6 +56,12 @@ class Device:
                 self.set_control_value(mqtt_control_name, control.value, force=True)
 
     def remove_control(self, mqtt_control_name: str) -> None:
+        if mqtt_control_name in self._subscribed_controls:
+            # a callback left behind would still act on commands sent to the removed device
+            self._subscribed_controls.discard(mqtt_control_name)
+            on_topic = self._get_control_base_topic(mqtt_control_name) + "/on"
+            self._mqtt_client.unsubscribe(on_topic)
+            self._mqtt_client.message_callback_remove(on_topic)
         if mqtt_control_name in self._controls:
             self._controls.pop(mqtt_control_name)
             self._publish(self._get_control_base_topic(mqtt_control_name), None)
@@ -92,6 +99,7 @@ class Device:
             control_base_topic = self._get_control_base_topic(mqtt_control_name)
             self._mqtt_client.subscribe(control_base_topic + "/on")
             self._mqtt_client.message_callback_add(control_base_topic + "/on", callback)
+            self._subscribed_controls.add(mqtt_control_name)
         else:
             logging.debug("Can't add message callback to undeclared control %s", mqtt_control_name)
 

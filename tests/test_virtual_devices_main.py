@@ -54,3 +54,43 @@ class VirtualDevicesMainTest(unittest.TestCase):
 
         self.mqtt_client.publish.assert_not_called()
         self.mqtt_client.stop.assert_called_once_with()
+
+    def test_dbus_error_on_start_exits_with_1(self):
+        """A D-Bus failure at startup must be a failure for systemd's Restart=on-failure."""
+        self.mqtt_client.wait_for_connection.side_effect = None
+        self.mqtt_client.wait_for_connection.return_value = True
+        mediator = MagicMock()
+        mediator.run.side_effect = virtual_devices.dbus.exceptions.DBusException("NoReply")
+
+        with patch.object(virtual_devices, "ConnectionsMediator", return_value=mediator), patch.object(
+            virtual_devices.wbmqtt, "remove_topics_by_device_prefix"
+        ):
+            self.assertEqual(virtual_devices.main(), virtual_devices.EXIT_FAILURE)
+
+        mediator.stop.assert_called_once_with()
+        self.mqtt_client.stop.assert_called_once_with()
+
+    def test_dbus_error_while_creating_the_mediator_exits_with_1(self):
+        self.mqtt_client.wait_for_connection.side_effect = None
+        self.mqtt_client.wait_for_connection.return_value = True
+        error = virtual_devices.dbus.exceptions.DBusException("AccessDenied")
+
+        with patch.object(virtual_devices, "ConnectionsMediator", side_effect=error), patch.object(
+            virtual_devices.wbmqtt, "remove_topics_by_device_prefix"
+        ):
+            self.assertEqual(virtual_devices.main(), virtual_devices.EXIT_FAILURE)
+
+        self.mqtt_client.stop.assert_called_once_with()
+
+    def test_failed_mediator_exits_with_1(self):
+        """Connections that can't be read even after retries: exit with an error so systemd restarts it."""
+        self.mqtt_client.wait_for_connection.side_effect = None
+        self.mqtt_client.wait_for_connection.return_value = True
+        mediator = MagicMock(failed=True)
+
+        with patch.object(virtual_devices, "ConnectionsMediator", return_value=mediator), patch.object(
+            virtual_devices.wbmqtt, "remove_topics_by_device_prefix"
+        ):
+            self.assertEqual(virtual_devices.main(), virtual_devices.EXIT_FAILURE)
+
+        mediator.stop.assert_called_once_with()

@@ -27,11 +27,26 @@ from wb.nm_helper.network_manager import NMActiveConnection
 CONNECTIVITY_CHECK_PERIOD = 20
 MQTT_DRIVER_NAME = "wb-nm-helper"
 EXIT_SUCCESS = 0
+EXIT_FAILURE = 1
 EXIT_INVALIDARGUMENT = 2
 # CONNACK codes for a rejected login: bad user name or password, not authorized
 MQTT_AUTH_ERRORS = (4, 5)
 MQTT_DEVICE_TOPIC_PREFIX = "system__networks__"
 PERMANENT_CONNECTED_TYPES = ["loopback", "bridge", "tun"]
+NETWORK_MANAGER_DBUS_NAME = "org.freedesktop.NetworkManager"
+# NetworkManager doesn't answer its listings: 1 + 2 + 4 + 8 + 16 = 31 s plus 6 timeouts, then exit
+NETWORK_MANAGER_RESTORE_MAX_RETRIES = 5
+# A listing takes milliseconds; libdbus waits 25 s by default
+NETWORK_MANAGER_LIST_TIMEOUT = 5
+# One connection can't be read: 1 + 2 + 4 = 7 s, then only that connection is left out
+OBJECT_READ_MAX_RETRIES = 3
+DBUS_NO_REPLY = "org.freedesktop.DBus.Error.NoReply"
+
+
+# Reads of single objects are still blocking calls on the event loop thread, where a call that
+# times out corrupts the heap (see _request_network_manager_listing): don't repeat such a call
+def is_retriable(ex: dbus.exceptions.DBusException) -> bool:
+    return ex.get_dbus_name() != DBUS_NO_REPLY
 
 
 class EventLoop:
@@ -75,6 +90,9 @@ class EventType(enum.Enum):
 
     RELOAD_CONNECTIVITY = enum.auto()
     RELOAD_CONNECTIONS = enum.auto()
+    NETWORK_MANAGER_OWNER_CHANGED = enum.auto()
+    NETWORK_MANAGER_RESTORE = enum.auto()
+    NETWORK_MANAGER_LISTED = enum.auto()
 
 
 class Event:
@@ -183,8 +201,25 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
         self._active_connections = {}
         self._event_loop = EventLoop()
         self._connectivity_updater = ConnectivityUpdater(self, self._bus)
+        self._network_manager_owner = None
+        self._network_manager_restore_retries = 0
+        self._network_manager_restore_handle = None
+        self._active_list_reload_pending = False
+        self._delayed_events = set()  # call_later handles, dropped when NetworkManager restarts
+        # set when connections can't be read: the service should exit with an error and be restarted
+        self.failed = False
 
+        # Receivers bound to the well-known name keep working after NetworkManager restarts:
+        # dbus-python follows the name owner by itself
         self._set_connections_event_handlers()
+        self._bus.add_signal_receiver(
+            self._network_manager_owner_changed_handler,
+            "NameOwnerChanged",
+            "org.freedesktop.DBus",
+            "org.freedesktop.DBus",
+            "/org/freedesktop/DBus",
+            arg0=NETWORK_MANAGER_DBUS_NAME,
+        )
         self._deactivation_monitor = DeactivationMonitor(self)
         self._mosquitto_monitor = MosquittoMonitor(self, mqtt_client)
 
@@ -192,8 +227,16 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
         self._event_loop.run()
         self._connectivity_updater.run()
 
-        self._create_common_connections()
-        self._create_active_connections()
+        # NameOwnerChanged receiver is already set, so an owner change after this read is not lost
+        try:
+            owner = self._bus.get_name_owner(NETWORK_MANAGER_DBUS_NAME)
+        except dbus.exceptions.DBusException as ex:
+            if ex.get_dbus_name() != "org.freedesktop.DBus.Error.NameHasNoOwner":
+                raise
+            logging.warning("NetworkManager is not running, wait for it")
+            owner = None
+        if owner:
+            self.new_event(Event(EventType.NETWORK_MANAGER_OWNER_CHANGED, new_owner=owner))
 
         self._dbus_loop.run()
 
@@ -212,7 +255,7 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
             self._common_connection_added_handler,
             "NewConnection",
             "org.freedesktop.NetworkManager.Settings",
-            "org.freedesktop.NetworkManager",
+            NETWORK_MANAGER_DBUS_NAME,
             "/org/freedesktop/NetworkManager/Settings",
             sender_keyword="sender",
         )
@@ -220,7 +263,7 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
             self._common_connection_removed_handler,
             "Removed",  # ConnectionRemoved from org.freedesktop.NetworkManager.Settings doesn't work well
             "org.freedesktop.NetworkManager.Settings.Connection",
-            "org.freedesktop.NetworkManager",
+            NETWORK_MANAGER_DBUS_NAME,
             None,
             path_keyword="path",
         )
@@ -228,37 +271,59 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
             self._active_list_update_handler,
             "PropertiesChanged",
             "org.freedesktop.DBus.Properties",
-            "org.freedesktop.NetworkManager",
+            NETWORK_MANAGER_DBUS_NAME,
             "/org/freedesktop/NetworkManager",
         )
 
-    def _create_common_connections(self):
-        connections_settings_proxy = self._bus.get_object(
-            "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager/Settings"
-        )
+    # The listings run on the GLib thread, asynchronously. A D-Bus call that times out in another
+    # thread (the event loop's) corrupts the process heap, and it does time out while NetworkManager
+    # hangs. Results come back as NETWORK_MANAGER_LISTED events, in order with the signals.
+    def _request_network_manager_listing(self, owner: str, restore: bool, retry: int = 0) -> None:
+        GLib.idle_add(self._list_network_manager_objects, owner, restore, retry)
 
-        connections_settings_interface = dbus.Interface(
-            connections_settings_proxy, "org.freedesktop.NetworkManager.Settings"
-        )
-        connections_paths = connections_settings_interface.ListConnections()
+    def _list_network_manager_objects(self, owner: str, restore: bool, retry: int) -> bool:
+        def post(**kwargs):
+            self.new_event(
+                Event(EventType.NETWORK_MANAGER_LISTED, owner=owner, restore=restore, retry=retry, **kwargs)
+            )
 
-        for connection_path in connections_paths:
-            self.new_event(Event(EventType.COMMON_CREATE, path=connection_path))
+        def failed(ex):
+            post(error=ex)
 
-    def _create_active_connections(self):
-        active_connections_proxy = self._bus.get_object(
-            "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager"
-        )
-        active_connections_interface = dbus.Interface(
-            active_connections_proxy, "org.freedesktop.DBus.Properties"
-        )
-        active_connections_paths = active_connections_interface.Get(
-            "org.freedesktop.NetworkManager", "ActiveConnections"
-        )
+        # Without introspection (one more call that may time out); the arguments are only strings
+        def call(path, interface, method, *args, reply):
+            try:
+                proxy = self._bus.get_object(NETWORK_MANAGER_DBUS_NAME, path, introspect=False)
+                proxy.get_dbus_method(method, interface)(
+                    *args, reply_handler=reply, error_handler=failed, timeout=NETWORK_MANAGER_LIST_TIMEOUT
+                )
+            except dbus.exceptions.DBusException as ex:
+                failed(ex)
 
-        self.new_event(Event(EventType.ACTIVE_LIST_UPDATE, path_list=active_connections_paths))
+        def list_active_connections():
+            call(
+                "/org/freedesktop/NetworkManager",
+                "org.freedesktop.DBus.Properties",
+                "Get",
+                NETWORK_MANAGER_DBUS_NAME,
+                "ActiveConnections",
+                reply=lambda paths: post(active_connections=paths),
+            )
 
-    # Dbus signals handlers
+        def connections_listed(paths):
+            post(connections=paths)
+            list_active_connections()
+
+        if restore:
+            call(
+                "/org/freedesktop/NetworkManager/Settings",
+                "org.freedesktop.NetworkManager.Settings",
+                "ListConnections",
+                reply=connections_listed,
+            )
+        else:
+            list_active_connections()
+        return False  # once, for GLib.idle_add
 
     def _common_connection_added_handler(self, *args, **kwargs):
         # For some reasons handler receive first signals from non-existed client
@@ -280,17 +345,52 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
                 )
             )
 
+    def _network_manager_owner_changed_handler(self, _, __, new_owner):
+        self.new_event(Event(EventType.NETWORK_MANAGER_OWNER_CHANGED, new_owner=new_owner))
+
     # Async event functions
 
-    def _common_connection_create(self, connection_path):
+    def _common_connection_create(self, connection_path, retry: int = 0):
         if connection_path is None:
+            return
+        # After NetworkManager restarts, the same path may come both from NewConnection
+        # and from ListConnections; a second device would override the real state with defaults
+        if connection_path in self._common_connections:
+            logging.debug("Common connection %s already exists", connection_path)
             return
         try:
             new_common_connection = CommonConnection(self, self._mqtt_client, self._bus, connection_path)
             new_common_connection.run()
             self._common_connections[connection_path] = new_common_connection
-        except dbus.exceptions.DBusException:
-            logging.error("Common connection %s creation failed", connection_path)
+        except dbus.exceptions.DBusException as ex:
+            # e.g. right after NetworkManager restarts, or the connection was removed meanwhile
+            if retry < OBJECT_READ_MAX_RETRIES and is_retriable(ex):
+                logging.debug("Common connection %s creation failed, retry: %s", connection_path, ex)
+                self._post_later(
+                    2**retry, Event(EventType.COMMON_CREATE, path=connection_path, retry=retry + 1)
+                )
+            else:
+                logging.error("Common connection %s creation failed: %s", connection_path, ex)
+            return
+
+        # The connection may already be active if it was created after the active connections list
+        active_connection = self._find_active_connection(connection_path)
+        if active_connection is not None:
+            new_common_connection.update(active_connection.state)
+
+    # During reactivation a connection has two active connections: prefer the one that is coming up
+    def _find_active_connection(self, connection_path: str):
+        active_connections = [
+            active_connection
+            for active_connection in self._active_connections.values()
+            if active_connection.connection_path == connection_path
+        ]
+        if not active_connections:
+            return None
+        return max(
+            active_connections,
+            key=lambda x: x.state.connection_state in (ConnectionState.ACTIVATED, ConnectionState.ACTIVATING),
+        )
 
     def _common_connection_switch(self, connection_path: str):
         connection = self._common_connections.get(connection_path)
@@ -321,9 +421,16 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
             self._common_connections[connection_path].stop()
             self._common_connections.pop(connection_path)
 
-    def _active_connections_list_update(self, active_connections_paths):
+    # Without a list of paths it is read from NetworkManager
+    def _active_connections_list_update(self, active_connections_paths=None, retry: int = 0):
+        # the list is read again: ask for it, the answer comes to _network_manager_listed
         if active_connections_paths is None:
+            # a reload that fired just before NetworkManager stopped
+            if not self._network_manager_owner:
+                return
+            self._request_network_manager_listing(self._network_manager_owner, restore=False, retry=retry)
             return
+        failed_paths = []
 
         old_active_paths = [x for x in self._active_connections if x not in active_connections_paths]
         new_active_paths = [x for x in active_connections_paths if x not in self._active_connections]
@@ -338,7 +445,10 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
                     new_active_connection.connection_path, new_active_connection.state
                 )
                 self._active_connections[new_active_path] = new_active_connection
-            except dbus.exceptions.DBusException:
+            except dbus.exceptions.DBusException as ex:
+                if not is_retriable(ex):
+                    logging.warning("Unable to read active connection %s: %s", new_active_path, ex)
+                    continue
                 # When connection up/down/create/remove is in process, active connections list
                 # changes very fast and it's impossible to create some temporary active connections
                 # because they are removing faster than we can read their properties.
@@ -346,16 +456,38 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
                 # we can successfully read its properties on active connections list update signal.
                 # So this message mostly for debug
                 logging.debug("New active connection create failed %s", new_active_path)
+                failed_paths.append(new_active_path)
 
         for old_active_path in old_active_paths:
-            old_active_connection = self._active_connections[old_active_path]
+            old_active_connection = self._active_connections.pop(old_active_path)
             old_active_connection.stop()
 
-            self._update_common_connection(old_active_connection.connection_path, old_active_connection.state)
+            # Don't show the connection as deactivated while it is being reactivated
+            remaining_active_connection = self._find_active_connection(old_active_connection.connection_path)
+            if remaining_active_connection is not None:
+                state = remaining_active_connection.state
+            else:
+                state = old_active_connection.state
+            self._update_common_connection(old_active_connection.connection_path, state)
 
-            self._active_connections.pop(old_active_path)
+        # But a stable active connection may never change again (e.g. right after NetworkManager
+        # restarts), so no list update would come: read the list again later.
+        # Temporary active connections are gone from that list and are not read again
+        if failed_paths and not self._active_list_reload_pending:
+            if retry < OBJECT_READ_MAX_RETRIES:
+                self._active_list_reload_pending = True
+                self._post_later(2**retry, Event(EventType.ACTIVE_LIST_UPDATE, retry=retry + 1))
+            else:
+                logging.warning("Unable to read active connections %s", failed_paths)
 
-    def _active_connection_connectivity_updated(self, active_connection_path: str, connectivity: bool):
+    def _active_connection_connectivity_updated(
+        self, active_connection_path: str, connectivity: bool, generation: int
+    ):
+        # NetworkManager reuses active connection paths after it restarts,
+        # so a result of a check started before the restart may belong to another connection
+        if generation != self._connectivity_updater.generation:
+            logging.debug("Drop stale connectivity of %s", active_connection_path)
+            return
         active_connection = self._active_connections.get(active_connection_path)
         if active_connection is not None:
             active_connection.update_connectivity(connectivity)
@@ -376,6 +508,86 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
         for connection in self._common_connections.values():
             connection.republish()
 
+    def _network_manager_owner_changed(self, new_owner: str) -> None:
+        # At startup the owner read in run() may be followed by NameOwnerChanged for the same owner
+        if new_owner == self._network_manager_owner:
+            return
+        self._network_manager_owner = new_owner
+        self._network_manager_restore_retries = 0
+        self._network_manager_restore_handle = None
+        self._active_list_reload_pending = False
+        for handle in self._delayed_events:
+            handle.cancel()
+        self._delayed_events.clear()
+
+        for connection in self._active_connections.values():
+            connection.stop()
+        self._active_connections.clear()
+        self._connectivity_updater.reset()
+
+        for connection in self._common_connections.values():
+            connection.stop()
+        self._common_connections.clear()
+
+        if new_owner:
+            self._restore_network_manager_connections(new_owner)
+
+    # Already created connections are skipped, so a repeated restore only fills the gaps
+    def _restore_network_manager_connections(self, owner: str) -> None:
+        # NetworkManager may change its owner again while a retry is pending
+        if owner != self._network_manager_owner:
+            return
+        self._network_manager_restore_handle = None
+        self._request_network_manager_listing(owner, restore=True)
+
+    # A listing requested by _restore_network_manager_connections (restore) or for the reload of
+    # the active connections list (_active_connections_list_update)
+    def _network_manager_listed(  # pylint: disable=R0913
+        self, owner, restore, *, retry=0, connections=None, active_connections=None, error=None
+    ) -> None:
+        if owner != self._network_manager_owner:
+            return  # NetworkManager restarted meanwhile, its paths are stale
+        if not restore:
+            self._active_list_reload_pending = False
+        if error is not None:
+            if restore:
+                self._retry_network_manager_restore(error)
+            else:
+                logging.warning("Unable to read active connections list: %s", error)
+            return
+        for path in connections or []:
+            self._common_connection_create(path)
+        if active_connections is not None:
+            if restore:
+                self._network_manager_restore_retries = 0
+            self._active_connections_list_update(active_connections, retry)
+
+    # Only for failures of the NetworkManager listings: single connections are retried on their own
+    def _retry_network_manager_restore(self, reason) -> None:
+        if self.failed or self._network_manager_restore_handle is not None:
+            return
+        retries = self._network_manager_restore_retries
+        if retries >= NETWORK_MANAGER_RESTORE_MAX_RETRIES:
+            logging.error("Unable to read NetworkManager connections, exit: %s", reason)
+            self.failed = True
+            GLib.idle_add(self._dbus_loop.quit)  # run() returns and main() stops everything
+            return
+        delay = 2**retries
+        self._network_manager_restore_retries += 1
+        logging.warning("Unable to read NetworkManager connections, retry in %d s: %s", delay, reason)
+        self._network_manager_restore_handle = self._post_later(
+            delay, Event(EventType.NETWORK_MANAGER_RESTORE, owner=self._network_manager_owner)
+        )
+
+    def _post_later(self, delay: float, event: Event):
+        def post():
+            self._delayed_events.discard(handle)
+            self.new_event(event)
+
+        handle = self._event_loop.call_later(delay, post)
+        self._delayed_events.add(handle)
+        return handle
+
     def _update_common_connection(self, connection_path: str, state: MqttConnectionState) -> None:
         connection = self._common_connections.get(connection_path)
         if connection is not None:
@@ -390,11 +602,11 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
         if connection is not None:
             connection.set_deactivated_by_cm()
 
-    async def _run_async_event(self, event: Event):
+    async def _run_async_event(self, event: Event):  # pylint: disable=R0912
         logging.debug("Execute event %s %s %s", event.number, event.type.name, event.kwargs)
         try:
             if event.type == EventType.COMMON_CREATE:
-                self._common_connection_create(event.kwargs.get("path"))
+                self._common_connection_create(event.kwargs.get("path"), event.kwargs.get("retry", 0))
 
             elif event.type == EventType.COMMON_SWITCH:
                 self._common_connection_switch(event.kwargs.get("connection_path"))
@@ -403,11 +615,15 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
                 self._common_connection_remove(event.kwargs.get("path"))
 
             elif event.type == EventType.ACTIVE_LIST_UPDATE:
-                self._active_connections_list_update(event.kwargs.get("path_list"))
+                self._active_connections_list_update(
+                    event.kwargs.get("path_list"), event.kwargs.get("retry", 0)
+                )
 
             elif event.type == EventType.ACTIVE_CONNECTIVITY_UPDATED:
                 self._active_connection_connectivity_updated(
-                    event.kwargs.get("active_connection_path"), event.kwargs.get("connectivity")
+                    event.kwargs.get("active_connection_path"),
+                    event.kwargs.get("connectivity"),
+                    event.kwargs.get("generation"),
                 )
 
             elif event.type == EventType.ACTIVE_PROPERTIES_UPDATED:
@@ -420,6 +636,15 @@ class ConnectionsMediator(Mediator):  # pylint: disable=R0902
 
             elif event.type == EventType.RELOAD_CONNECTIONS:
                 self._reload_connections()
+
+            elif event.type == EventType.NETWORK_MANAGER_OWNER_CHANGED:
+                self._network_manager_owner_changed(event.kwargs.get("new_owner"))
+
+            elif event.type == EventType.NETWORK_MANAGER_RESTORE:
+                self._restore_network_manager_connections(event.kwargs.get("owner"))
+
+            elif event.type == EventType.NETWORK_MANAGER_LISTED:
+                self._network_manager_listed(**event.kwargs)
 
             elif event.type == EventType.ACTIVE_DEACTIVATED_BY_CM:
                 self._active_connection_deactivated_by_cm(event.kwargs.get("active_connection_path"))
@@ -447,12 +672,21 @@ class ConnectivityUpdater:
         self._event_loop = EventLoop()
         self._futures = {}
         self._connection_checker = ConnectionChecker()
+        # Results of checks started before the last reset() are stale
+        self.generation = 0
 
     def run(self):
         self._event_loop.run()
 
     def stop(self):
         self._event_loop.stop()
+
+    # cancel all checks and mark results of running ones as stale
+    def reset(self) -> None:
+        for future in self._futures.values():
+            future.cancel()
+        self._futures.clear()
+        self.generation += 1
 
     # update connectivity for active connection now
     def update(self, active_connection_path: str, period=None):
@@ -463,6 +697,7 @@ class ConnectivityUpdater:
                     EventType.ACTIVE_CONNECTIVITY_UPDATED,
                     active_connection_path=active_connection_path,
                     connectivity=True,
+                    generation=self.generation,
                 )
             )
             return
@@ -473,7 +708,7 @@ class ConnectivityUpdater:
 
         # run connectivity check in ConnectivityUpdater event loop
         self._futures[active_connection_path] = self._event_loop.run_coroutine_threadsafe(
-            self._check_connectivity(active_connection_path, period)
+            self._check_connectivity(active_connection_path, period, self.generation)
         )
 
     #  assume that some connections always have a positive connectivity based on their settings
@@ -492,7 +727,7 @@ class ConnectivityUpdater:
             logging.debug("Can't define if connection has permanent connectivity: %s", ex)
             return False
 
-    async def _check_connectivity(self, active_connection_path: str, period):
+    async def _check_connectivity(self, active_connection_path: str, period, generation: int):
         logging.debug("Check connectivity for %s", active_connection_path)
 
         while True:
@@ -508,6 +743,7 @@ class ConnectivityUpdater:
                     EventType.ACTIVE_CONNECTIVITY_UPDATED,
                     active_connection_path=active_connection_path,
                     connectivity=connectivity,
+                    generation=generation,
                 )
             )
             if period:
@@ -516,8 +752,9 @@ class ConnectivityUpdater:
                 break
 
     def stop_updates(self, active_connection_path: str):
-        if active_connection_path in self._futures:
-            self._futures[active_connection_path].cancel()
+        future = self._futures.pop(active_connection_path, None)
+        if future is not None:
+            future.cancel()
 
 
 class CommonConnection:  # pylint: disable=R0902
@@ -793,12 +1030,18 @@ class ActiveConnection:  # pylint: disable=R0902
         self._modem_path = None
 
     def run(self):
-        dbus_properties = self._read_connection_dbus_properties(self._path)
-        self.update(dbus_properties)
-
+        # Subscribe before reading: a connection may be activated between the two (dummy, tun
+        # in milliseconds), and that change would be lost. Signals received meanwhile are
+        # handled after this event and only repeat what was read.
         self._active_connection_properties_changed_subscription.subscribe(
             self._path, active_connection_path=self._path
         )
+        try:
+            dbus_properties = self._read_connection_dbus_properties(self._path)
+            self.update(dbus_properties)
+        except dbus.exceptions.DBusException:
+            self._release()
+            raise
 
         logging.info(
             "New active connection %s %s %s %s",
@@ -853,37 +1096,43 @@ class ActiveConnection:  # pylint: disable=R0902
             return {}
 
     def _find_modem_dbus_path_by_device(self, device):
-        path = None
-        if device is not None:
+        if device is None:
+            return None
+        # ModemManager may be restarting or a modem may disappear: the connection itself is still readable
+        try:
             proxy = self._bus.get_object("org.freedesktop.ModemManager1", "/org/freedesktop/ModemManager1")
             interface = dbus.Interface(proxy, "org.freedesktop.DBus.ObjectManager")
-            modem_manager_objects = interface.GetManagedObjects()
-            modem_paths = modem_manager_objects.keys()
+            modem_paths = interface.GetManagedObjects().keys()
 
             for modem_path in modem_paths:
                 proxy = self._bus.get_object("org.freedesktop.ModemManager1", modem_path)
                 interface = dbus.Interface(proxy, "org.freedesktop.DBus.Properties")
                 modem_port = interface.Get("org.freedesktop.ModemManager1.Modem", "PrimaryPort")
                 if modem_port == device:
-                    path = modem_path
-                    break
-        return path
+                    return modem_path
+        except dbus.exceptions.DBusException as ex:
+            logging.debug("Unable to find modem of %s: %s", device, ex)
+        return None
 
     def update(self, dbus_properties):
         logging.debug("Update active connection %s: %s", self._path, dbus_properties)
 
         old_state = copy.deepcopy(self.state)
+        # subscribe to a new Ip4Config before its addresses are read, as in run()
+        self._update_subscriptions_from_dbus_properties(dbus_properties)
         self._update_connection_info_from_dbus_properties(dbus_properties)
         self._update_state_from_dbus_properties(dbus_properties)
         new_state = self.state
 
-        if (  # update modem info for gsm connections when device is changed
-            new_state.device != old_state.device and self._type == "gsm"
-        ):
-            if new_state.device != MqttConnectionState.device:
-                self._modem_path = self._find_modem_dbus_path_by_device(new_state.device)
-            else:
+        if self._type == "gsm":  # find the modem for operator, signal, technology
+            if new_state.device == MqttConnectionState.device:
                 self._modem_path = None
+            elif new_state.device != old_state.device or (
+                # ModemManager couldn't tell it (e.g. restarting): ask again on each state change
+                self._modem_path is None
+                and new_state.connection_state != old_state.connection_state
+            ):
+                self._modem_path = self._find_modem_dbus_path_by_device(new_state.device)
 
         if (  # update operator, signal, technology for gsm connections if state is changed
             new_state.connection_state != old_state.connection_state
@@ -903,8 +1152,6 @@ class ActiveConnection:  # pylint: disable=R0902
             and new_state.connection_state != ConnectionState.ACTIVATED
         ):
             self._connectivity_updater.stop_updates(self._path)
-
-        self._update_subscriptions_from_dbus_properties(dbus_properties)
 
     def update_connectivity(self, connectivity: bool):
         self.state.connectivity = connectivity
@@ -1001,13 +1248,14 @@ class ActiveConnection:  # pylint: disable=R0902
         except dbus.exceptions.DBusException:
             logging.error("The connection %s was not active", self._path)
 
-    # clear subscriptions and state before removing object (connnection deactivated)
-    def stop(self):
-
+    def _release(self):
         self._active_connection_properties_changed_subscription.unsubscribe()
         self._ipv4_config_changed_subscription.unsubscribe()
-
         self._connectivity_updater.stop_updates(self._path)
+
+    # clear subscriptions and state before removing object (connnection deactivated)
+    def stop(self):
+        self._release()
 
         # set default state
         self.state = MqttConnectionState()
@@ -1065,7 +1313,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
+def main():  # pylint: disable=R0915
     options = parse_args()
     logging.basicConfig(level=logging.DEBUG if options.debug else logging.INFO)
 
@@ -1121,15 +1369,22 @@ def main():
 
     wbmqtt.remove_topics_by_device_prefix(mqtt_client, MQTT_DEVICE_TOPIC_PREFIX)
 
-    connections_mediator = ConnectionsMediator(mqtt_client, bus)
     try:
+        connections_mediator = ConnectionsMediator(mqtt_client, bus)
         connections_mediator.run()
-    except (KeyboardInterrupt, dbus.exceptions.DBusException):
+        if connections_mediator.failed:
+            exit_code = EXIT_FAILURE
+    except KeyboardInterrupt:
         pass
+    except dbus.exceptions.DBusException as ex:
+        # Restart=on-failure restarts the service only on a non-zero exit code
+        logging.error("D-Bus error: %s", ex)
+        exit_code = EXIT_FAILURE
     finally:
         logging.info("Stopping")
-        if not stop_requested.is_set():
-            connections_mediator.stop()  # a requested stop already ran it on the GLib thread
+        # a requested stop already ran it on the GLib thread
+        if connections_mediator is not None and not stop_requested.is_set():
+            connections_mediator.stop()
         if not mqtt_client.is_connected():
             logging.error("MQTT broker is not connected, retained topics cannot be removed")
         mqtt_client.stop()
