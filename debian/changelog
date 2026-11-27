@@ -1,3 +1,11 @@
+wb-nm-helper (1.40.2) stable; urgency=medium
+
+  * Switch the license to The WB License (MIT-WB): Wiren Board
+    as the copyright holder, 2022 as the first publication year, use restricted to Wiren Board equipment
+  * Fill debian/copyright in the DEP-5 format
+
+ -- Ekaterina Volkova <ekaterina.volkova@wirenboard.com>  Thu, 26 Nov 2026 18:17:41 +0300
+
 wb-nm-helper (1.40.1) stable; urgency=medium
 
   * wb-connection-manager: use less memory
